@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
 from pathlib import Path
 import random
 import shelve
@@ -25,24 +26,24 @@ class NoteVocab(object):
         self.config = config
         self.vocab = ['<pad>', '<sos>', '<eos>', '<unk>']
         self.vocab_lookup = {w: i for i, w in enumerate(self.vocab)}
+        self.aux_vocab = collections.defaultdict(list)
+        self.aux_vocab_lookup = collections.defaultdict(dict)
         self.sos_index = self.vocab_lookup.get('<sos>')
         self.eos_index = self.vocab_lookup.get('<eos>')
         self.unk_index = self.vocab_lookup.get('<unk>')
 
-    def prepare_vocab_from_fd(self, clear_fd=True, verbose=True):
+    def prepare_vocab_from_fd(self, vocab_fd, verbose=True):
         count = 0
-        for k, v in self.vocab_fd.most_common():
+        for k, v in vocab_fd.most_common():
             self.vocab_lookup[k] = len(self.vocab)
             self.vocab.append(k)
             count += v
-            if count / self.vocab_fd.N() >= self.config.keep_vocab:
+            if count / vocab_fd.N() >= self.config.keep_vocab:
                 break
         if verbose:
             print('Pruned vocabulary loaded, size:', len(self.vocab))
-        if clear_fd:
-            self.vocab_fd = None
 
-    def load_by_parsing(self, prepare_vocab=True, verbose=True):
+    def load_by_parsing(self, verbose=True):
         '''Read the vocab from the dataset'''
         if verbose:
             print('Loading vocabulary by parsing...')
@@ -54,13 +55,13 @@ class NoteVocab(object):
         lists = list(utils.grouper(group_size, patients_list))
         fds = utils.mt_map(self.config.threads, utils.partial_vocab,
                            zip(lists, [str(pshelf_file)] * len(lists)))
-        self.vocab_fd = nltk.FreqDist()
+        vocab_fd = nltk.FreqDist()
         for fd in fds:
-            self.vocab_fd.update(fd)
+            vocab_fd.update(fd)
         if verbose:
-            print('Full vocabulary size:', self.vocab_fd.B())
-        if prepare_vocab:
-            self.prepare_vocab_from_fd(verbose=verbose)
+            print('Full vocabulary size:', vocab_fd.B())
+        self.prepare_vocab_from_fd(vocab_fd, verbose=verbose)
+        return vocab_fd
 
     def load_from_pickle(self, verbose=True):
         '''Read the vocab from pickled files, saving if necessary'''
@@ -70,7 +71,8 @@ class NoteVocab(object):
             if verbose:
                 print('Loading vocabulary from pickle...')
             with pkfile.open('rb') as f:
-                self.vocab, self.vocab_lookup = pickle.load(f)
+                self.vocab, self.vocab_lookup, \
+                            self.aux_vocab, self.aux_vocab_lookup = pickle.load(f)
             if verbose:
                 print('Vocabulary loaded, size:', len(self.vocab))
         except IOError:
@@ -81,20 +83,21 @@ class NoteVocab(object):
                 if verbose:
                     print('Loading vocab freq dist from pickle...')
                 with fdfile.open('rb') as f:
-                    self.vocab_fd = pickle.load(f)
+                    vocab_fd = pickle.load(f)
                 if verbose:
-                    print('Full vocabulary loaded, size:', self.vocab_fd.B())
+                    print('Full vocabulary loaded, size:', vocab_fd.B())
+                self.prepare_vocab_from_fd(vocab_fd, verbose=verbose)
             except IOError:
                 if verbose:
                     print('Error loading freq dist from pickle, attempting parsing.')
-                self.load_by_parsing(prepare_vocab=False, verbose=verbose)
+                vocab_fd = self.load_by_parsing(verbose=verbose)
                 with fdfile.open('wb') as f:
-                    pickle.dump(self.vocab_fd, f, -1)
+                    pickle.dump(vocab_fd, f, -1)
                     if verbose:
                         print('Saved vocab freq dist pickle file.')
-            self.prepare_vocab_from_fd(verbose=verbose)
             with pkfile.open('wb') as f:
-                pickle.dump([self.vocab, self.vocab_lookup], f, -1)
+                pickle.dump([self.vocab, self.vocab_lookup, self.aux_vocab, self.aux_vocab_lookup],
+                            f, -1)
                 if verbose:
                     print('Saved vocab pickle file.')
 
