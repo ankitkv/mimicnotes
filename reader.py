@@ -18,10 +18,10 @@ from config import Config
 import utils
 
 
-class Vocab(object):
-    '''Stores the vocab: forward and reverse mappings'''
+class NoteVocab(object):
+    '''Stores the vocab: forward and reverse mappings, for text and other auxiliary info'''
 
-    def __init__(self, config):
+    def __init__(self, config):  # TODO aux vocab
         self.config = config
         self.vocab = ['<pad>', '<sos>', '<eos>', '<unk>']
         self.vocab_lookup = {w: i for i, w in enumerate(self.vocab)}
@@ -63,24 +63,40 @@ class Vocab(object):
             self.prepare_vocab_from_fd(verbose=verbose)
 
     def load_from_pickle(self, verbose=True):
-        '''Read the vocab from a pickled file'''
-        pkfile = Path(self.config.data_path) / self.config.vocab_file
+        '''Read the vocab from pickled files, saving if necessary'''
+        pkfile = Path(self.config.data_path) / ('%s.%.2f' % (self.config.vocab_file,
+                                                             self.config.keep_vocab))
         try:
             if verbose:
                 print('Loading vocabulary from pickle...')
             with pkfile.open('rb') as f:
-                self.vocab_fd = pickle.load(f)
+                self.vocab, self.vocab_lookup = pickle.load(f)
             if verbose:
-                print('Full vocabulary loaded, size:', self.vocab_fd.B())
+                print('Vocabulary loaded, size:', len(self.vocab))
         except IOError:
             if verbose:
-                print('Error loading from pickle, attempting parsing.')
-            self.load_by_parsing(prepare_vocab=False, verbose=verbose)
-            with pkfile.open('wb') as f:
-                pickle.dump(self.vocab_fd, f, -1)
+                print('Error loading from pickle, processing from freq dist for new keep_vocab.')
+            fdfile = Path(self.config.data_path) / self.config.vocab_fd_file
+            try:
                 if verbose:
-                    print('Saved pickle file.')
-        self.prepare_vocab_from_fd(verbose=verbose)
+                    print('Loading vocab freq dist from pickle...')
+                with fdfile.open('rb') as f:
+                    self.vocab_fd = pickle.load(f)
+                if verbose:
+                    print('Full vocabulary loaded, size:', self.vocab_fd.B())
+            except IOError:
+                if verbose:
+                    print('Error loading freq dist from pickle, attempting parsing.')
+                self.load_by_parsing(prepare_vocab=False, verbose=verbose)
+                with fdfile.open('wb') as f:
+                    pickle.dump(self.vocab_fd, f, -1)
+                    if verbose:
+                        print('Saved vocab freq dist pickle file.')
+            self.prepare_vocab_from_fd(verbose=verbose)
+            with pkfile.open('wb') as f:
+                pickle.dump([self.vocab, self.vocab_lookup], f, -1)
+                if verbose:
+                    print('Saved vocab pickle file.')
 
     def words2idxs(self, words):
         return [self.vocab_lookup.get(w, self.unk_index) for w in words]
@@ -89,8 +105,9 @@ class Vocab(object):
         return [self.vocab[idx] for idx in idxs]
 
 
-class Reader(object):
-    '''The reader class that '''
+class NoteReader(object):
+    '''The reader that yields vectorized notes and their respective patient and admission IDs
+       according to the requested split(s) (train, val, test)'''
 
     def __init__(self, config, vocab):
         self.config = config
@@ -105,6 +122,12 @@ class Reader(object):
         self.splits['val'] = patients_list[trainidx:validx]
         self.splits['test'] = patients_list[validx:]
         random.seed(0)  # deterministic random
+
+    def label_info(self, patient, admission):
+        '''Can be extended to provide different kinds of labels'''
+        if patient is None:
+            return (None, None)
+        return (admission.patient_id, admission.admission_id)
 
     def read_notes(self, patients_list):
         '''Read single notes from data'''
@@ -124,7 +147,7 @@ class Reader(object):
                         note_text.extend(sent)
                     vocab_note = [self.vocab.sos_index] + self.vocab.words2idxs(note_text) + \
                                  [self.vocab.eos_index]
-                    yield (vocab_note, (pid, adm.admission_id))
+                    yield (vocab_note, self.label_info(patient, adm))
 
     def buffered_read_sorted_notes(self, patients_list, batches=50):
         '''Read and return a list of notes (length multiple of batch_size) worth at most $batches
@@ -141,8 +164,8 @@ class Reader(object):
             notes.sort(key=lambda x: len(x[0]))
             mod = len(notes) % self.config.batch_size
             if mod != 0:
-                notes = [([], (None, None)) for _ in range(self.config.batch_size - mod)] + \
-                        notes
+                notes = [([], self.label_info(None, None))
+                         for _ in range(self.config.batch_size - mod)] + notes
             yield notes
 
     def buffered_read(self, patients_list):
@@ -153,6 +176,10 @@ class Reader(object):
             for batch in batches:
                 yield self.pack(batch)
 
+    def label_pack(self, label_info):
+        '''Pack python-list label batches into numpy batches if needed'''
+        return label_info
+
     def pack(self, batch):
         '''Pack python-list batches into numpy batches'''
         max_size = max(len(b[0]) for b in batch)
@@ -161,7 +188,7 @@ class Reader(object):
         for i, b in enumerate(batch):
             ret_batch[i, :len(b[0])] = b[0]
             lengths[i] = len(b[0])
-        return (ret_batch, lengths, [b[1] for b in batch])
+        return (ret_batch, lengths, self.label_pack([b[1] for b in batch]))
 
     def get(self, splits, verbose=True):
         '''Read batches from data'''
@@ -172,13 +199,29 @@ class Reader(object):
             yield batch
 
 
+class NoteICD9Reader(NoteReader):
+    '''A note reader that considers ICD9 codes as labels'''
+
+    def __init__(self, config, vocab):
+        super(NoteICD9Reader, self).__init__(config, vocab)
+
+    def label_info(self, patient, admission):  # TODO
+        if patient is None:
+            return (None, None)
+        return (admission.patient_id, admission.admission_id)
+
+    def label_pack(self, label_info):  # TODO
+        '''Pack python-list label batches into numpy batches if needed'''
+        return label_info
+
+
 def main(_):
     '''Reader tests'''
     config = Config()
-    vocab = Vocab(config)
+    vocab = NoteVocab(config)
     vocab.load_from_pickle()
 
-    reader = Reader(config, vocab)
+    reader = NoteICD9Reader(config, vocab)
     words = 0
     for batch in reader.get(['train']):
         for note in batch[0]:
