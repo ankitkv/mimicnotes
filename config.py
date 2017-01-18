@@ -13,12 +13,12 @@ flags = tf.flags
 flags.DEFINE_string ("data_path",  "data",              "Data path")
 flags.DEFINE_string ("save_file",  "models/recent.dat", "Save file")
 flags.DEFINE_string ("load_file",  "",                  "File to load model from")
-flags.DEFINE_string ("vocab_file", "vocab.pk",          "Vocab pickle file in data path")
+flags.DEFINE_string ("vocab_file", "vocab_fd.pk",       "Vocab freqs pickle file in data path")
 
 flags.DEFINE_integer("batch_size",  64,   "Batch size")
 flags.DEFINE_integer("threads",     -1,   "Maximum number of threads/subprocesses. -1 to "
                                           "automatically determine")
-flags.DEFINE_float  ("keep_vocab",  0.98, "Fraction of data for vocab to cover")
+flags.DEFINE_float  ("keep_vocab",  0.97, "Fraction of data for vocab to cover")
 flags.DEFINE_float  ("train_split", 0.9,  "Fraction of patients for training. "
                                           "test = 1 - train - val")
 flags.DEFINE_float  ("val_split",   0.03, "Fraction of patients for validation. "

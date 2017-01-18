@@ -46,7 +46,7 @@ def partial_vocab(args):
         if pid is None:
             break
         try:
-            ipid = int(pid)
+            int(pid)
         except ValueError:
             continue
         patient = shelf[pid]

@@ -23,65 +23,67 @@ class Vocab(object):
 
     def __init__(self, config):
         self.config = config
-        self.vocab = ['<sos>', '<eos>', '<unk>']
+        self.vocab = ['<pad>', '<sos>', '<eos>', '<unk>']
         self.vocab_lookup = {w: i for i, w in enumerate(self.vocab)}
-        self._init_special()
-
-    def _init_special(self):
         self.sos_index = self.vocab_lookup.get('<sos>')
         self.eos_index = self.vocab_lookup.get('<eos>')
         self.unk_index = self.vocab_lookup.get('<unk>')
 
-    def load_by_parsing(self, verbose=True):
+    def prepare_vocab_from_fd(self, clear_fd=True, verbose=True):
+        count = 0
+        for k, v in self.vocab_fd.most_common():
+            self.vocab_lookup[k] = len(self.vocab)
+            self.vocab.append(k)
+            count += v
+            if count / self.vocab_fd.N() >= self.config.keep_vocab:
+                break
+        if verbose:
+            print('Pruned vocabulary loaded, size:', len(self.vocab))
+        if clear_fd:
+            self.vocab_fd = None
+
+    def load_by_parsing(self, prepare_vocab=True, verbose=True):
         '''Read the vocab from the dataset'''
         if verbose:
             print('Loading vocabulary by parsing...')
         plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
         pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
         with plist_file.open('rb') as f:
-            patients_list = pickle.load(f)
+            patients_list = pickle.load(f)[:500]  # TODO FIXME
         group_size = int(0.5 + (len(patients_list) / self.config.threads))
         lists = list(utils.grouper(group_size, patients_list))
         fds = utils.mt_map(self.config.threads, utils.partial_vocab,
                            zip(lists, [str(pshelf_file)] * len(lists)))
-        fd = nltk.FreqDist()
-        for d in fds:
-            fd.update(d)
+        self.vocab_fd = nltk.FreqDist()
+        for fd in fds:
+            self.vocab_fd.update(fd)
         if verbose:
-            print('Full vocabulary size:', fd.B())
-        count = 0
-        for k, v in fd.most_common():
-            self.vocab_lookup[k] = len(self.vocab)
-            self.vocab.append(k)
-            count += v
-            if count / fd.B() >= self.config.keep_vocab:
-                break
-        if verbose:
-            print('Pruned vocabulary loaded, size:', len(self.vocab))
+            print('Full vocabulary size:', self.vocab_fd.B())
+        if prepare_vocab:
+            self.prepare_vocab_from_fd(verbose=verbose)
 
     def load_from_pickle(self, verbose=True):
         '''Read the vocab from a pickled file'''
-        pkfile = Path(self.config.data_path) / ('%s.%.2f' % (self.config.vocab_file,
-                                                             self.config.keep_vocab))
+        pkfile = Path(self.config.data_path) / self.config.vocab_file
         try:
             if verbose:
                 print('Loading vocabulary from pickle...')
             with pkfile.open('rb') as f:
-                self.vocab, self.vocab_lookup = pickle.load(f)
-                self._init_special()
+                self.vocab_fd = pickle.load(f)
             if verbose:
-                print('Vocabulary loaded, size:', len(self.vocab))
+                print('Full vocabulary loaded, size:', self.vocab_fd.B())
         except IOError:
             if verbose:
                 print('Error loading from pickle, attempting parsing.')
-            self.load_by_parsing(verbose=verbose)
+            self.load_by_parsing(prepare_vocab=False, verbose=verbose)
             with pkfile.open('wb') as f:
-                pickle.dump([self.vocab, self.vocab_lookup], f, -1)
+                pickle.dump(self.vocab_fd, f, -1)
                 if verbose:
                     print('Saved pickle file.')
+        self.prepare_vocab_from_fd(verbose=verbose)
 
     def words2idxs(self, words):
-        return [self.vocab_lookup.get(w) for w in words]
+        return [self.vocab_lookup.get(w, self.unk_index) for w in words]
 
     def idxs2words(self, idxs):
         return [self.vocab[idx] for idx in idxs]
@@ -95,7 +97,7 @@ class Reader(object):
         self.vocab = vocab
         plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
         with plist_file.open('rb') as f:
-            patients_list = pickle.load(f)
+            patients_list = pickle.load(f)[:500]  # TODO FIXME
         self.splits = {}
         trainidx = int(self.config.train_split * len(patients_list))
         validx = trainidx + int(self.config.val_split * len(patients_list))
@@ -104,14 +106,14 @@ class Reader(object):
         self.splits['test'] = patients_list[validx:]
         random.seed(0)  # deterministic random
 
-    def read_notes(self, patients_list):
+    def read_notes(self, patients_list):  # TODO use Queue for a multithreaded read
         '''Read single notes from data'''
         shelf = shelve.open(str(Path(self.config.data_path) / 'processed/patients.shlf'))
         for pid in patients_list:
             if pid is None:
                 break
             try:
-                ipid = int(pid)
+                int(pid)
             except ValueError:
                 continue
             patient = shelf[pid]
@@ -120,7 +122,7 @@ class Reader(object):
                     note_text = []
                     for sent in utils.mimic_tokenize(note.note_text):
                         note_text.extend(sent)
-                    vocab_note = [self.vocab.sos_index] + self.vocab.lookup(note_text) + \
+                    vocab_note = [self.vocab.sos_index] + self.vocab.words2idxs(note_text) + \
                                  [self.vocab.eos_index]
                     yield (vocab_note, (pid, adm.admission_id))
 
@@ -151,16 +153,15 @@ class Reader(object):
             for batch in batches:
                 yield self.pack(batch)
 
-    def pack(self, batch_data):
+    def pack(self, batch):
         '''Pack python-list batches into numpy batches'''
-        batch = batch_data[0]
-        max_size = max(len(s) for s in batch)
+        max_size = max(len(b[0]) for b in batch)
         ret_batch = np.zeros([self.config.batch_size, max_size], dtype=np.int32)
         lengths = np.zeros([self.config.batch_size], dtype=np.int32)
-        for i, s in enumerate(batch):
-            ret_batch[i, :len(s)] = s
-            lengths[i] = len(s)
-        return (ret_batch, lengths, batch_data[1])
+        for i, b in enumerate(batch):
+            ret_batch[i, :len(b[0])] = b[0]
+            lengths[i] = len(b[0])
+        return (ret_batch, lengths, [b[1] for b in batch])
 
     def get(self, splits):
         '''Read batches from data'''

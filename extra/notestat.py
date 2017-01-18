@@ -38,7 +38,7 @@ def partial_stat(patients):
         if pid is None:
             break
         try:
-            ipid = int(pid)
+            int(pid)
         except ValueError:
             continue
         patient = shelf[pid]
