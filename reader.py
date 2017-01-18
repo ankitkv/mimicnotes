@@ -49,7 +49,7 @@ class Vocab(object):
         plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
         pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
         with plist_file.open('rb') as f:
-            patients_list = pickle.load(f)[:500]  # TODO FIXME
+            patients_list = pickle.load(f)
         group_size = int(0.5 + (len(patients_list) / self.config.threads))
         lists = list(utils.grouper(group_size, patients_list))
         fds = utils.mt_map(self.config.threads, utils.partial_vocab,
@@ -97,7 +97,7 @@ class Reader(object):
         self.vocab = vocab
         plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
         with plist_file.open('rb') as f:
-            patients_list = pickle.load(f)[:500]  # TODO FIXME
+            patients_list = pickle.load(f)
         self.splits = {}
         trainidx = int(self.config.train_split * len(patients_list))
         validx = trainidx + int(self.config.val_split * len(patients_list))
@@ -106,7 +106,7 @@ class Reader(object):
         self.splits['test'] = patients_list[validx:]
         random.seed(0)  # deterministic random
 
-    def read_notes(self, patients_list):  # TODO use Queue for a multithreaded read
+    def read_notes(self, patients_list):
         '''Read single notes from data'''
         shelf = shelve.open(str(Path(self.config.data_path) / 'processed/patients.shlf'))
         for pid in patients_list:
@@ -163,8 +163,10 @@ class Reader(object):
             lengths[i] = len(b[0])
         return (ret_batch, lengths, [b[1] for b in batch])
 
-    def get(self, splits):
+    def get(self, splits, verbose=True):
         '''Read batches from data'''
+        if verbose:
+            print('Getting data from', '+'.join(splits), 'split')
         patients_list = sum([self.splits[s] for s in splits], [])
         for batch in self.buffered_read(patients_list):
             yield batch
@@ -177,13 +179,16 @@ def main(_):
     vocab.load_from_pickle()
 
     reader = Reader(config, vocab)
+    words = 0
     for batch in reader.get(['train']):
         for note in batch[0]:
-            print(note)
-            for e in note:
-                print(vocab.vocab[e], end=' ')
-            print()
-            print()
+            words += len(note)
+#            print(note)
+#            for e in note:
+#                print(vocab.vocab[e], end=' ')
+#            print()
+#            print()
+    print(words)
 
 
 if __name__ == '__main__':
