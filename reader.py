@@ -222,14 +222,17 @@ class NoteICD9Reader(NoteReader):
     def __init__(self, config, vocab):
         super(NoteICD9Reader, self).__init__(config, vocab)
 
-    def label_info(self, patient, admission):  # TODO
+    def label_info(self, patient, admission):
+        label = np.zeros([len(self.vocab.aux_vocab['dgn'])], dtype=np.int)
         if patient is None:
-            return (None, None)
-        return (admission.patient_id, admission.admission_id)
+            return label
+        vocab_lookup = self.vocab.aux_vocab_lookup['dgn']
+        for diag in admission.dgn_events:
+            label[vocab_lookup[diag.code]] = 1
+        return label
 
-    def label_pack(self, label_info):  # TODO
-        '''Pack python-list label batches into numpy batches if needed'''
-        return label_info
+    def label_pack(self, label_info):
+        return np.array(label_info)
 
 
 def main(_):
@@ -241,8 +244,13 @@ def main(_):
     reader = NoteICD9Reader(config, vocab)
     words = 0
     for batch in reader.get(['train']):
-        for note in batch[0]:
+        for i in range(batch[0].shape[0]):
+            note = batch[0][i]
+            length = batch[1][i]
+            label = batch[2][i]
             words += len(note)
+            print(label)
+            print()
 #            print(note)
 #            for e in note:
 #                print(vocab.vocab[e], end=' ')
