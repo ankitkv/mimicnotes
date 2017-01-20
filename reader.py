@@ -146,6 +146,9 @@ class NoteReader(object):
             return (None, None)
         return (admission.patient_id, admission.admission_id)
 
+    def label_space_size(self):
+        return 2
+
     def read_notes(self, patients_list):
         '''Read single notes from data'''
         shelf = shelve.open(str(Path(self.config.data_path) / 'processed/patients.shlf'))
@@ -230,6 +233,9 @@ class NoteICD9Reader(NoteReader):
         for diag in admission.dgn_events:
             label[vocab_lookup[diag.code]] = 1
         return label
+
+    def label_space_size(self):
+        return len(self.vocab.aux_vocab['dgn'])
 
     def label_pack(self, label_info):
         return np.array(label_info)
