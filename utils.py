@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
 import itertools
 from multiprocessing import Pool
 import re
@@ -42,6 +43,7 @@ def partial_vocab(args):
     patients_list, shlf_file = args
     shelf = shelve.open(shlf_file)
     fd = nltk.FreqDist()
+    aux_fd = collections.defaultdict(nltk.FreqDist)
     for pid in patients_list:
         if pid is None:
             break
@@ -51,10 +53,21 @@ def partial_vocab(args):
             continue
         patient = shelf[pid]
         for adm in patient.admissions.values():
+            for pres in adm.psc_events:
+                ndc = pres.drug_codes[-1]
+                if ndc == '0':
+                    name = '<missing>'
+                else:
+                    name =  pres.drug_names[0]
+                aux_fd['psc'].update([(ndc, name)])
+            for proc in adm.pcd_events:
+                aux_fd['pcd'].update([(proc.code, proc.name)])
+            for diag in adm.dgn_events:
+                aux_fd['dgn'].update([(diag.code, diag.name)])
             for note in adm.nte_events:
                 for sent in mimic_tokenize(note.note_text):
                     fd.update(sent)
-    return fd
+    return fd, aux_fd
 
 
 def grouper(n, iterable, fillvalue=None):
