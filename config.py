@@ -17,15 +17,16 @@ flags.DEFINE_string ("vocab_file",    "vocab.pk",          "Vocab pickle file pr
 flags.DEFINE_string ("vocab_fd_file", "vocab_fd.pk",       "Vocab freqs pickle file in data path")
 flags.DEFINE_string ("note_type",     "Discharge summary", "The type of notes to consider")
 
-flags.DEFINE_integer("batch_size",  64,   "Batch size")
-flags.DEFINE_integer("threads",     -1,   "Maximum number of threads/subprocesses. -1 to "
-                                          "automatically determine")
-flags.DEFINE_integer("epochs",      -1,   "Maximum number of epochs. -1 for no limit")
-flags.DEFINE_float  ("keep_vocab",  0.97, "Fraction of data for vocab to cover")
-flags.DEFINE_float  ("train_split", 0.9,  "Fraction of patients for training. "
-                                          "test = 1 - train - val")
-flags.DEFINE_float  ("val_split",   0.03, "Fraction of patients for validation. "
-                                          "test = 1 - train - val")
+flags.DEFINE_integer("batch_size",     64,   "Batch size")
+flags.DEFINE_integer("max_dgn_labels", 500,  "Diagnoses vocabulary for labels. -1 for default")
+flags.DEFINE_integer("threads",        -1,   "Maximum number of threads/subprocesses. -1 to "
+                                             "automatically determine")
+flags.DEFINE_integer("epochs",         -1,   "Maximum number of epochs. -1 for no limit")
+flags.DEFINE_float  ("keep_vocab",     0.97, "Fraction of data for vocab to cover")
+flags.DEFINE_float  ("train_split",    0.9,  "Fraction of patients for training. "
+                                             "test = 1 - train - val")
+flags.DEFINE_float  ("val_split",      0.03, "Fraction of patients for validation. "
+                                             "test = 1 - train - val")
 
 
 class Config(object):

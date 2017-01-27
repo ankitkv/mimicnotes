@@ -229,12 +229,18 @@ class NoteICD9Reader(NoteReader):
         super(NoteICD9Reader, self).__init__(config, vocab)
 
     def label_info(self, admission):
-        label = np.zeros([len(self.vocab.aux_vocab['dgn'])], dtype=np.int)
+        max_dgn_labels = len(self.vocab.aux_vocab['dgn'])
+        if self.config.max_dgn_labels > 0:
+            max_dgn_labels = min(max_dgn_labels, self.config.max_dgn_labels)
+        label = np.zeros([max_dgn_labels], dtype=np.int)
         if admission is None:
             return label
         vocab_lookup = self.vocab.aux_vocab_lookup['dgn']
         for diag in admission.dgn_events:
-            label[vocab_lookup[diag.code]] = 1
+            try:
+                label[vocab_lookup[diag.code]] = 1
+            except IndexError:
+                pass
         return label
 
     def label_space_size(self):
