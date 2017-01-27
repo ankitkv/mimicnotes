@@ -146,37 +146,33 @@ class NoteReader(object):
         self.splits['test'] = patients_list[validx:]
         random.seed(0)  # deterministic random
 
-    def label_info(self, patient, admission):
+    def label_info(self, admission):
         '''Can be extended to provide different kinds of labels'''
-        if patient is None:
+        if admission is None:
             return (None, None)
         return (admission.patient_id, admission.admission_id)
 
     def label_space_size(self):
         return 2
 
-    def read_notes(self, patients_list):
+    def read_notes(self, patients_list, chunk_size=200):
         '''Read single notes from data'''
-        shelf = shelve.open(str(Path(self.config.data_path) / 'processed/patients.shlf'))
-        for pid in patients_list:
-            if pid is None:
-                break
-            try:
-                int(pid)
-            except ValueError:
-                continue
-            patient = shelf[pid]
-            for adm in patient.admissions.values():
-                for note in adm.nte_events:
-                    if not self.config.note_type or note.note_cat == self.config.note_type:
-                        note_text = []
-                        for sent in utils.mimic_tokenize(note.note_text):
-                            note_text.extend(sent)
-                        vocab_note = [self.vocab.sos_index] + self.vocab.words2idxs(note_text) + \
-                                     [self.vocab.eos_index]
-                        yield (vocab_note, self.label_info(patient, adm))
+        pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
+        list_chunks = utils.grouper(chunk_size, patients_list)
+        for patients_list in list_chunks:
+            group_size = int(0.5 + (len(patients_list) / self.config.threads))
+            lists = list(utils.grouper(group_size, patients_list))
+            data = utils.mt_map(self.config.threads, utils.partial_read,
+                                zip(lists, [(str(pshelf_file),
+                                             self.config.note_type)] * len(lists)))
+            for thread_data in data:
+                for note in thread_data:
+                    adm, note_text = note
+                    vocab_note = [self.vocab.sos_index] + self.vocab.words2idxs(note_text) + \
+                                 [self.vocab.eos_index]
+                    yield (vocab_note, self.label_info(adm))
 
-    def buffered_read_sorted_notes(self, patients_list, batches=50):
+    def buffered_read_sorted_notes(self, patients_list, batches=32):
         '''Read and return a list of notes (length multiple of batch_size) worth at most $batches
            number of batches sorted in length'''
         buffer_size = self.config.batch_size * batches
@@ -191,7 +187,7 @@ class NoteReader(object):
             notes.sort(key=lambda x: len(x[0]))
             mod = len(notes) % self.config.batch_size
             if mod != 0:
-                notes = [([], self.label_info(None, None))
+                notes = [([], self.label_info(None))
                          for _ in range(self.config.batch_size - mod)] + notes
             yield notes
 
@@ -232,9 +228,9 @@ class NoteICD9Reader(NoteReader):
     def __init__(self, config, vocab):
         super(NoteICD9Reader, self).__init__(config, vocab)
 
-    def label_info(self, patient, admission):
+    def label_info(self, admission):
         label = np.zeros([len(self.vocab.aux_vocab['dgn'])], dtype=np.int)
-        if patient is None:
+        if admission is None:
             return label
         vocab_lookup = self.vocab.aux_vocab_lookup['dgn']
         for diag in admission.dgn_events:

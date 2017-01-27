@@ -76,6 +76,28 @@ def partial_vocab(args):
     return fd, aux_fd
 
 
+def partial_read(args):
+    patients_list, (shlf_file, note_type) = args
+    shelf = shelve.open(shlf_file)
+    ret = []
+    for pid in patients_list:
+        if pid is None:
+            break
+        try:
+            int(pid)
+        except ValueError:
+            continue
+        patient = shelf[pid]
+        for adm in patient.admissions.values():
+            for note in adm.nte_events:
+                if not note_type or note.note_cat == note_type:
+                    note_text = []
+                    for sent in mimic_tokenize(note.note_text):
+                        note_text.extend(sent)
+                    ret.append((adm, note_text))
+    return ret
+
+
 def grouper(n, iterable, fillvalue=None):
     '''Group elements of iterable in groups of n. For example:
        >>> [e for e in grouper(3, [1,2,3,4,5,6,7])]
@@ -88,9 +110,12 @@ def mt_map(threads, func, operands):
     '''Multithreaded map if threads > 1. threads = 1 is useful for debugging.'''
     if threads > 1:
         p = Pool(threads)
-        return p.map(func, operands)
+        ret = p.map_async(func, operands).get(9999999)
+        p.close()
+        p.join()
     else:
-        return map(func, operands)
+        ret = map(func, operands)
+    return ret
 
 
 def linear(args, output_size, bias, bias_start=0.0, scope=None, initializer=None):
