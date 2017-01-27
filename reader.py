@@ -229,12 +229,13 @@ class NoteICD9Reader(NoteReader):
 
     def __init__(self, config, vocab):
         super(NoteICD9Reader, self).__init__(config, vocab)
+        self.max_dgn_labels = len(self.vocab.aux_vocab['dgn'])
+        if self.config.max_dgn_labels > 0:
+            self.max_dgn_labels = min(self.max_dgn_labels, self.config.max_dgn_labels)
 
     def label_info(self, admission):
-        max_dgn_labels = len(self.vocab.aux_vocab['dgn'])
-        if self.config.max_dgn_labels > 0:
-            max_dgn_labels = min(max_dgn_labels, self.config.max_dgn_labels)
-        label = np.zeros([max_dgn_labels], dtype=np.int)
+
+        label = np.zeros([self.max_dgn_labels], dtype=np.int)
         if admission is None:
             return label
         vocab_lookup = self.vocab.aux_vocab_lookup['dgn']
@@ -246,7 +247,7 @@ class NoteICD9Reader(NoteReader):
         return label
 
     def label_space_size(self):
-        return len(self.vocab.aux_vocab['dgn'])
+        return self.max_dgn_labels
 
     def label_pack(self, label_info):
         return np.array(label_info)

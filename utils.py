@@ -118,6 +118,19 @@ def mt_map(threads, func, operands):
     return ret
 
 
+def get_optimizer(lr, name):
+    '''Return an optimizer.'''
+    if name == 'sgd':
+        optimizer = tf.train.GradientDescentOptimizer(lr)
+    elif name == 'adam':
+        optimizer = tf.train.AdamOptimizer(lr)
+    elif name == 'adagrad':
+        optimizer = tf.train.AdagradOptimizer(lr)
+    elif name == 'adadelta':
+        optimizer = tf.train.AdadeltaOptimizer(lr)
+    return optimizer
+
+
 def linear(args, output_size, bias, bias_start=0.0, scope=None, initializer=None):
     """Linear map: sum_i(args[i] * W[i]), where W[i] is a variable.
     Args:
