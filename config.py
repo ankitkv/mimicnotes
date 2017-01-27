@@ -15,6 +15,7 @@ flags.DEFINE_string ("save_file",     "models/recent.dat", "Save file")
 flags.DEFINE_string ("load_file",     "",                  "File to load model from")
 flags.DEFINE_string ("vocab_file",    "vocab.pk",          "Vocab pickle file prefix in data path")
 flags.DEFINE_string ("vocab_fd_file", "vocab_fd.pk",       "Vocab freqs pickle file in data path")
+flags.DEFINE_string ("note_type",     "Discharge summary", "The type of notes to consider")
 
 flags.DEFINE_integer("batch_size",  64,   "Batch size")
 flags.DEFINE_integer("threads",     -1,   "Maximum number of threads/subprocesses. -1 to "

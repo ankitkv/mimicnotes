@@ -41,7 +41,7 @@ def mimic_tokenize(text):
 
 
 def partial_vocab(args):
-    patients_list, shlf_file = args
+    patients_list, (shlf_file, note_type) = args
     shelf = shelve.open(shlf_file)
     fd = nltk.FreqDist()
     aux_fd = collections.defaultdict(nltk.FreqDist)
@@ -54,6 +54,14 @@ def partial_vocab(args):
             continue
         patient = shelf[pid]
         for adm in patient.admissions.values():
+            note_found = False
+            for note in adm.nte_events:
+                if not note_type or note.note_cat == note_type:
+                    note_found = True
+                    for sent in mimic_tokenize(note.note_text):
+                        fd.update(sent)
+            if not note_found:
+                continue
             for pres in adm.psc_events:
                 ndc = pres.drug_codes[-1]
                 if ndc == '0':
@@ -65,9 +73,6 @@ def partial_vocab(args):
                 aux_fd['pcd'].update([(proc.code, proc.name)])
             for diag in adm.dgn_events:
                 aux_fd['dgn'].update([(diag.code, diag.name)])
-            for note in adm.nte_events:
-                for sent in mimic_tokenize(note.note_text):
-                    fd.update(sent)
     return fd, aux_fd
 
 

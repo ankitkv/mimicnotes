@@ -63,7 +63,7 @@ class NoteVocab(object):
         group_size = int(0.5 + (len(patients_list) / self.config.threads))
         lists = list(utils.grouper(group_size, patients_list))
         fds = utils.mt_map(self.config.threads, utils.partial_vocab,
-                           zip(lists, [str(pshelf_file)] * len(lists)))
+                           zip(lists, [(str(pshelf_file), self.config.note_type)] * len(lists)))
         vocab_fd = nltk.FreqDist()
         vocab_aux_fd = collections.defaultdict(nltk.FreqDist)
         for fd, aux_fd in fds:
@@ -77,8 +77,11 @@ class NoteVocab(object):
 
     def load_from_pickle(self, verbose=True):
         '''Read the vocab from pickled files, saving if necessary'''
-        pkfile = Path(self.config.data_path) / ('%s.%.2f' % (self.config.vocab_file,
-                                                             self.config.keep_vocab))
+        vocab_file = self.config.vocab_file
+        if self.config.note_type:
+            vocab_file += '.' + self.config.note_type
+        vocab_file += '.%.2f' % self.config.keep_vocab
+        pkfile = Path(self.config.data_path) / vocab_file
         try:
             if verbose:
                 print('Loading vocabulary from pickle...')
@@ -92,7 +95,10 @@ class NoteVocab(object):
         except IOError:
             if verbose:
                 print('Error loading from pickle, processing from freq dist for new keep_vocab.')
-            fdfile = Path(self.config.data_path) / self.config.vocab_fd_file
+            vocab_fd_file = self.config.vocab_fd_file
+            if self.config.note_type:
+                vocab_fd_file += '.' + self.config.note_type
+            fdfile = Path(self.config.data_path) / vocab_fd_file
             try:
                 if verbose:
                     print('Loading vocab freq dist from pickle...')
@@ -162,12 +168,13 @@ class NoteReader(object):
             patient = shelf[pid]
             for adm in patient.admissions.values():
                 for note in adm.nte_events:
-                    note_text = []
-                    for sent in utils.mimic_tokenize(note.note_text):
-                        note_text.extend(sent)
-                    vocab_note = [self.vocab.sos_index] + self.vocab.words2idxs(note_text) + \
-                                 [self.vocab.eos_index]
-                    yield (vocab_note, self.label_info(patient, adm))
+                    if not self.config.note_type or note.note_cat == self.config.note_type:
+                        note_text = []
+                        for sent in utils.mimic_tokenize(note.note_text):
+                            note_text.extend(sent)
+                        vocab_note = [self.vocab.sos_index] + self.vocab.words2idxs(note_text) + \
+                                     [self.vocab.eos_index]
+                        yield (vocab_note, self.label_info(patient, adm))
 
     def buffered_read_sorted_notes(self, patients_list, batches=50):
         '''Read and return a list of notes (length multiple of batch_size) worth at most $batches
