@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import collections
+import nltk
 import itertools
 import multiprocessing
 from multiprocessing import Pool
@@ -33,7 +33,7 @@ def partial_stat(patients):
     pat_no_notes = 0
     adm_notes = 0
     adm_no_notes = 0
-    cat_count = collections.defaultdict(int)
+    cat_count = nltk.FreqDist()
     for pid in patients:
         if pid is None:
             break
@@ -50,7 +50,7 @@ def partial_stat(patients):
             else:
                 adm_no_notes += 1
             for note in adm.nte_events:
-                cat_count[note.note_cat] += 1
+                cat_count.update([note.note_cat])
         if has_notes:
             pat_notes += 1
         else:
@@ -71,7 +71,7 @@ pat_notes = 0
 pat_no_notes = 0
 adm_notes = 0
 adm_no_notes = 0
-cat_count = {}
+cat_count = nltk.FreqDist()
 
 for pn, pnn, an, ann, cc in outs:
     pat_notes += pn
@@ -86,4 +86,5 @@ print('Patients with no notes:', pat_no_notes)
 print('Admissions with notes:', adm_notes)
 print('Admissions with no notes:', adm_no_notes)
 print('Category counts:')
-print(cat_count)
+for k, v in cat_count.items():
+    print(k, v)
