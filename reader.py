@@ -170,6 +170,8 @@ class NoteReader(object):
                     adm, note_text = note
                     vocab_note = [self.vocab.sos_index] + self.vocab.words2idxs(note_text) + \
                                  [self.vocab.eos_index]
+                    if self.config.max_note_len > 0:
+                        vocab_note = vocab_note[:self.config.max_note_len]
                     yield (vocab_note, self.label_info(adm))
 
     def buffered_read_sorted_notes(self, patients_list, batches=32):

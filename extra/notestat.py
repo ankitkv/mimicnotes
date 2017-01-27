@@ -2,16 +2,47 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import nltk
 import itertools
+import matplotlib.pyplot as plt
 import multiprocessing
 from multiprocessing import Pool
+import nltk
+import numpy as np
+import re
 
 import shelve
 try:
     import cPickle as pickle
 except:
     import pickle
+
+
+re_anon = re.compile(r'\[\*\*.*?\*\*\]')
+fix_re = re.compile(r"[^a-z0-9/'?.,-]+")
+num_re = re.compile(r'[0-9]+')
+dash_re = re.compile(r'-+')
+
+
+def fix_word(word):
+    word = word.lower()
+    word = fix_re.sub('-', word)
+    word = word.replace('-anon-', '<anon>')
+    word = num_re.sub('#', word)
+    word = dash_re.sub('-', word)
+    return word.strip('-')
+
+
+def mimic_tokenize(text):
+    '''Takes in a raw string and returns a list of sentences, each sentence being a list of
+       cleaned words.'''
+    ret = []
+    for sent in nltk.sent_tokenize(text):
+        sent = re_anon.sub('-anon-', sent)
+        words = nltk.word_tokenize(sent)
+        words = [fix_word(word) for word in words]
+        words = [word for word in words if word]
+        ret.append(words)
+    return ret
 
 
 def grouper(n, iterable, fillvalue=None):
@@ -24,7 +55,7 @@ def grouper(n, iterable, fillvalue=None):
 
 with open('../data/processed/patients_list.pk') as f:
     patients_list = pickle.load(f)
-# patients_list = patients_list[:1000]
+# patients_list = patients_list[:100]
 
 
 def partial_stat(patients):
@@ -34,6 +65,7 @@ def partial_stat(patients):
     adm_notes = 0
     adm_no_notes = 0
     cat_count = nltk.FreqDist()
+    ds_lengths = nltk.FreqDist()
     for pid in patients:
         if pid is None:
             break
@@ -50,13 +82,15 @@ def partial_stat(patients):
             else:
                 adm_no_notes += 1
             for note in adm.nte_events:
+                if note.note_cat == 'Discharge summary':
+                    ds_lengths.update([sum(len(s) for s in mimic_tokenize(note.note_text))])
                 cat_count.update([note.note_cat])
         if has_notes:
             pat_notes += 1
         else:
             pat_no_notes += 1
     print('Done')
-    return (pat_notes, pat_no_notes, adm_notes, adm_no_notes, cat_count)
+    return (pat_notes, pat_no_notes, adm_notes, adm_no_notes, cat_count, ds_lengths)
 
 
 cores = int(.5 + (.9 * float(multiprocessing.cpu_count())))
@@ -72,13 +106,15 @@ pat_no_notes = 0
 adm_notes = 0
 adm_no_notes = 0
 cat_count = nltk.FreqDist()
+ds_lengths = nltk.FreqDist()
 
-for pn, pnn, an, ann, cc in outs:
+for pn, pnn, an, ann, cc, ds in outs:
     pat_notes += pn
     pat_no_notes += pnn
     adm_notes += an
     adm_no_notes += ann
     cat_count.update(cc)
+    ds_lengths.update(ds)
 
 
 print('Patients with notes:', pat_notes)
@@ -88,3 +124,8 @@ print('Admissions with no notes:', adm_no_notes)
 print('Category counts:')
 for k, v in cat_count.items():
     print(k, v)
+
+x = np.array([e for e in ds_lengths.elements()])
+
+plt.hist(x, 50, facecolor='green', alpha=0.75)
+plt.show()

@@ -18,6 +18,7 @@ flags.DEFINE_string ("vocab_fd_file", "vocab_fd.pk",       "Vocab freqs pickle f
 flags.DEFINE_string ("note_type",     "Discharge summary", "The type of notes to consider")
 
 flags.DEFINE_integer("batch_size",     64,   "Batch size")
+flags.DEFINE_integer("max_note_len",   4500, "Maximum note length. -1 to disable")
 flags.DEFINE_integer("max_dgn_labels", 500,  "Diagnoses vocabulary for labels. -1 for default")
 flags.DEFINE_integer("threads",        -1,   "Maximum number of threads/subprocesses. -1 to "
                                              "automatically determine")
