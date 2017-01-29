@@ -13,9 +13,7 @@ flags = tf.flags
 flags.DEFINE_string ("data_path",     "data",              "Data path")
 flags.DEFINE_string ("save_file",     "models/recent.dat", "Save file")
 flags.DEFINE_string ("load_file",     "",                  "File to load model from")
-flags.DEFINE_string ("vocab_file",    "vocab.pk",          "Vocab pickle file prefix in data path")
-flags.DEFINE_string ("vocab_fd_file", "vocab_fd.pk",       "Vocab freqs pickle file in data path")
-flags.DEFINE_string ("note_type",     "Discharge summary", "The type of notes to consider")
+flags.DEFINE_string ("note_type",     "Discharge_summary", "The type of notes to consider")
 
 flags.DEFINE_integer("batch_size",     64,     "Batch size")
 flags.DEFINE_integer("max_note_len",   4500,   "Maximum note length. -1 to disable")

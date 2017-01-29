@@ -42,6 +42,8 @@ def mimic_tokenize(text):
 
 def partial_vocab(args):
     patients_list, (shlf_file, note_type) = args
+    if note_type:
+        note_type = note_type.replace('_', ' ')
     shelf = shelve.open(shlf_file)
     fd = nltk.FreqDist()
     aux_fd = collections.defaultdict(nltk.FreqDist)
@@ -78,6 +80,8 @@ def partial_vocab(args):
 
 def partial_read(args):
     patients_list, (shlf_file, note_type) = args
+    if note_type:
+        note_type = note_type.replace('_', ' ')
     shelf = shelve.open(shlf_file)
     ret = []
     for pid in patients_list:

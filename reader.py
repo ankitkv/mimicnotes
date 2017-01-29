@@ -77,10 +77,10 @@ class NoteVocab(object):
 
     def load_from_pickle(self, verbose=True):
         '''Read the vocab from pickled files, saving if necessary'''
-        vocab_file = self.config.vocab_file
+        vocab_file = 'vocab'
         if self.config.note_type:
             vocab_file += '.' + self.config.note_type
-        vocab_file += '.%.2f' % self.config.keep_vocab
+        vocab_file += '.%.2f.pk' % self.config.keep_vocab
         pkfile = Path(self.config.data_path) / vocab_file
         try:
             if verbose:
@@ -95,9 +95,10 @@ class NoteVocab(object):
         except IOError:
             if verbose:
                 print('Error loading from pickle, processing from freq dist for new keep_vocab.')
-            vocab_fd_file = self.config.vocab_fd_file
+            vocab_fd_file = 'vocab_fd'
             if self.config.note_type:
                 vocab_fd_file += '.' + self.config.note_type
+            vocab_fd_file += '.pk'
             fdfile = Path(self.config.data_path) / vocab_fd_file
             try:
                 if verbose:
