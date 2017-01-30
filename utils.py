@@ -11,8 +11,8 @@ import tensorflow as tf
 
 
 re_anon = re.compile(r'\[\*\*.*?\*\*\]')
-fix_re = re.compile(r"[^a-z0-9/'?.,-]+")
-num_re = re.compile(r'[0-9]+')
+fix_re = re.compile(r"[^a-z0-9/'?.,-:]+")
+num_re = re.compile(r'[0-9]{2,}')
 dash_re = re.compile(r'-+')
 
 
@@ -20,7 +20,7 @@ def fix_word(word):
     word = word.lower()
     word = fix_re.sub('-', word)
     word = word.replace('-anon-', '<anon>')
-    # word = num_re.sub('#', word)
+    word = num_re.sub('#', word)
     word = dash_re.sub('-', word)
     return word.strip('-')
 
@@ -110,8 +110,7 @@ def partial_read(args):
     nshelf = shelve.open(nshlf_file, 'r')
     ret = []
     for pid in patients_list:
-        _, patient_notes = nshelf[pid]
-        ret.extend(patient_notes.values())
+        ret.extend(nshelf[pid].values())
     nshelf.close()
     return ret
 

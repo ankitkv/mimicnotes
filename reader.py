@@ -60,7 +60,7 @@ class NoteShelveData(NoteData):
         plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
         with plist_file.open('rb') as f:
             patients_list = pickle.load(f)
-        nshelf = shelve.open(str(self.nshelf_file), 'w', protocol=-1)
+        nshelf = shelve.open(str(self.nshelf_file), 'c', protocol=-1, writeback=True)
         list_chunks = [patients_list[i:i+chunk_size] for i in xrange(0, len(patients_list),
                                                                      chunk_size)]
         patients_set = set()
@@ -76,6 +76,7 @@ class NoteShelveData(NoteData):
                 for pid, (_, adm_map) in thread_data.items():
                     patients_set.add(pid)
                     nshelf[pid] = adm_map
+            nshelf.sync()
         nshelf.close()
         self.patients_list = []
         for pid in patients_list:
@@ -225,9 +226,8 @@ class NotePickleData(NoteData):
                 with notes_file.open('rb') as f:
                     patients_dict = pickle.load(f)
             _, adm_map = patients_dict[pid]
-            for admissions in adm_map.values():
-                for adm in admissions:
-                    yield adm
+            for admission in adm_map.values():
+                    yield admission
 
 
 class NoteVocab(object):
@@ -454,12 +454,13 @@ class NoteICD9Reader(NoteReader):
 def main(_):
     '''Reader tests'''
     config = Config()
-    data = NotePickleData(config)
+    # data = NoteShelveData(config)  # time: 59.4s on 33% of the data
+    data = NotePickleData(config)  # time: 52.9s on 33% of the data
     vocab = NoteVocab(config, data)
     reader = NoteICD9Reader(config, data, vocab)
     words = 0
     count = 0
-    for batch in reader.get(['train']):
+    for batch in reader.get(['val']):
         for i in xrange(batch[0].shape[0]):
             count += 1
             print(count)
