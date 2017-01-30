@@ -8,6 +8,7 @@ import tensorflow as tf
 from config import Config
 import model
 import runner
+import utils
 
 
 class BagOfWordsModel(model.Model):
@@ -21,6 +22,7 @@ class BagOfWordsModel(model.Model):
         self.labels = tf.placeholder(tf.float32, [config.batch_size, label_space_size],
                                      name='labels')
         self.logits = self.predict(self.data)
+        self.preds = tf.to_int32(tf.greater_equal(self.logits, 0.0))
         self.loss = tf.reduce_mean(self.compute_loss(self.logits, self.labels))
         self.train_op = self.minimize_loss(self.loss)
 
@@ -55,18 +57,21 @@ class BagOfWordsRunner(runner.Runner):
                 out_note.append(self.vocab.vocab[word])
             X_raw.append(' '.join(out_note))
         data = self.model.vectorizer.transform(X_raw, copy=False).toarray()
-        ops = [self.model.loss, self.model.global_step]
+        ops = [self.model.loss, self.model.preds, self.model.global_step]
         if train:
             ops.append(self.model.train_op)
         ret = self.session.run(ops, feed_dict={self.model.data: data, self.model.labels: labels})
-        if train:
-            return ret[:-1]
-        else:
-            return ret
+        preds = ret[1]
+        p, r, f = utils.f1_score(preds, labels)
+        return ([ret[0], p, r, f], [ret[2]])
 
-    def output(self, step, ret, train=True):
-        loss, global_step = ret
-        print("GS:%d, S:%d.  Loss: %.4f" % (global_step, step, loss))
+    def loss_str(self, losses):
+        loss, p, r, f = losses
+        return "Loss: %.4f, Precision: %.4f, Recall: %.4f, F-score: %.4f" % (loss, p, r, f)
+
+    def output(self, step, losses, extra, train=True):
+        global_step = extra[0]
+        print("GS:%d, S:%d.  %s" % (global_step, step, self.loss_str(losses)))
 
 
 def main(_):

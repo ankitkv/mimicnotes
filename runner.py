@@ -2,6 +2,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import numpy as np
+
 import reader
 
 
@@ -28,32 +30,40 @@ class Runner(object):
                 break
             loss = self.run_epoch(epoch, self.train_splits, verbose=verbose)
             if verbose:
-                print('Epoch %d: Train loss: %.4f' % (epoch, loss))
+                print('Epoch %d: Train losses:' % epoch, self.loss_str(loss))
             loss = self.run_epoch(epoch, self.val_splits, train=False, verbose=verbose)
             if verbose:
-                print('Epoch %d: Valid loss: %.4f' % (epoch, loss))
+                print('Epoch %d: Valid losses:' % epoch, self.loss_str(loss))
             epoch += 1
         loss = self.run_epoch(epoch, self.test_splits, train=False, verbose=verbose)
         if verbose:
-            print('Test loss: %.4f' % (epoch, loss))
+            print('Test losses:', self.loss_str(loss))
 
     def run_epoch(self, epoch, splits, train=True, verbose=True):
-        loss = 0.0
+        loss = None
         for step, batch in enumerate(self.reader.get(splits)):
-            # expect the first element of ret to be the loss
-            ret = self.run_session(batch, train=train)
-            loss += ret[0]
+            losses, extra = self.run_session(batch, train=train)
+            if loss is None:
+                loss = np.array(losses)
+            else:
+                loss += np.array(losses)
             if verbose:
-                self.verbose_output(step, ret, train=train)
+                self.verbose_output(step, losses, extra, train=train)
             if step % self.config.print_every == 0:
-                self.output(step, ret, train=train)
-        return loss / (step + 1)
+                self.output(step, losses, extra, train=train)
+        if loss is None:
+            loss = np.array([0.0])
+        return loss / (step + 1)  # problem: gives unequal weight to smaller batches
 
-    def verbose_output(self, step, ret, train=True):
+    def loss_str(self, loss):
+        return str(loss)
+
+    def verbose_output(self, step, losses, extra, train=True):
         pass
 
-    def output(self, step, ret, train=True):
+    def output(self, step, losses, extra, train=True):
         pass
 
     def run_session(self, batch, train=True):
+        '''Should return (losses, extra_info)'''
         raise NotImplementedError

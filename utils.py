@@ -127,6 +127,11 @@ def mt_map(threads, func, operands):
     return ret
 
 
+def f1_score(preds, labels):
+    '''Returns precision, recall and F1 score from a batch of predictions given a batch of labels'''
+    return 0.0, 0.0, 0.0  # TODO implement
+
+
 def linear(args, output_size, bias, bias_start=0.0, scope=None, initializer=None):
     """Linear map: sum_i(args[i] * W[i]), where W[i] is a variable.
     Args:
