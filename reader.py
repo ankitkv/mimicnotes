@@ -53,7 +53,7 @@ class NoteShelveData(NoteData):
         if load_from_pickle:
             self.load_from_pickle()
 
-    def prepare_shelf(self, chunk_size=500):
+    def prepare_shelf(self, chunk_size=1024):
         if self.verbose:
             print('Preparing tokenized notes shelve from data...')
         pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
@@ -64,7 +64,9 @@ class NoteShelveData(NoteData):
         list_chunks = [patients_list[i:i+chunk_size] for i in xrange(0, len(patients_list),
                                                                      chunk_size)]
         patients_set = set()
-        for plist in list_chunks:
+        for i, plist in enumerate(list_chunks):
+            if self.verbose:
+                print('Chunk', i, 'of', len(list_chunks))
             group_size = int(0.5 + (len(plist) / self.config.threads))
             lists = [plist[i:i+group_size] for i in xrange(0, len(plist), group_size)]
             data = utils.mt_map(self.config.threads, utils.partial_tokenize,
@@ -102,7 +104,7 @@ class NoteShelveData(NoteData):
         if self.verbose:
             print('Prepared to load data from shelve.')
 
-    def iterate(self, splits=['train', 'val', 'test'], chunk_size=200):
+    def iterate(self, splits=['train', 'val', 'test'], chunk_size=512):
         '''Yields SimpleAdmission's from the data.'''
         patients_list = self.get_patients_list(splits)
         list_chunks = [patients_list[i:i+chunk_size] for i in xrange(0, len(patients_list),
@@ -130,7 +132,7 @@ class NotePickleData(NoteData):
         if load_from_pickle:
             self.load_from_pickle()
 
-    def prepare_pickles(self, chunk_size=512, bucket_size=4096):
+    def prepare_pickles(self, chunk_size=1024, bucket_size=4096):
         if self.verbose:
             print('Preparing tokenized notes pickle from data...')
         pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
