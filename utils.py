@@ -7,6 +7,7 @@ import re
 import shelve
 
 import nltk
+import sklearn
 import tensorflow as tf
 
 
@@ -128,8 +129,11 @@ def mt_map(threads, func, operands):
 
 
 def f1_score(preds, labels):
-    '''Returns precision, recall and F1 score from a batch of predictions given a batch of labels'''
-    return 0.0, 0.0, 0.0  # TODO implement
+    '''Returns (precision, recall, F1 score) from a batch of predictions given a batch of labels
+       (for macro-averaging across batches)'''
+    p, r, f, _ = sklearn.metrics.precision_recall_fscore_support(labels, preds, average='micro',
+                                                                 warn_for=())
+    return p, r, f
 
 
 def linear(args, output_size, bias, bias_start=0.0, scope=None, initializer=None):
