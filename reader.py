@@ -6,6 +6,7 @@ import collections
 from pathlib import Path
 import random
 import shelve
+from six.moves import xrange
 try:
     import cPickle as pickle
 except:
@@ -35,32 +36,31 @@ class NoteData(object):
         self.splits['val'] = self.patients_list[trainidx:validx]
         self.splits['test'] = self.patients_list[validx:]
 
+    def get_patients_list(self, splits):
+        return sum([self.splits[s] for s in splits], [])
+
 
 class NoteShelveData(NoteData):
     '''Tokenized note data accessed via shelve files'''
 
     def __init__(self, config, verbose=True, load_from_pickle=True):
         super(NoteShelveData, self).__init__(config, verbose=verbose)
-        self.pshelf_file = Path(config.data_path) / 'processed/patients.shlf'
         nshelf_file = 'notes'
         if config.note_type:
             nshelf_file += '.' + config.note_type
         nshelf_file += '.shlf'
         self.nshelf_file = Path(config.data_path) / nshelf_file
-        self.patients_list = []
         if load_from_pickle:
             self.load_from_pickle()
 
     def prepare_shelf(self, chunk_size=500):
         if self.verbose:
             print('Preparing tokenized notes shelve from data...')
+        pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
         plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
-        note_type = self.config.note_type
-        if note_type:
-            note_type = note_type.replace('_', ' ')
         with plist_file.open('rb') as f:
             patients_list = pickle.load(f)
-        nshelf = shelve.open(str(self.nshelf_file), protocol=-1, writeback=True)
+        nshelf = shelve.open(str(self.nshelf_file), 'w', protocol=-1)
         list_chunks = [patients_list[i:i+chunk_size] for i in xrange(0, len(patients_list),
                                                                      chunk_size)]
         patients_set = set()
@@ -68,10 +68,10 @@ class NoteShelveData(NoteData):
             group_size = int(0.5 + (len(plist) / self.config.threads))
             lists = [plist[i:i+group_size] for i in xrange(0, len(plist), group_size)]
             data = utils.mt_map(self.config.threads, utils.partial_tokenize,
-                                zip(lists, [(str(self.pshelf_file),
+                                zip(lists, [(str(pshelf_file),
                                              self.config.note_type)] * len(lists)))
             for thread_data in data:
-                for pid, adm_map in thread_data.items():
+                for pid, (_, adm_map) in thread_data.items():
                     patients_set.add(pid)
                     nshelf[pid] = adm_map
         nshelf.close()
@@ -99,22 +99,126 @@ class NoteShelveData(NoteData):
             self.prepare_shelf()
             with pat_list_file.open('wb') as f:
                 pickle.dump(self.patients_list, f, -1)
+        if self.verbose:
+            print('Prepared to load data from shelve.')
 
     def iterate(self, splits=['train', 'val', 'test'], chunk_size=200):
-        '''Yields tuples of (admission, list of notes for that admission) where each note is a list
-           of sentences, and each sentence is a list of words.'''
-        patients_list = sum([self.splits[s] for s in splits], [])
+        '''Yields SimpleAdmission's from the data.'''
+        patients_list = self.get_patients_list(splits)
         list_chunks = [patients_list[i:i+chunk_size] for i in xrange(0, len(patients_list),
                                                                      chunk_size)]
         for plist in list_chunks:
             group_size = int(0.5 + (len(plist) / self.config.threads))
             lists = [plist[i:i+group_size] for i in xrange(0, len(plist), group_size)]
             data = utils.mt_map(self.config.threads, utils.partial_read,
-                                zip(lists, [(str(self.pshelf_file),
-                                             str(self.nshelf_file))] * len(lists)))
+                                zip(lists, [str(self.nshelf_file)] * len(lists)))
             for thread_data in data:
-                for note_data in thread_data:
-                    yield note_data
+                for admission in thread_data:
+                    yield admission
+
+
+class NotePickleData(NoteData):
+    '''Tokenized note data accessed via pickle files'''
+
+    def __init__(self, config, verbose=True, load_from_pickle=True):
+        super(NotePickleData, self).__init__(config, verbose=verbose)
+        self.bucket_map = {}
+        notes_file = 'notes'
+        if self.config.note_type:
+            notes_file += '.' + self.config.note_type
+        self.notes_file = notes_file + '.pk'
+        if load_from_pickle:
+            self.load_from_pickle()
+
+    def prepare_pickles(self, chunk_size=12, bucket_size=6000):
+        if self.verbose:
+            print('Preparing tokenized notes pickle from data...')
+        pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
+        plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
+        with plist_file.open('rb') as f:
+            patients_list = pickle.load(f)
+        list_chunks = [patients_list[i:i+chunk_size] for i in xrange(0, len(patients_list),
+                                                                     chunk_size)]
+        patients_set = set()
+        patients_dict = {}
+        self.bucket_map = {}
+        bucket = 0
+        count = 0
+        for plist in list_chunks:
+            if self.verbose:
+                print('Bucket', bucket, ' chunk', count)
+            group_size = int(0.5 + (len(plist) / self.config.threads))
+            lists = [plist[i:i+group_size] for i in xrange(0, len(plist), group_size)]
+            data = utils.mt_map(self.config.threads, utils.partial_tokenize,
+                                zip(lists, [(str(pshelf_file),
+                                             self.config.note_type)] * len(lists)))
+            for thread_data in data:
+                for pid, (patient, adm_map) in thread_data.items():
+                    patients_set.add(pid)
+                    self.bucket_map[pid] = bucket
+                    patients_dict[pid] = (patient, adm_map)
+            count += 1
+            if count * chunk_size >= bucket_size:
+                notes_file = Path(self.config.data_path) / (self.notes_file + ('.%d' % bucket))
+                with notes_file.open('wb') as f:
+                    pickle.dump(patients_dict, f, -1)
+                patients_dict = {}
+                bucket += 1
+                count = 0
+        if patients_dict:
+            notes_file = Path(self.config.data_path) / (self.notes_file + ('.%d' % bucket))
+            with notes_file.open('wb') as f:
+                pickle.dump(patients_dict, f, -1)
+        self.patients_list = []
+        for pid in patients_list:
+            if pid in patients_set:
+                self.patients_list.append(pid)
+        self.setup_splits()
+        if self.verbose:
+            print('Prepared.')
+
+    def load_from_pickle(self):
+        pat_list_file = 'notes_patients_list'
+        if self.config.note_type:
+            pat_list_file += '.' + self.config.note_type
+        pat_list_file += '.pk'
+        pat_list_file = Path(self.config.data_path) / pat_list_file
+        bucket_file = 'bucket_map'
+        if self.config.note_type:
+            bucket_file += '.' + self.config.note_type
+        bucket_file += '.pk'
+        bucket_file = Path(self.config.data_path) / bucket_file
+        try:
+            notes_file = Path(self.config.data_path) / (self.notes_file + '.0')
+            if not notes_file.is_file():
+                raise IOError
+            with bucket_file.open('rb') as f:
+                self.bucket_map = pickle.load(f)
+            with pat_list_file.open('rb') as f:
+                self.patients_list = pickle.load(f)
+            self.setup_splits()
+        except IOError:
+            self.prepare_pickles()
+            with bucket_file.open('wb') as f:
+                pickle.dump(self.bucket_map, f, -1)
+            with pat_list_file.open('wb') as f:
+                pickle.dump(self.patients_list, f, -1)
+        if self.verbose:
+            print('Loaded data from pickle.')
+
+    def iterate(self, splits=['train', 'val', 'test']):
+        '''Yields SimpleAdmission's from the data.'''
+        patients_list = self.get_patients_list(splits)
+        bucket = -1
+        for pid in patients_list:
+            if bucket != self.bucket_map[pid]:
+                bucket = self.bucket_map[pid]
+                notes_file = Path(self.config.data_path) / (self.notes_file + ('.%d' % bucket))
+                with notes_file.open('rb') as f:
+                    patients_dict = pickle.load(f)
+            _, adm_map = patients_dict[pid]
+            for admission in adm_map.values():
+                yield admission
 
 
 class NoteVocab(object):
@@ -160,21 +264,16 @@ class NoteVocab(object):
             print('Loading vocabulary by parsing...')
         vocab_fd = nltk.FreqDist()
         vocab_aux_fd = collections.defaultdict(nltk.FreqDist)
-        for adm, notes in self.data.iterate():
-            for note in notes:
+        for adm in self.data.iterate():
+            for note in adm.notes:
                 for sent in note:
                     vocab_fd.update(sent)
             for pres in adm.psc_events:
-                ndc = pres.drug_codes[-1]
-                if ndc == '0':
-                    name = '<missing>'
-                else:
-                    name = pres.drug_names[0]
-                vocab_aux_fd['psc'].update([(ndc, name)])
+                vocab_aux_fd['psc'].update([pres])
             for proc in adm.pcd_events:
-                vocab_aux_fd['pcd'].update([(proc.code, proc.name)])
+                vocab_aux_fd['pcd'].update([proc])
             for diag in adm.dgn_events:
-                vocab_aux_fd['dgn'].update([(diag.code, diag.name)])
+                vocab_aux_fd['dgn'].update([diag])
         if self.verbose:
             print('Full vocabulary size:', vocab_fd.B())
         self.prepare_vocab_from_fd(vocab_fd, vocab_aux_fd)
@@ -212,7 +311,7 @@ class NoteVocab(object):
                     vocab_fd, vocab_aux_fd = pickle.load(f)
                 if self.verbose:
                     print('Full vocabulary loaded, size:', vocab_fd.B())
-                self.prepare_vocab_from_fd(vocab_fd)
+                self.prepare_vocab_from_fd(vocab_fd, vocab_aux_fd)
             except IOError:
                 if self.verbose:
                     print('Error loading freq dist from pickle, attempting parsing.')
@@ -245,7 +344,7 @@ class NoteReader(object):
         random.seed(0)  # deterministic random
 
     def label_info(self, admission):
-        '''Can be extended to provide different kinds of labels'''
+        '''Can be extended to provide different kinds of labels from a SimpleAdmission'''
         if admission is None:
             return (None, None)
         return (admission.patient_id, admission.admission_id)
@@ -255,9 +354,9 @@ class NoteReader(object):
 
     def read_notes(self, splits):
         '''Read single notes from data'''
-        for adm, notes in self.data.iterate(splits):
+        for adm in self.data.iterate(splits):
             label_info = self.label_info(adm)
-            for note in notes:
+            for note in adm.notes:
                 note_text = sum(note, [])
                 vocab_note = [self.vocab.sos_index] + self.vocab.words2idxs(note_text) + \
                              [self.vocab.eos_index]
@@ -330,9 +429,9 @@ class NoteICD9Reader(NoteReader):
         if admission is None:
             return label
         vocab_lookup = self.vocab.aux_vocab_lookup['dgn']
-        for diag in admission.dgn_events:
+        for diag_code, _ in admission.dgn_events:
             try:
-                label[vocab_lookup[diag.code]] = 1
+                label[vocab_lookup[diag_code]] = 1
             except IndexError:
                 pass
         return label
@@ -347,14 +446,17 @@ class NoteICD9Reader(NoteReader):
 def main(_):
     '''Reader tests'''
     config = Config()
-    data = NoteShelveData(config)
+    data = NotePickleData(config)
     vocab = NoteVocab(config, data)
     reader = NoteICD9Reader(config, data, vocab)
     words = 0
+    count = 0
     for batch in reader.get(['train']):
         for i in xrange(batch[0].shape[0]):
+            count += 1
+            print(count)
             note = batch[0][i]
-            length = batch[1][i]
+            #length = batch[1][i]
             label = batch[2][i]
             words += len(note)
             print(label)

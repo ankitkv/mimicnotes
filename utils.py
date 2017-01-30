@@ -12,7 +12,7 @@ import tensorflow as tf
 
 re_anon = re.compile(r'\[\*\*.*?\*\*\]')
 fix_re = re.compile(r"[^a-z0-9/'?.,-]+")
-num_re = re.compile(r'[0-9]+')  # FIXME do not normalize numbers, allow special symbs like :?
+num_re = re.compile(r'[0-9]+')
 dash_re = re.compile(r'-+')
 
 
@@ -20,7 +20,7 @@ def fix_word(word):
     word = word.lower()
     word = fix_re.sub('-', word)
     word = word.replace('-anon-', '<anon>')
-    word = num_re.sub('#', word)
+    # word = num_re.sub('#', word)
     word = dash_re.sub('-', word)
     return word.strip('-')
 
@@ -38,11 +38,43 @@ def mimic_tokenize(text):
     return ret
 
 
+class SimplePatient(object):
+    '''A light-weight representation of a patient, built from a MimicPatient.'''
+
+    def __init__(self, patient):
+        self.patient_id = patient.patient_id
+        self.gender = patient.gender
+
+
+class SimpleAdmission(object):
+    '''A light-weight representation of an admission, built from a MimicAdmission.'''
+
+    def __init__(self, admission, tokenized_notes):
+        self.patient_id = admission.patient_id
+        self.admission_id = admission.admission_id
+        self.adm_type = admission.adm_type
+        self.psc_events = []
+        for pres in admission.psc_events:
+            ndc = pres.drug_codes[-1]
+            if ndc == '0':
+                name = '<missing>'
+            else:
+                name = pres.drug_names[0]
+            self.psc_events.append((ndc, name))
+        self.pcd_events = []
+        for proc in admission.pcd_events:
+            self.pcd_events.append((proc.code, proc.name))
+        self.dgn_events = []
+        for diag in admission.dgn_events:
+            self.dgn_events.append((diag.code, diag.name))
+        self.notes = tokenized_notes
+
+
 def partial_tokenize(args):
     patients_list, (shlf_file, note_type) = args
     if note_type:
         note_type = note_type.replace('_', ' ')
-    shelf = shelve.open(shlf_file)
+    shelf = shelve.open(shlf_file, 'r')
     ret = {}
     for pid in patients_list:
         try:
@@ -60,27 +92,21 @@ def partial_tokenize(args):
                     note_text = []
                     for sent in mimic_tokenize(note.note_text):
                         note_text.append(sent)
-                    adm_map[adm.admission_id].append(note_text)
+                    adm_map[adm.admission_id].append(SimpleAdmission(adm, note_text))
         if found:
-            ret[pid] = adm_map
+            ret[pid] = (SimplePatient(patient), adm_map)
     shelf.close()
     return ret
 
 
 def partial_read(args):
-    patients_list, (pshlf_file, nshlf_file) = args
-    pshelf = shelve.open(pshlf_file)
-    nshelf = shelve.open(nshlf_file)
+    patients_list, nshlf_file = args
+    nshelf = shelve.open(nshlf_file, 'r')
     ret = []
     for pid in patients_list:
-        patient = pshelf[pid]
-        patient_notes = nshelf[pid]
-        for adm_id, notes in patient_notes.items():
-            admission = patient.admissions[adm_id]
-            admission.nte_events = None
-            ret.append((admission, notes))
+        _, patient_notes = nshelf[pid]
+        ret.extend(patient_notes.values())
     nshelf.close()
-    pshelf.close()
     return ret
 
 
