@@ -53,12 +53,12 @@ class NoteData(object):
         with plist_file.open('rb') as f:
             patients_list = pickle.load(f)
         nshelf = shelve.open(str(self.nshelf_file), writeback=True)
-        list_chunks = [patients_list[i:i+chunk_size] for i in range(0, len(patients_list),
-                                                                    chunk_size)]
+        list_chunks = [patients_list[i:i+chunk_size] for i in xrange(0, len(patients_list),
+                                                                     chunk_size)]
         patients_set = set()
         for plist in list_chunks:
             group_size = int(0.5 + (len(plist) / self.config.threads))
-            lists = [plist[i:i+group_size] for i in range(0, len(plist), group_size)]
+            lists = [plist[i:i+group_size] for i in xrange(0, len(plist), group_size)]
             data = utils.mt_map(self.config.threads, utils.partial_tokenize,
                                 zip(lists, [(str(self.pshelf_file),
                                              self.config.note_type)] * len(lists)))
@@ -93,12 +93,14 @@ class NoteData(object):
                 pickle.dump(self.patients_list, f, -1)
 
     def iterate(self, splits=['train', 'val', 'test'], chunk_size=200):
+        '''Yields tuples of (admission, list of notes for that admission) where each note is a list
+           of sentences, and each sentence is a list of words.'''
         patients_list = sum([self.splits[s] for s in splits], [])
-        list_chunks = [patients_list[i:i+chunk_size] for i in range(0, len(patients_list),
-                                                                    chunk_size)]
+        list_chunks = [patients_list[i:i+chunk_size] for i in xrange(0, len(patients_list),
+                                                                     chunk_size)]
         for plist in list_chunks:
             group_size = int(0.5 + (len(plist) / self.config.threads))
-            lists = [plist[i:i+group_size] for i in range(0, len(plist), group_size)]
+            lists = [plist[i:i+group_size] for i in xrange(0, len(plist), group_size)]
             data = utils.mt_map(self.config.threads, utils.partial_read,
                                 zip(lists, [(str(self.pshelf_file),
                                              str(self.nshelf_file))] * len(lists)))
@@ -150,9 +152,10 @@ class NoteVocab(object):
             print('Loading vocabulary by parsing...')
         vocab_fd = nltk.FreqDist()
         vocab_aux_fd = collections.defaultdict(nltk.FreqDist)
-        for adm, note in self.data.iterate():
-            for sent in note:
-                vocab_fd.update(sent)
+        for adm, notes in self.data.iterate():
+            for note in notes:
+                for sent in note:
+                    vocab_fd.update(sent)
             for pres in adm.psc_events:
                 ndc = pres.drug_codes[-1]
                 if ndc == '0':
@@ -244,13 +247,15 @@ class NoteReader(object):
 
     def read_notes(self, splits):
         '''Read single notes from data'''
-        for adm, note in self.data.iterate(splits):
-            note_text = sum(note, [])
-            vocab_note = [self.vocab.sos_index] + self.vocab.words2idxs(note_text) + \
-                         [self.vocab.eos_index]
-            if self.config.max_note_len > 0:
-                vocab_note = vocab_note[:self.config.max_note_len]
-            yield (vocab_note, self.label_info(adm))
+        for adm, notes in self.data.iterate(splits):
+            label_info = self.label_info(adm)
+            for note in notes:
+                note_text = sum(note, [])
+                vocab_note = [self.vocab.sos_index] + self.vocab.words2idxs(note_text) + \
+                             [self.vocab.eos_index]
+                if self.config.max_note_len > 0:
+                    vocab_note = vocab_note[:self.config.max_note_len]
+                yield (vocab_note, label_info)
 
     def buffered_read_sorted_notes(self, splits, batches=32):
         '''Read and return a list of notes (length multiple of batch_size) worth at most $batches
@@ -268,13 +273,14 @@ class NoteReader(object):
             mod = len(notes) % self.config.batch_size
             if mod != 0:
                 notes = [([], self.label_info(None))
-                         for _ in range(self.config.batch_size - mod)] + notes
+                         for _ in xrange(self.config.batch_size - mod)] + notes
             yield notes
 
     def buffered_read(self, splits):
         '''Read packed batches from data with each batch having notes of similar lengths'''
         for note_collection in self.buffered_read_sorted_notes(splits):
-            batches = [b for b in utils.grouper(self.config.batch_size, note_collection)]
+            batches = [note_collection[i:i+self.config.batch_size]
+                       for i in xrange(0, len(note_collection), self.config.batch_size)]
             random.shuffle(batches)
             for batch in batches:
                 yield self.pack(batch)
@@ -304,8 +310,8 @@ class NoteReader(object):
 class NoteICD9Reader(NoteReader):
     '''A note reader that considers ICD9 codes as labels'''
 
-    def __init__(self, config, vocab):
-        super(NoteICD9Reader, self).__init__(config, vocab)
+    def __init__(self, config, data, vocab):
+        super(NoteICD9Reader, self).__init__(config, data, vocab)
         self.max_dgn_labels = len(self.vocab.aux_vocab['dgn'])
         if self.config.max_dgn_labels > 0:
             self.max_dgn_labels = min(self.max_dgn_labels, self.config.max_dgn_labels)
@@ -335,11 +341,10 @@ def main(_):
     config = Config()
     data = NoteData(config)
     vocab = NoteVocab(config, data)
-
     reader = NoteICD9Reader(config, data, vocab)
     words = 0
     for batch in reader.get(['train']):
-        for i in range(batch[0].shape[0]):
+        for i in xrange(batch[0].shape[0]):
             note = batch[0][i]
             length = batch[1][i]
             label = batch[2][i]

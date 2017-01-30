@@ -12,7 +12,7 @@ import tensorflow as tf
 
 re_anon = re.compile(r'\[\*\*.*?\*\*\]')
 fix_re = re.compile(r"[^a-z0-9/'?.,-]+")
-num_re = re.compile(r'[0-9]+')
+num_re = re.compile(r'[0-9]+')  # FIXME do not normalize numbers, allow special symbs like :?
 dash_re = re.compile(r'-+')
 
 
@@ -74,8 +74,8 @@ def partial_read(args):
     ret = []
     for pid in patients_list:
         patient_notes = nshelf[pid]
-        for adm_id, note in patient_notes.items():
-            ret.append((pshelf[pid].admissions[adm_id], note))
+        for adm_id, notes in patient_notes.items():
+            ret.append((pshelf[pid].admissions[adm_id], notes))
     nshelf.close()
     pshelf.close()
     return ret
