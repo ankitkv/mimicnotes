@@ -7,7 +7,6 @@ import tensorflow as tf
 
 from config import Config
 import model
-import reader
 import runner
 
 
@@ -39,8 +38,8 @@ class BagOfWordsModel(model.Model):
 class BagOfWordsRunner(runner.Runner):
     '''Runner for the bag of words model.'''
 
-    def __init__(self, config, vocab, session):
-        super(BagOfWordsRunner, self).__init__(config, vocab, session)
+    def __init__(self, config, session):
+        super(BagOfWordsRunner, self).__init__(config, session)
         self.model = BagOfWordsModel(self.config, self.vocab, self.reader.label_space_size())
         self.session.run(tf.global_variables_initializer())
 
@@ -69,11 +68,10 @@ class BagOfWordsRunner(runner.Runner):
 
 def main(_):
     config = Config()
-    vocab = reader.NoteVocab(config)
     config_proto = tf.ConfigProto()
     config_proto.gpu_options.allow_growth = True
     with tf.Graph().as_default(), tf.Session(config=config_proto) as session:
-        BagOfWordsRunner(config, vocab, session).run()
+        BagOfWordsRunner(config, session).run()
 
 
 if __name__ == '__main__':

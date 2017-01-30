@@ -8,12 +8,13 @@ import reader
 class Runner(object):
     '''Base class for all runners.'''
 
-    def __init__(self, config, vocab, session, train_splits=['train'], val_splits=['val'],
+    def __init__(self, config, session, train_splits=['train'], val_splits=['val'],
                  test_splits=['test']):
         self.config = config
-        self.vocab = vocab
         self.session = session
-        self.reader = reader.NoteICD9Reader(config, vocab)
+        data = reader.NotePickleData(config)
+        self.vocab = reader.NoteVocab(config, data)
+        self.reader = reader.NoteICD9Reader(config, data, self.vocab)
         self.train_splits = train_splits
         self.val_splits = val_splits
         self.test_splits = test_splits
@@ -48,14 +49,11 @@ class Runner(object):
                 self.output(step, ret, train=train)
         return loss / (step + 1)
 
-
     def verbose_output(self, step, ret, train=True):
         pass
 
-
     def output(self, step, ret, train=True):
         pass
-
 
     def run_session(self, batch, train=True):
         raise NotImplementedError
