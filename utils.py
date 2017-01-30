@@ -85,10 +85,11 @@ def partial_tokenize(args):
         found = False
         adm_map = {}
         for adm in patient.admissions.values():
-            adm_map[adm.admission_id] = []
             for note in adm.nte_events:
                 if not note_type or note.note_cat == note_type:
                     found = True
+                    if adm.admission_id not in adm_map:
+                        adm_map[adm.admission_id] = []
                     note_text = []
                     for sent in mimic_tokenize(note.note_text):
                         note_text.append(sent)

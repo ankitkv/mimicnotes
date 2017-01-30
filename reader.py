@@ -130,7 +130,7 @@ class NotePickleData(NoteData):
         if load_from_pickle:
             self.load_from_pickle()
 
-    def prepare_pickles(self, chunk_size=128, bucket_size=4096):
+    def prepare_pickles(self, chunk_size=512, bucket_size=4096):
         if self.verbose:
             print('Preparing tokenized notes pickle from data...')
         pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
@@ -223,8 +223,9 @@ class NotePickleData(NoteData):
                 with notes_file.open('rb') as f:
                     patients_dict = pickle.load(f)
             _, adm_map = patients_dict[pid]
-            for admission in adm_map.values():
-                yield admission
+            for admissions in adm_map.values():
+                for adm in admissions:
+                    yield adm
 
 
 class NoteVocab(object):
@@ -430,7 +431,6 @@ class NoteICD9Reader(NoteReader):
             self.max_dgn_labels = min(self.max_dgn_labels, self.config.max_dgn_labels)
 
     def label_info(self, admission):
-
         label = np.zeros([self.max_dgn_labels], dtype=np.int)
         if admission is None:
             return label
@@ -462,7 +462,7 @@ def main(_):
             count += 1
             print(count)
             note = batch[0][i]
-            #length = batch[1][i]
+            # length = batch[1][i]
             label = batch[2][i]
             words += len(note)
             print(label)
