@@ -85,15 +85,20 @@ def partial_tokenize(args):
         found = False
         adm_map = {}
         for adm in patient.admissions.values():
+            try:
+                int(adm.admission_id)
+            except ValueError:
+                continue
+            notes_list = []
             for note in adm.nte_events:
                 if not note_type or note.note_cat == note_type:
-                    found = True
-                    if adm.admission_id not in adm_map:
-                        adm_map[adm.admission_id] = []
                     note_text = []
                     for sent in mimic_tokenize(note.note_text):
                         note_text.append(sent)
-                    adm_map[adm.admission_id].append(SimpleAdmission(adm, note_text))
+                    notes_list.append(note_text)
+            if notes_list:
+                found = True
+                adm_map[adm.admission_id] = SimpleAdmission(adm, notes_list)
         if found:
             ret[pid] = (SimplePatient(patient), adm_map)
     shelf.close()
