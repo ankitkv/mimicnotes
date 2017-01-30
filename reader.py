@@ -130,7 +130,7 @@ class NotePickleData(NoteData):
         if load_from_pickle:
             self.load_from_pickle()
 
-    def prepare_pickles(self, chunk_size=12, bucket_size=6000):
+    def prepare_pickles(self, chunk_size=32, bucket_size=4096):
         if self.verbose:
             print('Preparing tokenized notes pickle from data...')
         pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
@@ -144,6 +144,8 @@ class NotePickleData(NoteData):
         self.bucket_map = {}
         bucket = 0
         count = 0
+        buckets_dir = Path(self.config.data_path) / 'buckets'
+        buckets_dir.mkdir(exist_ok=True)
         for plist in list_chunks:
             if self.verbose:
                 print('Bucket', bucket, ' chunk', count)
@@ -159,14 +161,14 @@ class NotePickleData(NoteData):
                     patients_dict[pid] = (patient, adm_map)
             count += 1
             if count * chunk_size >= bucket_size:
-                notes_file = Path(self.config.data_path) / (self.notes_file + ('.%d' % bucket))
+                notes_file = buckets_dir / (self.notes_file + ('.%d' % bucket))
                 with notes_file.open('wb') as f:
                     pickle.dump(patients_dict, f, -1)
                 patients_dict = {}
                 bucket += 1
                 count = 0
         if patients_dict:
-            notes_file = Path(self.config.data_path) / (self.notes_file + ('.%d' % bucket))
+            notes_file = buckets_dir / (self.notes_file + ('.%d' % bucket))
             with notes_file.open('wb') as f:
                 pickle.dump(patients_dict, f, -1)
         self.patients_list = []
@@ -189,7 +191,7 @@ class NotePickleData(NoteData):
         bucket_file += '.pk'
         bucket_file = Path(self.config.data_path) / bucket_file
         try:
-            notes_file = Path(self.config.data_path) / (self.notes_file + '.0')
+            notes_file = Path(self.config.data_path) / 'buckets' / (self.notes_file + '.0')
             if not notes_file.is_file():
                 raise IOError
             with bucket_file.open('rb') as f:
@@ -209,11 +211,12 @@ class NotePickleData(NoteData):
     def iterate(self, splits=['train', 'val', 'test']):
         '''Yields SimpleAdmission's from the data.'''
         patients_list = self.get_patients_list(splits)
+        buckets_dir = Path(self.config.data_path) / 'buckets'
         bucket = -1
         for pid in patients_list:
             if bucket != self.bucket_map[pid]:
                 bucket = self.bucket_map[pid]
-                notes_file = Path(self.config.data_path) / (self.notes_file + ('.%d' % bucket))
+                notes_file = buckets_dir / (self.notes_file + ('.%d' % bucket))
                 with notes_file.open('rb') as f:
                     patients_dict = pickle.load(f)
             _, adm_map = patients_dict[pid]
