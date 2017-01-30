@@ -22,18 +22,10 @@ import utils
 class NoteData(object):
     '''Represents the tokenized note data'''
 
-    def __init__(self, config, verbose=True, load_from_pickle=True):
+    def __init__(self, config, verbose=True):
         self.config = config
         self.verbose = verbose
-        self.pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
-        nshelf_file = 'notes'
-        if config.note_type:
-            nshelf_file += '.' + config.note_type
-        nshelf_file += '.shlf'
-        self.nshelf_file = Path(self.config.data_path) / nshelf_file
         self.patients_list = []
-        if load_from_pickle:
-            self.load_from_pickle()
 
     def setup_splits(self):
         self.splits = {}
@@ -42,6 +34,22 @@ class NoteData(object):
         self.splits['train'] = self.patients_list[:trainidx]
         self.splits['val'] = self.patients_list[trainidx:validx]
         self.splits['test'] = self.patients_list[validx:]
+
+
+class NoteShelveData(NoteData):
+    '''Tokenized note data accessed via shelve files'''
+
+    def __init__(self, config, verbose=True, load_from_pickle=True):
+        super(NoteShelveData, self).__init__(config, verbose=verbose)
+        self.pshelf_file = Path(config.data_path) / 'processed/patients.shlf'
+        nshelf_file = 'notes'
+        if config.note_type:
+            nshelf_file += '.' + config.note_type
+        nshelf_file += '.shlf'
+        self.nshelf_file = Path(config.data_path) / nshelf_file
+        self.patients_list = []
+        if load_from_pickle:
+            self.load_from_pickle()
 
     def prepare_shelf(self, chunk_size=500):
         if self.verbose:
@@ -52,7 +60,7 @@ class NoteData(object):
             note_type = note_type.replace('_', ' ')
         with plist_file.open('rb') as f:
             patients_list = pickle.load(f)
-        nshelf = shelve.open(str(self.nshelf_file), writeback=True)
+        nshelf = shelve.open(str(self.nshelf_file), protocol=-1, writeback=True)
         list_chunks = [patients_list[i:i+chunk_size] for i in xrange(0, len(patients_list),
                                                                      chunk_size)]
         patients_set = set()
@@ -339,7 +347,7 @@ class NoteICD9Reader(NoteReader):
 def main(_):
     '''Reader tests'''
     config = Config()
-    data = NoteData(config)
+    data = NoteShelveData(config)
     vocab = NoteVocab(config, data)
     reader = NoteICD9Reader(config, data, vocab)
     words = 0

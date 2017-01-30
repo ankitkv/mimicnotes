@@ -73,9 +73,12 @@ def partial_read(args):
     nshelf = shelve.open(nshlf_file)
     ret = []
     for pid in patients_list:
+        patient = pshelf[pid]
         patient_notes = nshelf[pid]
         for adm_id, notes in patient_notes.items():
-            ret.append((pshelf[pid].admissions[adm_id], notes))
+            admission = patient.admissions[adm_id]
+            admission.nte_events = None
+            ret.append((admission, notes))
     nshelf.close()
     pshelf.close()
     return ret
