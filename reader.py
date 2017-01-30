@@ -19,11 +19,101 @@ from config import Config
 import utils
 
 
+class NoteData(object):
+    '''Represents the tokenized note data'''
+
+    def __init__(self, config, verbose=True, load_from_pickle=True):
+        self.config = config
+        self.verbose = verbose
+        self.pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
+        nshelf_file = 'notes'
+        if config.note_type:
+            nshelf_file += '.' + config.note_type
+        nshelf_file += '.shlf'
+        self.nshelf_file = Path(self.config.data_path) / nshelf_file
+        self.patients_list = []
+        if load_from_pickle:
+            self.load_from_pickle()
+
+    def setup_splits(self):
+        self.splits = {}
+        trainidx = int(self.config.train_split * len(self.patients_list))
+        validx = trainidx + int(self.config.val_split * len(self.patients_list))
+        self.splits['train'] = self.patients_list[:trainidx]
+        self.splits['val'] = self.patients_list[trainidx:validx]
+        self.splits['test'] = self.patients_list[validx:]
+
+    def prepare_shelf(self, chunk_size=500):
+        if self.verbose:
+            print('Preparing tokenized notes shelve from data...')
+        plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
+        note_type = self.config.note_type
+        if note_type:
+            note_type = note_type.replace('_', ' ')
+        with plist_file.open('rb') as f:
+            patients_list = pickle.load(f)
+        nshelf = shelve.open(str(self.nshelf_file), writeback=True)
+        list_chunks = [patients_list[i:i+chunk_size] for i in range(0, len(patients_list),
+                                                                    chunk_size)]
+        patients_set = set()
+        for plist in list_chunks:
+            group_size = int(0.5 + (len(plist) / self.config.threads))
+            lists = [plist[i:i+group_size] for i in range(0, len(plist), group_size)]
+            data = utils.mt_map(self.config.threads, utils.partial_tokenize,
+                                zip(lists, [(str(self.pshelf_file),
+                                             self.config.note_type)] * len(lists)))
+            for thread_data in data:
+                for pid, adm_map in thread_data.items():
+                    patients_set.add(pid)
+                    nshelf[pid] = adm_map
+        nshelf.close()
+        self.patients_list = []
+        for pid in patients_list:
+            if pid in patients_set:
+                self.patients_list.append(pid)
+        self.setup_splits()
+        if self.verbose:
+            print('Prepared.')
+
+    def load_from_pickle(self):
+        pat_list_file = 'notes_patients_list'
+        if self.config.note_type:
+            pat_list_file += '.' + self.config.note_type
+        pat_list_file += '.pk'
+        pat_list_file = Path(self.config.data_path) / pat_list_file
+        try:
+            if not self.nshelf_file.is_file():
+                raise IOError
+            with pat_list_file.open('rb') as f:
+                self.patients_list = pickle.load(f)
+            self.setup_splits()
+        except IOError:
+            self.prepare_shelf()
+            with pat_list_file.open('wb') as f:
+                pickle.dump(self.patients_list, f, -1)
+
+    def iterate(self, splits=['train', 'val', 'test'], chunk_size=200):
+        patients_list = sum([self.splits[s] for s in splits], [])
+        list_chunks = [patients_list[i:i+chunk_size] for i in range(0, len(patients_list),
+                                                                    chunk_size)]
+        for plist in list_chunks:
+            group_size = int(0.5 + (len(plist) / self.config.threads))
+            lists = [plist[i:i+group_size] for i in range(0, len(plist), group_size)]
+            data = utils.mt_map(self.config.threads, utils.partial_read,
+                                zip(lists, [(str(self.pshelf_file),
+                                             str(self.nshelf_file))] * len(lists)))
+            for thread_data in data:
+                for note_data in thread_data:
+                    yield note_data
+
+
 class NoteVocab(object):
     '''Stores the vocab: forward and reverse mappings, for text and other auxiliary info'''
 
-    def __init__(self, config):
+    def __init__(self, config, data, verbose=True, load_from_pickle=True):
         self.config = config
+        self.data = data
+        self.verbose = verbose
         self.vocab = ['<pad>', '<sos>', '<eos>', '<unk>']
         self.vocab_lookup = {w: i for i, w in enumerate(self.vocab)}
         self.aux_vocab = collections.defaultdict(list)
@@ -32,8 +122,10 @@ class NoteVocab(object):
         self.sos_index = self.vocab_lookup.get('<sos>')
         self.eos_index = self.vocab_lookup.get('<eos>')
         self.unk_index = self.vocab_lookup.get('<unk>')
+        if load_from_pickle:
+            self.load_from_pickle()
 
-    def prepare_vocab_from_fd(self, vocab_fd, vocab_aux_fd, verbose=True):
+    def prepare_vocab_from_fd(self, vocab_fd, vocab_aux_fd):
         count = 0
         for k, v in vocab_fd.most_common():
             self.vocab_lookup[k] = len(self.vocab)
@@ -47,35 +139,37 @@ class NoteVocab(object):
                 self.aux_vocab_lookup[key][k[0]] = len(vocab)
                 vocab.append(k[0])
                 self.aux_names[key][k[0]] = k[1]
-        if verbose:
+        if self.verbose:
             print('Pruned vocabulary loaded, size:', len(self.vocab))
             for k, v in self.aux_vocab.items():
                 print(k + ':', len(v))
 
-    def load_by_parsing(self, verbose=True):
+    def load_by_parsing(self):
         '''Read the vocab from the dataset'''
-        if verbose:
+        if self.verbose:
             print('Loading vocabulary by parsing...')
-        plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
-        pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
-        with plist_file.open('rb') as f:
-            patients_list = pickle.load(f)
-        group_size = int(0.5 + (len(patients_list) / self.config.threads))
-        lists = list(utils.grouper(group_size, patients_list))
-        fds = utils.mt_map(self.config.threads, utils.partial_vocab,
-                           zip(lists, [(str(pshelf_file), self.config.note_type)] * len(lists)))
         vocab_fd = nltk.FreqDist()
         vocab_aux_fd = collections.defaultdict(nltk.FreqDist)
-        for fd, aux_fd in fds:
-            vocab_fd.update(fd)
-            for k, v in aux_fd.items():
-                vocab_aux_fd[k].update(v)
-        if verbose:
+        for adm, note in self.data.iterate():
+            for sent in note:
+                vocab_fd.update(sent)
+            for pres in adm.psc_events:
+                ndc = pres.drug_codes[-1]
+                if ndc == '0':
+                    name = '<missing>'
+                else:
+                    name = pres.drug_names[0]
+                vocab_aux_fd['psc'].update([(ndc, name)])
+            for proc in adm.pcd_events:
+                vocab_aux_fd['pcd'].update([(proc.code, proc.name)])
+            for diag in adm.dgn_events:
+                vocab_aux_fd['dgn'].update([(diag.code, diag.name)])
+        if self.verbose:
             print('Full vocabulary size:', vocab_fd.B())
-        self.prepare_vocab_from_fd(vocab_fd, vocab_aux_fd, verbose=verbose)
+        self.prepare_vocab_from_fd(vocab_fd, vocab_aux_fd)
         return vocab_fd, vocab_aux_fd
 
-    def load_from_pickle(self, verbose=True):
+    def load_from_pickle(self):
         '''Read the vocab from pickled files, saving if necessary'''
         vocab_file = 'vocab'
         if self.config.note_type:
@@ -83,17 +177,17 @@ class NoteVocab(object):
         vocab_file += '.%.2f.pk' % self.config.keep_vocab
         pkfile = Path(self.config.data_path) / vocab_file
         try:
-            if verbose:
+            if self.verbose:
                 print('Loading vocabulary from pickle...')
             with pkfile.open('rb') as f:
                 self.vocab, self.vocab_lookup, \
                             self.aux_vocab, self.aux_vocab_lookup, self.aux_names = pickle.load(f)
-            if verbose:
+            if self.verbose:
                 print('Vocabulary loaded, size:', len(self.vocab))
                 for k, v in self.aux_vocab.items():
                     print(k + ':', len(v))
         except IOError:
-            if verbose:
+            if self.verbose:
                 print('Error loading from pickle, processing from freq dist for new keep_vocab.')
             vocab_fd_file = 'vocab_fd'
             if self.config.note_type:
@@ -101,25 +195,25 @@ class NoteVocab(object):
             vocab_fd_file += '.pk'
             fdfile = Path(self.config.data_path) / vocab_fd_file
             try:
-                if verbose:
+                if self.verbose:
                     print('Loading vocab freq dist from pickle...')
                 with fdfile.open('rb') as f:
                     vocab_fd, vocab_aux_fd = pickle.load(f)
-                if verbose:
+                if self.verbose:
                     print('Full vocabulary loaded, size:', vocab_fd.B())
-                self.prepare_vocab_from_fd(vocab_fd, verbose=verbose)
+                self.prepare_vocab_from_fd(vocab_fd)
             except IOError:
-                if verbose:
+                if self.verbose:
                     print('Error loading freq dist from pickle, attempting parsing.')
-                vocab_fd, vocab_aux_fd = self.load_by_parsing(verbose=verbose)
+                vocab_fd, vocab_aux_fd = self.load_by_parsing()
                 with fdfile.open('wb') as f:
                     pickle.dump([vocab_fd, vocab_aux_fd], f, -1)
-                    if verbose:
+                    if self.verbose:
                         print('Saved vocab freq dist pickle file.')
             with pkfile.open('wb') as f:
                 pickle.dump([self.vocab, self.vocab_lookup, self.aux_vocab, self.aux_vocab_lookup,
                              self.aux_names], f, -1)
-                if verbose:
+                if self.verbose:
                     print('Saved vocab pickle file.')
 
     def words2idxs(self, words):
@@ -133,18 +227,10 @@ class NoteReader(object):
     '''The reader that yields vectorized notes and their respective patient and admission IDs
        according to the requested split(s) (train, val, test)'''
 
-    def __init__(self, config, vocab):
+    def __init__(self, config, data, vocab):
         self.config = config
+        self.data = data
         self.vocab = vocab
-        plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
-        with plist_file.open('rb') as f:
-            patients_list = pickle.load(f)
-        self.splits = {}
-        trainidx = int(self.config.train_split * len(patients_list))
-        validx = trainidx + int(self.config.val_split * len(patients_list))
-        self.splits['train'] = patients_list[:trainidx]
-        self.splits['val'] = patients_list[trainidx:validx]
-        self.splits['test'] = patients_list[validx:]
         random.seed(0)  # deterministic random
 
     def label_info(self, admission):
@@ -156,31 +242,22 @@ class NoteReader(object):
     def label_space_size(self):
         return 2
 
-    def read_notes(self, patients_list, chunk_size=200):
+    def read_notes(self, splits):
         '''Read single notes from data'''
-        pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
-        list_chunks = utils.grouper(chunk_size, patients_list)
-        for patients_list in list_chunks:
-            group_size = int(0.5 + (len(patients_list) / self.config.threads))
-            lists = list(utils.grouper(group_size, patients_list))
-            data = utils.mt_map(self.config.threads, utils.partial_read,
-                                zip(lists, [(str(pshelf_file),
-                                             self.config.note_type)] * len(lists)))
-            for thread_data in data:
-                for note in thread_data:
-                    adm, note_text = note
-                    vocab_note = [self.vocab.sos_index] + self.vocab.words2idxs(note_text) + \
-                                 [self.vocab.eos_index]
-                    if self.config.max_note_len > 0:
-                        vocab_note = vocab_note[:self.config.max_note_len]
-                    yield (vocab_note, self.label_info(adm))
+        for adm, note in self.data.iterate(splits):
+            note_text = sum(note, [])
+            vocab_note = [self.vocab.sos_index] + self.vocab.words2idxs(note_text) + \
+                         [self.vocab.eos_index]
+            if self.config.max_note_len > 0:
+                vocab_note = vocab_note[:self.config.max_note_len]
+            yield (vocab_note, self.label_info(adm))
 
-    def buffered_read_sorted_notes(self, patients_list, batches=32):
+    def buffered_read_sorted_notes(self, splits, batches=32):
         '''Read and return a list of notes (length multiple of batch_size) worth at most $batches
            number of batches sorted in length'''
         buffer_size = self.config.batch_size * batches
         notes = []
-        for note in self.read_notes(patients_list):
+        for note in self.read_notes(splits):
             notes.append(note)
             if len(notes) == buffer_size:
                 notes.sort(key=lambda x: len(x[0]))
@@ -194,9 +271,9 @@ class NoteReader(object):
                          for _ in range(self.config.batch_size - mod)] + notes
             yield notes
 
-    def buffered_read(self, patients_list):
+    def buffered_read(self, splits):
         '''Read packed batches from data with each batch having notes of similar lengths'''
-        for note_collection in self.buffered_read_sorted_notes(patients_list):
+        for note_collection in self.buffered_read_sorted_notes(splits):
             batches = [b for b in utils.grouper(self.config.batch_size, note_collection)]
             random.shuffle(batches)
             for batch in batches:
@@ -220,8 +297,7 @@ class NoteReader(object):
         '''Read batches from data'''
         if verbose:
             print('Getting data from', '+'.join(splits), 'split')
-        patients_list = sum([self.splits[s] for s in splits], [])
-        for batch in self.buffered_read(patients_list):
+        for batch in self.buffered_read(splits):
             yield batch
 
 
@@ -257,10 +333,10 @@ class NoteICD9Reader(NoteReader):
 def main(_):
     '''Reader tests'''
     config = Config()
-    vocab = NoteVocab(config)
-    vocab.load_from_pickle()
+    data = NoteData(config)
+    vocab = NoteVocab(config, data)
 
-    reader = NoteICD9Reader(config, vocab)
+    reader = NoteICD9Reader(config, data, vocab)
     words = 0
     for batch in reader.get(['train']):
         for i in range(batch[0].shape[0]):

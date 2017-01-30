@@ -2,7 +2,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 import tensorflow as tf
 
@@ -10,7 +9,6 @@ from config import Config
 import model
 import reader
 import runner
-import utils
 
 
 class BagOfWordsModel(model.Model):
@@ -25,7 +23,7 @@ class BagOfWordsModel(model.Model):
                                      name='labels')
         self.logits = self.predict(self.data)
         self.loss = tf.reduce_mean(self.compute_loss(self.logits, self.labels))
-        self.train_op = self.train(self.loss)
+        self.train_op = self.minimize_loss(self.loss)
 
     def predict(self, inputs):
         W = tf.get_variable("W", [self.label_space_size, len(self.vocab.vocab)],
@@ -36,13 +34,6 @@ class BagOfWordsModel(model.Model):
     def compute_loss(self, logits, labels):
         return tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=labels),
                               1)
-
-    def train(self, loss):
-        self.lr = tf.get_variable("lr", shape=[],
-                                  initializer=tf.constant_initializer(self.config.learning_rate),
-                                  trainable=False)
-        optimizer = utils.get_optimizer(self.lr, self.config.optimizer)
-        return optimizer.minimize(loss, global_step=self.global_step)
 
 
 class BagOfWordsRunner(runner.Runner):
@@ -79,7 +70,6 @@ class BagOfWordsRunner(runner.Runner):
 def main(_):
     config = Config()
     vocab = reader.NoteVocab(config)
-    vocab.load_from_pickle()
     config_proto = tf.ConfigProto()
     config_proto.gpu_options.allow_growth = True
     with tf.Graph().as_default(), tf.Session(config=config_proto) as session:

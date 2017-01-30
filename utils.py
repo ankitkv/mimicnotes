@@ -2,8 +2,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import collections
-import itertools
 from multiprocessing import Pool
 import re
 import shelve
@@ -40,74 +38,47 @@ def mimic_tokenize(text):
     return ret
 
 
-def partial_vocab(args):
+def partial_tokenize(args):
     patients_list, (shlf_file, note_type) = args
     if note_type:
         note_type = note_type.replace('_', ' ')
     shelf = shelve.open(shlf_file)
-    fd = nltk.FreqDist()
-    aux_fd = collections.defaultdict(nltk.FreqDist)
+    ret = {}
     for pid in patients_list:
-        if pid is None:
-            break
         try:
             int(pid)
         except ValueError:
             continue
         patient = shelf[pid]
+        found = False
+        adm_map = {}
         for adm in patient.admissions.values():
-            note_found = False
+            adm_map[adm.admission_id] = []
             for note in adm.nte_events:
                 if not note_type or note.note_cat == note_type:
-                    note_found = True
-                    for sent in mimic_tokenize(note.note_text):
-                        fd.update(sent)
-            if not note_found:
-                continue
-            for pres in adm.psc_events:
-                ndc = pres.drug_codes[-1]
-                if ndc == '0':
-                    name = '<missing>'
-                else:
-                    name = pres.drug_names[0]
-                aux_fd['psc'].update([(ndc, name)])
-            for proc in adm.pcd_events:
-                aux_fd['pcd'].update([(proc.code, proc.name)])
-            for diag in adm.dgn_events:
-                aux_fd['dgn'].update([(diag.code, diag.name)])
-    return fd, aux_fd
-
-
-def partial_read(args):
-    patients_list, (shlf_file, note_type) = args
-    if note_type:
-        note_type = note_type.replace('_', ' ')
-    shelf = shelve.open(shlf_file)
-    ret = []
-    for pid in patients_list:
-        if pid is None:
-            break
-        try:
-            int(pid)
-        except ValueError:
-            continue
-        patient = shelf[pid]
-        for adm in patient.admissions.values():
-            for note in adm.nte_events:
-                if not note_type or note.note_cat == note_type:
+                    found = True
                     note_text = []
                     for sent in mimic_tokenize(note.note_text):
-                        note_text.extend(sent)
-                    ret.append((adm, note_text))
+                        note_text.append(sent)
+                    adm_map[adm.admission_id].append(note_text)
+        if found:
+            ret[pid] = adm_map
+    shelf.close()
     return ret
 
 
-def grouper(n, iterable, fillvalue=None):
-    '''Group elements of iterable in groups of n. For example:
-       >>> [e for e in grouper(3, [1,2,3,4,5,6,7])]
-       [(1, 2, 3), (4, 5, 6), (7, None, None)]'''
-    args = [iter(iterable)] * n
-    return itertools.izip_longest(*args, fillvalue=fillvalue)
+def partial_read(args):
+    patients_list, (pshlf_file, nshlf_file) = args
+    pshelf = shelve.open(pshlf_file)
+    nshelf = shelve.open(nshlf_file)
+    ret = []
+    for pid in patients_list:
+        patient_notes = nshelf[pid]
+        for adm_id, note in patient_notes.items():
+            ret.append((pshelf[pid].admissions[adm_id], note))
+    nshelf.close()
+    pshelf.close()
+    return ret
 
 
 def mt_map(threads, func, operands):
@@ -120,19 +91,6 @@ def mt_map(threads, func, operands):
     else:
         ret = map(func, operands)
     return ret
-
-
-def get_optimizer(lr, name):
-    '''Return an optimizer.'''
-    if name == 'sgd':
-        optimizer = tf.train.GradientDescentOptimizer(lr)
-    elif name == 'adam':
-        optimizer = tf.train.AdamOptimizer(lr)
-    elif name == 'adagrad':
-        optimizer = tf.train.AdagradOptimizer(lr)
-    elif name == 'adadelta':
-        optimizer = tf.train.AdadeltaOptimizer(lr)
-    return optimizer
 
 
 def linear(args, output_size, bias, bias_start=0.0, scope=None, initializer=None):
