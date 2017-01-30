@@ -130,7 +130,7 @@ class NotePickleData(NoteData):
         if load_from_pickle:
             self.load_from_pickle()
 
-    def prepare_pickles(self, chunk_size=32, bucket_size=4096):
+    def prepare_pickles(self, chunk_size=128, bucket_size=4096):
         if self.verbose:
             print('Preparing tokenized notes pickle from data...')
         pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
@@ -145,7 +145,10 @@ class NotePickleData(NoteData):
         bucket = 0
         count = 0
         buckets_dir = Path(self.config.data_path) / 'buckets'
-        buckets_dir.mkdir(exist_ok=True)
+        try:
+            buckets_dir.mkdir()
+        except OSError:
+            pass
         for plist in list_chunks:
             if self.verbose:
                 print('Bucket', bucket, ' chunk', count)
