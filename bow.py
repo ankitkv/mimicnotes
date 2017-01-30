@@ -59,7 +59,10 @@ class BagOfWordsRunner(runner.Runner):
         if train:
             ops.append(self.model.train_op)
         ret = self.session.run(ops, feed_dict={self.model.data: data, self.model.labels: labels})
-        return ret[:-1]
+        if train:
+            return ret[:-1]
+        else:
+            return ret
 
     def output(self, step, ret, train=True):
         loss, global_step = ret
