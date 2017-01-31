@@ -14,7 +14,7 @@ class Model(object):
         self.label_space_size = label_space_size
         with tf.variable_scope("Common"):
             self.global_step = tf.get_variable('global_step', shape=[],
-                                               initializer=tf.zeros_initializer(tf.int32),
+                                               initializer=tf.zeros_initializer(dtype=tf.int32),
                                                trainable=False, dtype=tf.int32)
             self.lr = tf.get_variable("lr", shape=[],
                                      initializer=tf.constant_initializer(self.config.learning_rate),
