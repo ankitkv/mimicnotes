@@ -24,23 +24,33 @@ class Runner(object):
     def run(self, verbose=True):
         epoch = 1
         while True:
+            if self.config.epochs > 0 and epoch > self.config.epochs:
+                break
             if verbose:
                 print('\nEpoch', epoch)
-            if self.config.epochs > 0 and epoch >= self.config.epochs:
-                break
             loss = self.run_epoch(epoch, self.train_splits, verbose=verbose)
             if verbose:
-                print('Epoch %d: Train losses:' % epoch, self.loss_str(loss))
+                try:
+                    print('Epoch %d: Train losses:' % epoch, self.loss_str(loss))
+                except:  # for empty splits
+                    pass
             loss = self.run_epoch(epoch, self.val_splits, train=False, verbose=verbose)
             if verbose:
-                print('Epoch %d: Valid losses:' % epoch, self.loss_str(loss))
+                try:
+                    print('Epoch %d: Valid losses:' % epoch, self.loss_str(loss))
+                except:
+                    pass
             epoch += 1
         loss = self.run_epoch(epoch, self.test_splits, train=False, verbose=verbose)
         if verbose:
-            print('Test losses:', self.loss_str(loss))
+            try:
+                print('Test losses:', self.loss_str(loss))
+            except:
+                pass
 
     def run_epoch(self, epoch, splits, train=True, verbose=True):
         loss = None
+        step = 0
         for step, batch in enumerate(self.reader.get(splits)):
             losses, extra = self.run_session(batch, train=train)
             if loss is None:
