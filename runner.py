@@ -67,7 +67,7 @@ class Runner(object):
                 self.verbose_output(step, losses, extra, train=train)
             if step % self.config.print_every == 0:
                 self.output(step, losses, extra, train=train)
-            if train and global_iter % self.config.save_every == 0:
+            if train and self.config.save_every > 0 and global_iter % self.config.save_every == 0:
                 self.save_model()
         if loss is None:
             loss = np.array([0.0])
