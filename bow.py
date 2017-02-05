@@ -21,20 +21,11 @@ class BagOfWordsModel(model.Model):
         self.data = tf.placeholder(tf.float32, [config.batch_size, len(vocab.vocab)], name='data')
         self.labels = tf.placeholder(tf.float32, [config.batch_size, label_space_size],
                                      name='labels')
-        self.logits = self.predict(self.data)
+        self.logits = utils.linear(self.data, self.label_space_size)
         self.preds = tf.to_int32(tf.greater_equal(self.logits, 0.0))
-        self.loss = tf.reduce_mean(self.compute_loss(self.logits, self.labels))
+        self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
+                                                                           labels=self.labels))
         self.train_op = self.minimize_loss(self.loss)
-
-    def predict(self, inputs):
-        W = tf.get_variable("W", [self.label_space_size, len(self.vocab.vocab)],
-                            initializer=tf.contrib.layers.xavier_initializer())
-        b = tf.get_variable("b", [self.label_space_size], initializer=tf.zeros_initializer())
-        return tf.nn.bias_add(tf.matmul(inputs, tf.transpose(W)), b)
-
-    def compute_loss(self, logits, labels):
-        return tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=labels),
-                              1)
 
 
 class BagOfWordsRunner(runner.Runner):
@@ -43,7 +34,7 @@ class BagOfWordsRunner(runner.Runner):
     def __init__(self, config, session):
         super(BagOfWordsRunner, self).__init__(config, session)
         self.model = BagOfWordsModel(self.config, self.vocab, self.reader.label_space_size())
-        self.session.run(tf.global_variables_initializer())
+        self.model.initialize(self.session, self.config.load_file)
 
     def run_session(self, batch, train=True):
         notes = batch[0].tolist()
@@ -64,6 +55,9 @@ class BagOfWordsRunner(runner.Runner):
         preds = ret[1]
         p, r, f = utils.f1_score(preds, labels)
         return ([ret[0], p, r, f], [ret[2]])
+
+    def save_model(self):
+        self.model.save(self.session, self.config.save_file, self.config.save_overwrite)
 
     def loss_str(self, losses):
         loss, p, r, f = losses

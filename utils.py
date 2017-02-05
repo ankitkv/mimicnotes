@@ -2,8 +2,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
 from multiprocessing import Pool
 import re
+import six
 import shelve
 
 import nltk
@@ -136,7 +138,7 @@ def f1_score(preds, labels):
     return p, r, f
 
 
-def linear(args, output_size, bias, bias_start=0.0, scope=None, initializer=None):
+def linear(args, output_size, bias=True, bias_start=0.0, scope=None, initializer=None):
     """Linear map: sum_i(args[i] * W[i]), where W[i] is a variable.
     Args:
         args: a 2D Tensor or a list of 2D, batch x n, Tensors.
@@ -150,7 +152,7 @@ def linear(args, output_size, bias, bias_start=0.0, scope=None, initializer=None
     Raises:
         ValueError: if some of the arguments has unspecified or wrong shape.
     Based on the code from TensorFlow."""
-    if not tf.nn.nest.is_sequence(args):
+    if not isinstance(args, collections.Sequence) or isinstance(args, six.string_types):
         args = [args]
 
     # Calculate the total size of arguments on dimension 1.

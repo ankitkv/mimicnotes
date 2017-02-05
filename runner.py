@@ -23,35 +23,41 @@ class Runner(object):
 
     def run(self, verbose=True):
         epoch = 1
+        global_iter = 0
         while True:
             if self.config.epochs > 0 and epoch > self.config.epochs:
                 break
             if verbose:
                 print('\nEpoch', epoch)
-            loss = self.run_epoch(epoch, self.train_splits, verbose=verbose)
+            global_iter, loss = self.run_epoch(epoch, global_iter, self.train_splits,
+                                               verbose=verbose)
             if verbose:
                 try:
                     print('Epoch %d: Train losses:' % epoch, self.loss_str(loss))
                 except:  # for empty splits
                     pass
-            loss = self.run_epoch(epoch, self.val_splits, train=False, verbose=verbose)
+            global_iter, loss = self.run_epoch(epoch, global_iter, self.val_splits, train=False,
+                                               verbose=verbose)
             if verbose:
                 try:
                     print('Epoch %d: Valid losses:' % epoch, self.loss_str(loss))
                 except:
                     pass
             epoch += 1
-        loss = self.run_epoch(epoch, self.test_splits, train=False, verbose=verbose)
+        global_iter, loss = self.run_epoch(epoch, global_iter, self.test_splits, train=False,
+                                           verbose=verbose)
         if verbose:
             try:
                 print('Test losses:', self.loss_str(loss))
             except:
                 pass
 
-    def run_epoch(self, epoch, splits, train=True, verbose=True):
+    def run_epoch(self, epoch, global_iter, splits, train=True, verbose=True):
         loss = None
         step = 0
         for step, batch in enumerate(self.reader.get(splits)):
+            if train:
+                global_iter += 1
             losses, extra = self.run_session(batch, train=train)
             if loss is None:
                 loss = np.array(losses)
@@ -61,9 +67,14 @@ class Runner(object):
                 self.verbose_output(step, losses, extra, train=train)
             if step % self.config.print_every == 0:
                 self.output(step, losses, extra, train=train)
+            if train and global_iter % self.config.save_every == 0:
+                self.save_model()
         if loss is None:
             loss = np.array([0.0])
-        return loss / (step + 1)  # problem: gives unequal weight to smaller batches
+        return global_iter, loss / (step + 1)  # problem: gives unequal weight to smaller batches
+
+    def save_model(self):
+        pass
 
     def loss_str(self, loss):
         return str(loss)

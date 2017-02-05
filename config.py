@@ -30,6 +30,9 @@ flags.DEFINE_float  ("train_split",    0.9,    "Fraction of patients for trainin
 flags.DEFINE_float  ("val_split",      0.03,   "Fraction of patients for validation. "
                                                "test = 1 - train - val")
 flags.DEFINE_integer("print_every",    50,     "Print every these many steps")
+flags.DEFINE_integer("save_every",     500,    "Save every these many steps (0 to disable, "
+                                               "-1 for each epoch)")
+flags.DEFINE_bool   ("save_overwrite", True,   "Overwrite the same save file each time")
 
 
 class Config(object):
