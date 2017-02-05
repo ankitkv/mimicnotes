@@ -43,8 +43,9 @@ class NoteData(object):
 class NoteShelveData(NoteData):
     '''Tokenized note data accessed via shelve files'''
 
-    def __init__(self, config, verbose=True, load_from_pickle=True):
+    def __init__(self, config, max_cache_size=50000, verbose=True, load_from_pickle=True):
         super(NoteShelveData, self).__init__(config, verbose=verbose)
+        self.max_cache_size = max_cache_size
         nshelf_file = 'notes'
         if config.note_type:
             nshelf_file += '.' + config.note_type
@@ -52,6 +53,8 @@ class NoteShelveData(NoteData):
         self.nshelf_file = Path(config.data_path) / nshelf_file
         if load_from_pickle:
             self.load_from_pickle()
+        # cache admissions for faster loading in later epochs
+        self.cache = collections.defaultdict(list)
 
     def prepare_shelf(self, chunk_size=1024):
         if self.verbose:
@@ -61,14 +64,13 @@ class NoteShelveData(NoteData):
         with plist_file.open('rb') as f:
             patients_list = pickle.load(f)
         nshelf = shelve.open(str(self.nshelf_file), 'c', protocol=-1, writeback=True)
-        list_chunks = [patients_list[i:i+chunk_size] for i in xrange(0, len(patients_list),
-                                                                     chunk_size)]
         patients_set = set()
-        for i, plist in enumerate(list_chunks):
+        for i in xrange(0, len(patients_list), chunk_size):
+            plist = patients_list[i:i+chunk_size]
             if self.verbose:
-                print('Chunk', i, 'of', len(list_chunks))
+                print('Chunk', i)
             group_size = int(0.5 + (len(plist) / self.config.threads))
-            lists = [plist[i:i+group_size] for i in xrange(0, len(plist), group_size)]
+            lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
             data = utils.mt_map(self.config.threads, utils.partial_tokenize,
                                 zip(lists, [(str(pshelf_file),
                                              self.config.note_type)] * len(lists)))
@@ -105,19 +107,27 @@ class NoteShelveData(NoteData):
         if self.verbose:
             print('Prepared to load data from shelve.')
 
-    def iterate(self, splits=['train', 'val', 'test'], chunk_size=512):
+    def iterate(self, splits=['train', 'val', 'test'], chunk_size=1536):
         '''Yields SimpleAdmission's from the data.'''
         patients_list = self.get_patients_list(splits)
-        list_chunks = [patients_list[i:i+chunk_size] for i in xrange(0, len(patients_list),
-                                                                     chunk_size)]
-        for plist in list_chunks:
-            group_size = int(0.5 + (len(plist) / self.config.threads))
-            lists = [plist[i:i+group_size] for i in xrange(0, len(plist), group_size)]
-            data = utils.mt_map(self.config.threads, utils.partial_read,
-                                zip(lists, [str(self.nshelf_file)] * len(lists)))
-            for thread_data in data:
-                for admission in thread_data:
-                    yield admission
+        for i in xrange(0, len(patients_list), chunk_size):
+            plist = []
+            for pid in patients_list[i:i+chunk_size]:
+                if pid in self.cache:
+                    for admission in self.cache[pid]:
+                        yield admission
+                else:
+                    plist.append(pid)
+            if plist:
+                group_size = int(0.5 + (len(plist) / self.config.threads))
+                lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
+                data = utils.mt_map(self.config.threads, utils.partial_read,
+                                    zip(lists, [str(self.nshelf_file)] * len(lists)))
+                for thread_data in data:
+                    for admission in thread_data:
+                        if len(self.cache) < self.max_cache_size:
+                            self.cache[admission.patient_id].append(admission)
+                        yield admission
 
 
 class NotePickleData(NoteData):
@@ -140,8 +150,6 @@ class NotePickleData(NoteData):
         plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
         with plist_file.open('rb') as f:
             patients_list = pickle.load(f)
-        list_chunks = [patients_list[i:i+chunk_size] for i in xrange(0, len(patients_list),
-                                                                     chunk_size)]
         patients_set = set()
         patients_dict = {}
         self.bucket_map = {}
@@ -152,11 +160,12 @@ class NotePickleData(NoteData):
             buckets_dir.mkdir()
         except OSError:
             pass
-        for plist in list_chunks:
+        for i in xrange(0, len(patients_list), chunk_size):
+            plist = patients_list[i:i+chunk_size]
             if self.verbose:
                 print('Bucket', bucket, ' chunk', count)
             group_size = int(0.5 + (len(plist) / self.config.threads))
-            lists = [plist[i:i+group_size] for i in xrange(0, len(plist), group_size)]
+            lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
             data = utils.mt_map(self.config.threads, utils.partial_tokenize,
                                 zip(lists, [(str(pshelf_file),
                                              self.config.note_type)] * len(lists)))
@@ -454,28 +463,30 @@ class NoteICD9Reader(NoteReader):
 def main(_):
     '''Reader tests'''
     config = Config()
-    # data = NoteShelveData(config)  # time: 59.4s on 33% of the data
-    data = NotePickleData(config)  # time: 52.9s on 33% of the data
+    data = NoteShelveData(config)
+    # data = NotePickleData(config)
     vocab = NoteVocab(config, data)
     reader = NoteICD9Reader(config, data, vocab)
-    words = 0
-    count = 0
-    for batch in reader.get(['val']):
-        for i in xrange(batch[0].shape[0]):
-            count += 1
-            print(count)
-            note = batch[0][i]
-            # length = batch[1][i]
-            label = batch[2][i]
-            words += len(note)
-            print(label)
-            print()
-#            print(note)
-#            for e in note:
-#                print(vocab.vocab[e], end=' ')
-#            print()
-#            print()
-    print(words)
+    for epoch in xrange(2):
+        words = 0
+        count = 0
+        print('Epoch', epoch)
+        for batch in reader.get(['val']):
+            for i in xrange(batch[0].shape[0]):
+                count += 1
+    #            print(count)
+                note = batch[0][i]
+                # length = batch[1][i]
+    #            label = batch[2][i]
+                words += len(note)
+    #            print(label)
+    #            print()
+    #            print(note)
+    #            for e in note:
+    #                print(vocab.vocab[e], end=' ')
+    #            print()
+    #            print()
+        print(words)
 
 
 if __name__ == '__main__':
