@@ -17,18 +17,20 @@ import runner
 class Word2vecModel(model.Model):
     '''A word2vec model.'''
 
-    def __init__(self, config, vocab, skip_window=1, num_skips=2, num_sampled=64):
+    def __init__(self, config, vocab, notes_count, skip_window=1, num_skips=2, num_sampled=64):
         super(Word2vecModel, self).__init__(config, vocab, 1)
 
         # Input data.
-        self.train_inputs = tf.placeholder(tf.int32, shape=[config.batch_size])
-        self.train_labels = tf.placeholder(tf.int32, shape=[config.batch_size, 1])
+        self.train_inputs = tf.placeholder(tf.int64, shape=[config.batch_size])
+        self.train_labels = tf.placeholder(tf.int64, shape=[config.batch_size, 1])
 
         # Ops and variables pinned to the CPU because of missing GPU implementation
         with tf.device('/cpu:0'):
+            init_width = 0.5 / config.word_emb_size
             # Look up embeddings for inputs.
             embeddings = tf.get_variable('embeddings', [len(vocab.vocab), config.word_emb_size],
-                                         initializer=tf.random_uniform_initializer(-1.0, 1.0))
+                                         initializer=tf.random_uniform_initializer(-init_width,
+                                                                                   init_width))
             embed = tf.nn.embedding_lookup(embeddings, self.train_inputs)
 
             # Construct the variables for the NCE loss
@@ -41,13 +43,19 @@ class Word2vecModel(model.Model):
         # Compute the average NCE loss for the batch.
         # tf.nce_loss automatically draws a new sample of the negative labels each
         # time we evaluate the loss.
-        # FIXME vocab isn't exactly ordered by frequency.
+        sampled_values = tf.nn.fixed_unigram_candidate_sampler(self.train_labels,
+                                                               1,
+                                                               num_sampled,
+                                                               True,
+                                                               len(vocab.vocab),
+                                                               unigrams=vocab.vocab_freqs(notes_count))
         self.loss = tf.reduce_mean(tf.nn.nce_loss(weights=nce_weights,
                                                   biases=nce_biases,
                                                   labels=self.train_labels,
                                                   inputs=embed,
                                                   num_sampled=num_sampled,
-                                                  num_classes=len(vocab.vocab)))
+                                                  num_classes=len(vocab.vocab),
+                                                  sampled_values=sampled_values))
         self.train_op = self.minimize_loss(self.loss)
 
 
@@ -60,7 +68,9 @@ class Word2vecRunner(runner.Runner):
         assert num_skips <= 2 * skip_window
         self.skip_window = skip_window
         self.num_skips = num_skips
-        self.model = Word2vecModel(config, self.vocab, skip_window, num_skips)
+        # using a notes_count of len(patients_list) only makes sense for discharge summaries!
+        self.model = Word2vecModel(config, self.vocab, len(self.reader.data.patients_list),
+                                   skip_window=skip_window, num_skips=num_skips)
         self.session.run(tf.global_variables_initializer())
 
     def run_session(self, raw_batch, train=True):

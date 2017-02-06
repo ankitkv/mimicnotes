@@ -257,6 +257,24 @@ class NoteVocab(object):
         if load_from_pickle:
             self.load_from_pickle()
 
+    def vocab_freqs(self, notes_count):
+        '''Lists the counts of each word in the vocabulary in the order of self.vocab'''
+        if self.verbose:
+            print('Loading frequencies for vocab...')
+        vocab_fd_file = 'vocab_fd'
+        if self.config.note_type:
+            vocab_fd_file += '.' + self.config.note_type
+        vocab_fd_file += '.pk'
+        fdfile = Path(self.config.data_path) / vocab_fd_file
+        with fdfile.open('rb') as f:
+            vocab_fd, _ = pickle.load(f)
+        ret = [vocab_fd[w] for w in self.vocab]
+        ret[self.unk_index] = ((1.0 - self.config.keep_vocab) * sum(ret)) // self.config.keep_vocab
+        ret[self.sos_index] = ret[self.eos_index] = notes_count
+        if self.verbose:
+            print('Loaded from freq dist file.')
+        return ret
+
     def prepare_vocab_from_fd(self, vocab_fd, vocab_aux_fd):
         count = 0
         for k, v in vocab_fd.most_common():
