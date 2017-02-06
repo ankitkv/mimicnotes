@@ -72,7 +72,7 @@ class Word2vecRunner(runner.Runner):
         # using a notes_count of len(patients_list) only makes sense for discharge summaries!
         self.model = Word2vecModel(config, self.vocab, len(self.reader.data.patients_list),
                                    skip_window, num_skips)
-        self.session.run(tf.global_variables_initializer())
+        self.model.initialize(self.session, self.config.load_file)
 
     def run_session(self, raw_batch, train=True):
         batch = np.ndarray(shape=(self.config.batch_size), dtype=np.int32)
