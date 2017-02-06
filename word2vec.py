@@ -5,6 +5,7 @@ from __future__ import print_function
 import collections
 import math
 import random
+from six.moves import xrange
 
 import numpy as np
 import tensorflow as tf
@@ -17,7 +18,7 @@ import runner
 class Word2vecModel(model.Model):
     '''A word2vec model.'''
 
-    def __init__(self, config, vocab, notes_count, skip_window=5, num_skips=8):
+    def __init__(self, config, vocab, notes_count, skip_window, num_skips):
         super(Word2vecModel, self).__init__(config, vocab, 1)
 
         # Input data.
@@ -63,14 +64,14 @@ class Word2vecModel(model.Model):
 class Word2vecRunner(runner.Runner):
     '''Runner for the word2vec model.'''
 
-    def __init__(self, config, session, skip_window=5, num_skips=8):
+    def __init__(self, config, session, skip_window=4, num_skips=6):
         super(Word2vecRunner, self).__init__(config, session)
         assert num_skips <= 2 * skip_window
         self.skip_window = skip_window
         self.num_skips = num_skips
         # using a notes_count of len(patients_list) only makes sense for discharge summaries!
         self.model = Word2vecModel(config, self.vocab, len(self.reader.data.patients_list),
-                                   skip_window=skip_window, num_skips=num_skips)
+                                   skip_window, num_skips)
         self.session.run(tf.global_variables_initializer())
 
     def run_session(self, raw_batch, train=True):
@@ -84,6 +85,11 @@ class Word2vecRunner(runner.Runner):
         notes = raw_batch[0].tolist()
         lengths = raw_batch[1].tolist()
         batch_index = 0
+
+        ops = [self.model.loss, self.model.global_step]
+        if train:
+            ops.append(self.model.train_op)
+
         for note, length in zip(notes, lengths):
             data = note[:length]
             if len(data) < span:
@@ -95,18 +101,14 @@ class Word2vecRunner(runner.Runner):
                 data_index += 1
             while data_index < len(data):
                 target = self.skip_window  # target label at the center of the buffer
-                targets_to_avoid = [self.skip_window]
+                targets_list = [j for j in xrange(span) if j != self.skip_window]
+                random.shuffle(targets_list)
                 for j in range(self.num_skips):
-                    while target in targets_to_avoid:
-                        target = random.randint(0, span - 1)
-                    targets_to_avoid.append(target)
+                    target = targets_list.pop()
                     batch[batch_index] = buffer[self.skip_window]
                     labels[batch_index, 0] = buffer[target]
                     batch_index += 1
                     if batch_index == self.config.batch_size:
-                        ops = [self.model.loss, self.model.global_step]
-                        if train:
-                            ops.append(self.model.train_op)
                         ret = self.session.run(ops, feed_dict={self.model.train_inputs: batch,
                                                                self.model.train_labels: labels})
                         loss, gs = ret[0], ret[1]
