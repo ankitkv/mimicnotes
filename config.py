@@ -27,7 +27,7 @@ flags.DEFINE_integer("epochs",         -1,     "Maximum number of epochs. -1 for
 flags.DEFINE_float  ("keep_vocab",     0.97,   "Fraction of data for vocab to cover")
 flags.DEFINE_float  ("train_split",    0.9,    "Fraction of patients for training. "
                                                "test = 1 - train - val")
-flags.DEFINE_float  ("val_split",      0.03,   "Fraction of patients for validation. "
+flags.DEFINE_float  ("val_split",      0.033,  "Fraction of patients for validation. "
                                                "test = 1 - train - val")
 flags.DEFINE_integer("print_every",    50,     "Print every these many steps")
 flags.DEFINE_integer("save_every",     500,    "Save every these many steps (0 to disable)")
