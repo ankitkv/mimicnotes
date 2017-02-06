@@ -29,10 +29,11 @@ class Word2vecModel(model.Model):
         with tf.device('/cpu:0'):
             init_width = 0.5 / config.word_emb_size
             # Look up embeddings for inputs.
-            embeddings = tf.get_variable('embeddings', [len(vocab.vocab), config.word_emb_size],
-                                         initializer=tf.random_uniform_initializer(-init_width,
-                                                                                   init_width))
-            embed = tf.nn.embedding_lookup(embeddings, self.train_inputs)
+            self.embeddings = tf.get_variable('embeddings', [len(vocab.vocab),
+                                                             config.word_emb_size],
+                                              initializer=tf.random_uniform_initializer(-init_width,
+                                                                                        init_width))
+            embed = tf.nn.embedding_lookup(self.embeddings, self.train_inputs)
 
             # Construct the variables for the NCE loss
             nce_weights = tf.get_variable('nce_weights', [len(vocab.vocab), config.word_emb_size],
@@ -129,6 +130,32 @@ class Word2vecRunner(runner.Runner):
     def output(self, step, losses, extra, train=True):
         global_step = extra[0]
         print("GS:%d, S:%d.  %s" % (global_step, step, self.loss_str(losses)))
+
+    def visualize(self, verbose=True):
+        from sklearn.manifold import TSNE
+        import matplotlib.pyplot as plt
+        filename = 'tsne.png'
+
+        print('Running t-SNE')
+        tsne = TSNE(perplexity=30, n_components=2, init='pca', n_iter=5000)
+        plot_only = 500
+        low_dim_embs = tsne.fit_transform(self.model.embeddings[:plot_only, :].eval())
+        labels = [self.vocab.vocab[i] for i in xrange(plot_only)]
+
+        print('Saving plot')
+        assert low_dim_embs.shape[0] >= len(labels), "More labels than embeddings"
+        plt.figure(figsize=(18, 18))  # in inches
+        for i, label in enumerate(labels):
+            x, y = low_dim_embs[i, :]
+            plt.scatter(x, y)
+            plt.annotate(label,
+                         xy=(x, y),
+                         xytext=(5, 2),
+                         textcoords='offset points',
+                         ha='right',
+                         va='bottom')
+        plt.savefig(filename)
+        print('Saved to', filename)
 
 
 def main(_):

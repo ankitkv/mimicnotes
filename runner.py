@@ -25,6 +25,14 @@ class Runner(object):
         self.test_splits = test_splits
 
     def run(self, verbose=True):
+        if self.config.visualize:
+            if verbose:
+                print('Running visualizations.')
+            self.visualize(verbose=verbose)
+        else:
+            self.run_loop(verbose=verbose)
+
+    def run_loop(self, verbose=True):
         epoch = 1
         global_iter = 0
         while True:
@@ -90,4 +98,8 @@ class Runner(object):
 
     def run_session(self, batch, train=True):
         '''Should return (losses, extra_info)'''
+        raise NotImplementedError
+
+    def visualize(self, verbose=True):
+        '''Run visualizations'''
         raise NotImplementedError

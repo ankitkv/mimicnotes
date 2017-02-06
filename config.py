@@ -24,7 +24,8 @@ flags.DEFINE_string ("optimizer",      "adam", "Optimizer to use (sgd, adam, ada
 flags.DEFINE_float  ("learning_rate",  1e-3,   "Optimizer initial learning rate")
 flags.DEFINE_integer("threads",        -1,     "Maximum number of threads/subprocesses. -1 to "
                                                "automatically determine")
-flags.DEFINE_integer("epochs",         -1,     "Maximum number of epochs. -1 for no limit")
+flags.DEFINE_integer("epochs",         -1,     "Number of training+val epochs. -1 for no limit, "
+                                               "0 to skip to testing.")
 flags.DEFINE_float  ("keep_vocab",     0.97,   "Fraction of data for vocab to cover")
 flags.DEFINE_float  ("train_split",    0.9,    "Fraction of patients for training. "
                                                "test = 1 - train - val")
@@ -33,6 +34,7 @@ flags.DEFINE_float  ("val_split",      0.033,  "Fraction of patients for validat
 flags.DEFINE_integer("print_every",    50,     "Print every these many steps")
 flags.DEFINE_integer("save_every",     500,    "Save every these many steps (0 to disable)")
 flags.DEFINE_bool   ("save_overwrite", True,   "Overwrite the same save file each time")
+flags.DEFINE_bool   ("visualize",      False,  "Run visualizations")
 
 
 class Config(object):
