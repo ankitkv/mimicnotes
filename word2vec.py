@@ -17,7 +17,7 @@ import runner
 class Word2vecModel(model.Model):
     '''A word2vec model.'''
 
-    def __init__(self, config, vocab, notes_count, skip_window=1, num_skips=2, num_sampled=64):
+    def __init__(self, config, vocab, notes_count, skip_window=5, num_skips=8):
         super(Word2vecModel, self).__init__(config, vocab, 1)
 
         # Input data.
@@ -45,15 +45,16 @@ class Word2vecModel(model.Model):
         # time we evaluate the loss.
         sampled_values = tf.nn.fixed_unigram_candidate_sampler(self.train_labels,
                                                                1,
-                                                               num_sampled,
+                                                               config.batch_size,
                                                                True,
                                                                len(vocab.vocab),
-                                                               unigrams=vocab.vocab_freqs(notes_count))
+                                                               unigrams=vocab.vocab_freqs(
+                                                                                       notes_count))
         self.loss = tf.reduce_mean(tf.nn.nce_loss(weights=nce_weights,
                                                   biases=nce_biases,
                                                   labels=self.train_labels,
                                                   inputs=embed,
-                                                  num_sampled=num_sampled,
+                                                  num_sampled=config.batch_size,
                                                   num_classes=len(vocab.vocab),
                                                   sampled_values=sampled_values))
         self.train_op = self.minimize_loss(self.loss)
@@ -62,9 +63,8 @@ class Word2vecModel(model.Model):
 class Word2vecRunner(runner.Runner):
     '''Runner for the word2vec model.'''
 
-    def __init__(self, config, session, skip_window=1, num_skips=2):
+    def __init__(self, config, session, skip_window=5, num_skips=8):
         super(Word2vecRunner, self).__init__(config, session)
-        assert config.batch_size % num_skips == 0
         assert num_skips <= 2 * skip_window
         self.skip_window = skip_window
         self.num_skips = num_skips

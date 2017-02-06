@@ -16,7 +16,7 @@ flags.DEFINE_string ("load_file",     "",                  "File to load model f
 flags.DEFINE_string ("note_type",     "Discharge_summary", "The type of notes to consider")
 
 flags.DEFINE_integer("batch_size",     128,    "Batch size")
-flags.DEFINE_integer("word_emb_size",  128,    "Word embedding size")
+flags.DEFINE_integer("word_emb_size",  192,    "Word embedding size")
 flags.DEFINE_integer("max_note_len",   4500,   "Maximum note length. -1 to disable")
 flags.DEFINE_integer("max_dgn_labels", 500,    "Diagnoses vocabulary for labels. -1 for default")
 flags.DEFINE_string ("optimizer",      "adam", "Optimizer to use (sgd, adam, adagrad, adadelta)")
