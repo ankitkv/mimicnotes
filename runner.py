@@ -14,7 +14,10 @@ class Runner(object):
                  test_splits=['test']):
         self.config = config
         self.session = session
-        data = reader.NoteShelveData(config)
+        if config.data_storage == 'shelve':
+            data = reader.NoteShelveData(config)
+        elif config.data_storage == 'pickle':
+            data = reader.NotePickleData(config)
         self.vocab = reader.NoteVocab(config, data)
         self.reader = reader.NoteICD9Reader(config, data, self.vocab)
         self.train_splits = train_splits

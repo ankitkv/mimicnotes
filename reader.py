@@ -45,16 +45,18 @@ class NoteShelveData(NoteData):
 
     def __init__(self, config, max_cache_size=50000, verbose=True, load_from_pickle=True):
         super(NoteShelveData, self).__init__(config, verbose=verbose)
+        if verbose:
+            print('Using shelve data storage.')
         self.max_cache_size = max_cache_size
         nshelf_file = 'notes'
         if config.note_type:
             nshelf_file += '.' + config.note_type
         nshelf_file += '.shlf'
         self.nshelf_file = Path(config.data_path) / nshelf_file
-        if load_from_pickle:
-            self.load_from_pickle()
         # cache admissions for faster loading in later epochs
         self.cache = collections.defaultdict(list)
+        if load_from_pickle:
+            self.load_from_pickle()
 
     def prepare_shelf(self, chunk_size=1024):
         if self.verbose:
@@ -133,13 +135,18 @@ class NoteShelveData(NoteData):
 class NotePickleData(NoteData):
     '''Tokenized note data accessed via pickle files'''
 
-    def __init__(self, config, verbose=True, load_from_pickle=True):
+    def __init__(self, config, max_cache_size=50000, verbose=True, load_from_pickle=True):
         super(NotePickleData, self).__init__(config, verbose=verbose)
+        if verbose:
+            print('Using pickle data storage.')
+        self.max_cache_size = max_cache_size
         self.bucket_map = {}
         notes_file = 'notes'
         if self.config.note_type:
             notes_file += '.' + self.config.note_type
         self.notes_file = notes_file + '.pk'
+        # cache admissions for faster loading in later epochs
+        self.cache = collections.defaultdict(list)
         if load_from_pickle:
             self.load_from_pickle()
 
@@ -229,13 +236,19 @@ class NotePickleData(NoteData):
         buckets_dir = Path(self.config.data_path) / 'buckets'
         bucket = -1
         for pid in patients_list:
-            if bucket != self.bucket_map[pid]:
-                bucket = self.bucket_map[pid]
-                notes_file = buckets_dir / (self.notes_file + ('.%d' % bucket))
-                with notes_file.open('rb') as f:
-                    patients_dict = pickle.load(f)
-            _, adm_map = patients_dict[pid]
-            for admission in adm_map.values():
+            if pid in self.cache:
+                for admission in self.cache[pid]:
+                    yield admission
+            else:
+                if bucket != self.bucket_map[pid]:
+                    bucket = self.bucket_map[pid]
+                    notes_file = buckets_dir / (self.notes_file + ('.%d' % bucket))
+                    with notes_file.open('rb') as f:
+                        patients_dict = pickle.load(f)
+                _, adm_map = patients_dict[pid]
+                for admission in adm_map.values():
+                    if len(self.cache) < self.max_cache_size:
+                        self.cache[admission.patient_id].append(admission)
                     yield admission
 
 
@@ -481,8 +494,10 @@ class NoteICD9Reader(NoteReader):
 def main(_):
     '''Reader tests'''
     config = Config()
-    data = NoteShelveData(config)
-    # data = NotePickleData(config)
+    if config.data_storage == 'shelve':
+        data = NoteShelveData(config)
+    elif config.data_storage == 'pickle':
+        data = NotePickleData(config)
     vocab = NoteVocab(config, data)
     reader = NoteICD9Reader(config, data, vocab)
     for epoch in xrange(2):
