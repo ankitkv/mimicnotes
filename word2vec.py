@@ -119,6 +119,9 @@ class Word2vecRunner(runner.Runner):
                 data_index += 1
         return ([total_loss / total_steps], [gs])
 
+    def save_model(self):
+        self.model.save(self.session, self.config.save_file, self.config.save_overwrite)
+
     def loss_str(self, losses):
         loss, = losses
         return "Loss: %.4f" % loss
