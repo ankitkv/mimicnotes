@@ -2,6 +2,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from six.moves import xrange
+
+import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 import tensorflow as tf
 
@@ -66,6 +69,35 @@ class BagOfWordsRunner(runner.Runner):
     def output(self, step, losses, extra, train=True):
         global_step = extra[0]
         print("GS:%d, S:%d.  %s" % (global_step, step, self.loss_str(losses)))
+
+    def visualize(self, verbose=True):
+        n_labels = 10
+        n_words = 15
+        with tf.variable_scope('Linear', reuse=True):
+            W = tf.get_variable('Matrix').eval()
+        print()
+        print('MOST INFLUENTIAL WORDS')
+        print()
+        for label in xrange(n_labels):
+            print()
+            print('LABEL:', self.vocab.aux_names['dgn'][self.vocab.aux_vocab['dgn'][label]])
+            print('-----')
+            words = [(i, w) for i, w in enumerate(W[:, label].tolist())]
+            words.sort(key=lambda x: -abs(x[1]))
+            words = words[:n_words]
+            for index, weight in words:
+                print(self.vocab.vocab[index].ljust(25), weight)
+            print()
+        print()
+        print('OVERALL (norms)')
+        print('-----')
+        W_norm = np.linalg.norm(W, axis=1)
+        words = [(i, w) for i, w in enumerate(W_norm.tolist())]
+        words.sort(key=lambda x: -abs(x[1]))
+        words = words[:n_words]
+        for index, weight in words:
+            print(self.vocab.vocab[index].ljust(25), weight)
+        print()
 
 
 def main(_):
