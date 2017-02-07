@@ -36,6 +36,9 @@ class Model(object):
             self.saver.restore(session, load_file)
             if verbose:
                 print("Model restored from", load_file)
+            # update the learning rate when a model is loaded. this should be replaced with
+            # something nicer once we have learning rate decay
+            session.run(tf.assign(self.lr, self.config.learning_rate))
         except tf.errors.NotFoundError:
             session.run(tf.global_variables_initializer())
             if verbose:
