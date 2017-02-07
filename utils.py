@@ -9,6 +9,7 @@ import six
 import shelve
 
 import nltk
+import numpy as np
 import sklearn
 import tensorflow as tf
 
@@ -141,6 +142,13 @@ def f1_score(preds, labels):
 def average_precision(probs, labels):
     '''Precision integrated over all thresholds (area under the precision-recall curve)'''
     return sklearn.metrics.average_precision_score(labels, probs, average='micro')
+
+
+def precision_at_k(probs, labels, k):
+    indices = np.argpartition(-probs, k-1, axis=1)[:, :k]
+    preds = np.zeros(probs.shape, dtype=np.int)
+    preds[np.arange(preds.shape[0])[:, np.newaxis], indices] = 1
+    return sklearn.metrics.precision_score(labels, preds, average='micro')
 
 
 def linear(args, output_size, bias=True, bias_start=0.0, scope=None, initializer=None):

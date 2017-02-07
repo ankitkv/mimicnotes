@@ -59,15 +59,16 @@ class BagOfWordsRunner(runner.Runner):
         preds, probs = ret[1], ret[2]
         p, r, f = utils.f1_score(preds, labels)
         ap = utils.average_precision(probs, labels)
-        return ([ret[0], p, r, f, ap], [ret[3]])
+        p8 = utils.precision_at_k(probs, labels, 8)
+        return ([ret[0], p, r, f, ap, p8], [ret[3]])
 
     def save_model(self):
         self.model.save(self.session, self.config.save_file, self.config.save_overwrite)
 
     def loss_str(self, losses):
-        loss, p, r, f, ap = losses
-        return "Loss: %.4f, Precision: %.4f, Recall: %.4f, F-score: %.4f, AvgPrecision: %.4f" % \
-               (loss, p, r, f, ap)
+        loss, p, r, f, ap, p8 = losses
+        return "Loss: %.4f, Precision: %.4f, Recall: %.4f, F-score: %.4f, AvgPrecision: %.4f, " \
+               "Precision@8: %.4f" % (loss, p, r, f, ap, p8)
 
     def output(self, step, losses, extra, train=True):
         global_step = extra[0]
