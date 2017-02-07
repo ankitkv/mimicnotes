@@ -25,6 +25,7 @@ class BagOfWordsModel(model.Model):
         self.labels = tf.placeholder(tf.float32, [config.batch_size, label_space_size],
                                      name='labels')
         self.logits = utils.linear(self.data, self.label_space_size)
+        self.probs = tf.sigmoid(self.logits)
         self.preds = tf.to_int32(tf.greater_equal(self.logits, 0.0))
         self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
                                                                            labels=self.labels))
@@ -51,20 +52,22 @@ class BagOfWordsRunner(runner.Runner):
                 out_note.append(self.vocab.vocab[word])
             X_raw.append(' '.join(out_note))
         data = self.model.vectorizer.transform(X_raw, copy=False).toarray()
-        ops = [self.model.loss, self.model.preds, self.model.global_step]
+        ops = [self.model.loss, self.model.preds, self.model.probs, self.model.global_step]
         if train:
             ops.append(self.model.train_op)
         ret = self.session.run(ops, feed_dict={self.model.data: data, self.model.labels: labels})
-        preds = ret[1]
+        preds, probs = ret[1], ret[2]
         p, r, f = utils.f1_score(preds, labels)
-        return ([ret[0], p, r, f], [ret[2]])
+        ap = utils.average_precision(probs, labels)
+        return ([ret[0], p, r, f, ap], [ret[3]])
 
     def save_model(self):
         self.model.save(self.session, self.config.save_file, self.config.save_overwrite)
 
     def loss_str(self, losses):
-        loss, p, r, f = losses
-        return "Loss: %.4f, Precision: %.4f, Recall: %.4f, F-score: %.4f" % (loss, p, r, f)
+        loss, p, r, f, ap = losses
+        return "Loss: %.4f, Precision: %.4f, Recall: %.4f, F-score: %.4f, AvgPrecision: %.4f" % \
+               (loss, p, r, f, ap)
 
     def output(self, step, losses, extra, train=True):
         global_step = extra[0]

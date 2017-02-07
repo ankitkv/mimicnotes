@@ -138,6 +138,11 @@ def f1_score(preds, labels):
     return p, r, f
 
 
+def average_precision(probs, labels):
+    '''Precision integrated over all thresholds (area under the precision-recall curve)'''
+    return sklearn.metrics.average_precision_score(labels, probs, average='micro')
+
+
 def linear(args, output_size, bias=True, bias_start=0.0, scope=None, initializer=None):
     """Linear map: sum_i(args[i] * W[i]), where W[i] is a variable.
     Args:
