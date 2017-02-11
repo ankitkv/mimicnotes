@@ -37,6 +37,7 @@ flags.DEFINE_integer("print_every",    50,     "Print every these many steps")
 flags.DEFINE_integer("save_every",     500,    "Save every these many steps (0 to disable)")
 flags.DEFINE_bool   ("save_overwrite", True,   "Overwrite the same save file each time")
 flags.DEFINE_bool   ("visualize",      False,  "Run visualizations")
+flags.DEFINE_string ("query",          "",     "Query for visualization")
 
 
 class Config(object):

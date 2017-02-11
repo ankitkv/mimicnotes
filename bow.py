@@ -75,32 +75,54 @@ class BagOfWordsRunner(runner.Runner):
         print("GS:%d, S:%d.  %s" % (global_step, step, self.loss_str(losses)))
 
     def visualize(self, verbose=True):
-        n_labels = 10
-        n_words = 15
+        n_labels = 15
+        n_items = 15
         with tf.variable_scope('Linear', reuse=True):
             W = tf.get_variable('Matrix').eval()
+        word_indices = [i for i in xrange(n_labels)]
+        if self.config.query:
+            index = self.vocab.vocab_lookup.get(self.config.query, None)
+            if index:
+                word_indices = [index]
         print()
-        print('MOST INFLUENTIAL WORDS')
+        print('\nMOST INFLUENTIAL WORDS')
         print()
         for label in xrange(n_labels):
             print()
             print('LABEL:', self.vocab.aux_names['dgn'][self.vocab.aux_vocab['dgn'][label]])
             print('-----')
             words = [(i, w) for i, w in enumerate(W[:, label].tolist())]
-            words.sort(key=lambda x: -abs(x[1]))
-            words = words[:n_words]
-            for index, weight in words:
+            words.sort(key=lambda x: -x[1])
+            for index, weight in words[:n_items]:
                 print(self.vocab.vocab[index].ljust(25), weight)
-            print()
+            print('--')
+            for index, weight in words[-n_items:]:
+                print(self.vocab.vocab[index].ljust(25), weight)
         print()
-        print('OVERALL (norms)')
+        print('\nOVERALL (norms)')
         print('-----')
         W_norm = np.linalg.norm(W, axis=1)
         words = [(i, w) for i, w in enumerate(W_norm.tolist())]
         words.sort(key=lambda x: -abs(x[1]))
-        words = words[:n_words]
+        words = words[:n_items]
         for index, weight in words:
             print(self.vocab.vocab[index].ljust(25), weight)
+        print()
+        print('\nMOST INFLUENTIAL LABELS')
+        print()
+        for index in word_indices:
+            print()
+            print('WORD:', self.vocab.vocab[index])
+            print('-----')
+            labels = [(i, l) for i, l in enumerate(W[index, :].tolist())]
+            labels.sort(key=lambda x: -x[1])
+            for index, weight in labels[:n_items]:
+                print(self.vocab.aux_names['dgn'][self.vocab.aux_vocab['dgn'][index]].ljust(25),
+                      weight)
+            print('--')
+            for index, weight in labels[-n_items:]:
+                print(self.vocab.aux_names['dgn'][self.vocab.aux_vocab['dgn'][index]].ljust(25),
+                      weight)
         print()
 
 
