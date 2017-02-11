@@ -79,6 +79,7 @@ class BagOfWordsRunner(runner.Runner):
         n_items = 15
         with tf.variable_scope('Linear', reuse=True):
             W = tf.get_variable('Matrix').eval()
+        # W /= np.linalg.norm(W, axis=0, keepdims=True)
         word_indices = [i for i in xrange(n_labels)]
         if self.config.query:
             index = self.vocab.vocab_lookup.get(self.config.query, None)
@@ -104,11 +105,13 @@ class BagOfWordsRunner(runner.Runner):
         W_norm = np.linalg.norm(W, axis=1)
         words = [(i, w) for i, w in enumerate(W_norm.tolist())]
         words.sort(key=lambda x: -abs(x[1]))
-        words = words[:n_items]
-        for index, weight in words:
+        for index, weight in words[:n_items]:
+            print(self.vocab.vocab[index].ljust(25), weight)
+        print('--')
+        for index, weight in words[-n_items:]:
             print(self.vocab.vocab[index].ljust(25), weight)
         print()
-        print('\nMOST INFLUENTIAL LABELS')
+        print('\nMOST INFLUENCED LABELS')
         print()
         for index in word_indices:
             print()
