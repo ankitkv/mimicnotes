@@ -500,25 +500,29 @@ def main(_):
         data = NotePickleData(config)
     vocab = NoteVocab(config, data)
     reader = NoteICD9Reader(config, data, vocab)
-    for epoch in xrange(2):
+#    for k, v in vocab.aux_names['dgn'].items():
+#        if v == 'Depressive disorder NEC':
+#            target = vocab.aux_vocab_lookup['dgn'][k]
+    for epoch in xrange(1):
         words = 0
-        count = 0
         print('Epoch', epoch)
         for batch in reader.get(['val']):
             for i in xrange(batch[0].shape[0]):
-                count += 1
-    #            print(count)
                 note = batch[0][i]
-                # length = batch[1][i]
-    #            label = batch[2][i]
                 words += len(note)
-    #            print(label)
-    #            print()
-    #            print(note)
-    #            for e in note:
-    #                print(vocab.vocab[e], end=' ')
-    #            print()
-    #            print()
+#                label = batch[2][i]
+#                print_this = False
+#                if label[target]:
+#                    for e in note:
+#                        if vocab.vocab[e] == 'anxiety':
+#                            print_this = True
+#                            break
+#                if print_this:
+#                    for e in note:
+#                        print(vocab.vocab[e], end=' ')
+#                    print('--------------')
+#                    print()
+#        print()
         print(words)
 
 
