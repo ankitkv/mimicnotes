@@ -1,5 +1,6 @@
 config.pyc
 model.pyc
+neuralbow.pyc
 reader.pyc
 runner.pyc
 utils.pyc
