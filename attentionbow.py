@@ -6,6 +6,7 @@ import tensorflow as tf
 
 from config import Config
 import neuralbow
+import utils
 
 
 class AttentionBagOfWordsModel(neuralbow.NeuralBagOfWordsModel):
@@ -14,11 +15,16 @@ class AttentionBagOfWordsModel(neuralbow.NeuralBagOfWordsModel):
     def __init__(self, config, vocab, label_space_size):
         super(AttentionBagOfWordsModel, self).__init__(config, vocab, label_space_size)
 
-    def summarize(self, embed, window=4):
+    def summarize(self, embed):
         '''Summarize embed using attention, where the score for each word depends on the window
-           ($window to the left and to the right) around the word'''
-        # TODO
-        return tf.reduce_sum(embed, 1)
+           around the word (span of width config.attn_window)'''
+        if self.config.attn_on_dims:  # apply attention on each embedding dimension individually
+            channels = self.config.word_emb_size
+        else:
+            channels = 1
+        scores = utils.conv1d(embed, channels, self.config.attn_window)
+        self.probs = tf.nn.softmax(scores, 1)
+        return tf.reduce_sum(embed * self.probs, 1)
 
 
 class AttentionBagOfWordsRunner(neuralbow.NeuralBagOfWordsRunner):
