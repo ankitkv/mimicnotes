@@ -421,11 +421,17 @@ class NoteReader(object):
         for note in self.read_notes(splits):
             notes.append(note)
             if len(notes) == buffer_size:
-                notes.sort(key=lambda x: len(x[0]))
+                if self.config.length_sort:
+                    notes.sort(key=lambda x: len(x[0]))
+                else:
+                    random.shuffle(notes)
                 yield notes
                 notes = []
         if notes:
-            notes.sort(key=lambda x: len(x[0]))
+            if self.config.length_sort:
+                notes.sort(key=lambda x: len(x[0]))
+            else:
+                random.shuffle(notes)
             mod = len(notes) % self.config.batch_size
             if mod != 0:
                 notes = [([], self.label_info(None))
@@ -437,7 +443,8 @@ class NoteReader(object):
         for note_collection in self.buffered_read_sorted_notes(splits):
             batches = [note_collection[i:i+self.config.batch_size]
                        for i in xrange(0, len(note_collection), self.config.batch_size)]
-            random.shuffle(batches)
+            if not self.config.length_sort:
+                random.shuffle(batches)
             for batch in batches:
                 yield self.pack(batch)
 

@@ -18,6 +18,7 @@ flags.DEFINE_string ("note_type",    "Discharge_summary", "The type of notes to 
 flags.DEFINE_string ("data_storage", "pickle",            "Format to store data (shelve or pickle)")
 
 flags.DEFINE_integer("batch_size",     128,    "Batch size")
+flags.DEFINE_bool   ("length_sort",    True,   "Ensure similar note lengths in a batch")
 flags.DEFINE_integer("word_emb_size",  192,    "Word embedding size")
 flags.DEFINE_bool   ("train_embs",     True,   "Train word embeddings")
 flags.DEFINE_integer("max_note_len",   4500,   "Maximum note length. -1 to disable")

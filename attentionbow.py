@@ -14,8 +14,10 @@ class AttentionBagOfWordsModel(neuralbow.NeuralBagOfWordsModel):
     def __init__(self, config, vocab, label_space_size):
         super(AttentionBagOfWordsModel, self).__init__(config, vocab, label_space_size)
 
-    def summarize(self, embed):
-        # TODO attention
+    def summarize(self, embed, window=4):
+        '''Summarize embed using attention, where the score for each word depends on the window
+           ($window to the left and to the right) around the word'''
+        # TODO
         return tf.reduce_sum(embed, 1)
 
 
