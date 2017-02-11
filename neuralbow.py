@@ -36,8 +36,11 @@ class NeuralBagOfWordsModel(model.Model):
                                                                            labels=self.labels))
         self.train_op = self.minimize_loss(self.loss)
 
-    def summarize(self, embed):
-        return tf.reduce_sum(embed, 1)
+    def summarize(self, embed, normalize=False):
+        added = tf.reduce_sum(embed, 1)
+        if normalize:
+            added = tf.nn.l2_normalize(added, 1)
+        return added
 
 
 class NeuralBagOfWordsRunner(runner.Runner):
