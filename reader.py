@@ -443,7 +443,7 @@ class NoteReader(object):
         for note_collection in self.buffered_read_sorted_notes(splits):
             batches = [note_collection[i:i+self.config.batch_size]
                        for i in xrange(0, len(note_collection), self.config.batch_size)]
-            if not self.config.length_sort:
+            if self.config.length_sort:
                 random.shuffle(batches)
             for batch in batches:
                 yield self.pack(batch)
