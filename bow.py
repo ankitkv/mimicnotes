@@ -35,10 +35,11 @@ class BagOfWordsModel(model.Model):
 class BagOfWordsRunner(runner.Runner):
     '''Runner for the bag of words model.'''
 
-    def __init__(self, config, session):
+    def __init__(self, config, session, model_init=True):
         super(BagOfWordsRunner, self).__init__(config, session)
-        self.model = BagOfWordsModel(self.config, self.vocab, self.reader.label_space_size())
-        self.model.initialize(self.session, self.config.load_file)
+        if model_init:  # False when __init__ is called by subclasses like neural BOW
+            self.model = BagOfWordsModel(self.config, self.vocab, self.reader.label_space_size())
+            self.model.initialize(self.session, self.config.load_file)
 
     def run_session(self, batch, train=True):
         notes = batch[0].tolist()
@@ -74,11 +75,15 @@ class BagOfWordsRunner(runner.Runner):
         global_step = extra[0]
         print("GS:%d, S:%d.  %s" % (global_step, step, self.loss_str(losses)))
 
-    def visualize(self, verbose=True):
+    def visualize(self, embeddings=None, verbose=True):
+        '''Visualizations for a BOW model. If embeddings is None, it is treated as an identity
+           matrix. This would be a learnt matrix for neural bag of words.'''
         n_labels = 15
         n_items = 15
         with tf.variable_scope('Linear', reuse=True):
-            W = tf.get_variable('Matrix').eval()
+            W = tf.get_variable('Matrix').eval()  # logistic regression weights
+        if embeddings is not None:
+            W = np.dot(embeddings, W)
         # W /= np.linalg.norm(W, axis=0, keepdims=True)
         word_indices = [i for i in xrange(n_labels)]
         if self.config.query:
