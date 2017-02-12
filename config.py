@@ -10,12 +10,15 @@ flags = tf.flags
 
 
 # command-line config
-flags.DEFINE_string ("data_path",    "data",              "Data path")
-flags.DEFINE_string ("save_file",    "models/recent.dat", "Save file")
-flags.DEFINE_string ("load_file",    "",                  "File to load model from")
-flags.DEFINE_string ("emb_file",     "",                  "File to load embeddings from")
-flags.DEFINE_string ("note_type",    "Discharge_summary", "The type of notes to consider")
-flags.DEFINE_string ("data_storage", "pickle",            "Format to store data (shelve or pickle)")
+flags.DEFINE_string ("data_path",      "data",              "Data path")
+flags.DEFINE_string ("save_file",      "models/recent.dat", "Save file")
+flags.DEFINE_string ("best_save_file", "",                  "Save file for best validation losses "
+                                                            "(empty for save_file)")
+flags.DEFINE_string ("load_file",      "",                  "File to load model from")
+flags.DEFINE_string ("emb_file",       "",                  "File to load embeddings from")
+flags.DEFINE_string ("note_type",      "Discharge_summary", "The type of notes to consider")
+flags.DEFINE_string ("data_storage",   "pickle",            "Format to store data "
+                                                            "(shelve or pickle)")
 
 flags.DEFINE_integer("batch_size",     128,    "Batch size")
 flags.DEFINE_bool   ("length_sort",    True,   "Ensure similar note lengths in a batch")

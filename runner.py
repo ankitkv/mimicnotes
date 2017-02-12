@@ -54,6 +54,10 @@ class Runner(object):
                     print('Epoch %d: Valid losses:' % epoch, self.loss_str(loss))
                 except:
                     pass
+            if self.config.best_save_file and self.best_val_loss(loss):
+                if verbose:
+                    print('Found new best validation loss!')
+                self.save_model(self.config.best_save_file)
             epoch += 1
         global_iter, loss = self.run_epoch(epoch, global_iter, self.test_splits, train=False,
                                            verbose=verbose)
@@ -79,12 +83,17 @@ class Runner(object):
             if step % self.config.print_every == 0:
                 self.output(step, losses, extra, train=train)
             if train and self.config.save_every > 0 and global_iter % self.config.save_every == 0:
-                self.save_model()
+                self.save_model(self.config.save_file)
         if loss is None:
             loss = np.array([0.0])
         return global_iter, loss / (step + 1)  # problem: gives unequal weight to smaller batches
 
-    def save_model(self):
+    def best_val_loss(self, loss):
+        '''Compare loss with the best validation loss, and return True if a new best is found.
+           Take care that loss may be [0.0] when the val split was empty.'''
+        return False
+
+    def save_model(self, save_file):
         pass
 
     def loss_str(self, loss):

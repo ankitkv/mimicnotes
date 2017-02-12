@@ -37,6 +37,7 @@ class BagOfWordsRunner(runner.Runner):
 
     def __init__(self, config, session, model_init=True):
         super(BagOfWordsRunner, self).__init__(config, session)
+        self.best_loss = 10000.0
         if model_init:  # False when __init__ is called by subclasses like neural BOW
             self.model = BagOfWordsModel(self.config, self.vocab, self.reader.label_space_size())
             self.model.initialize(self.session, self.config.load_file)
@@ -63,8 +64,16 @@ class BagOfWordsRunner(runner.Runner):
         p8 = utils.precision_at_k(probs, labels, 8)
         return ([ret[0], p, r, f, ap, p8], [ret[3]])
 
-    def save_model(self):
-        self.model.save(self.session, self.config.save_file, self.config.save_overwrite)
+    def best_val_loss(self, loss):
+        '''Compare loss with the best validation loss, and return True if a new best is found'''
+        if loss[0] <= self.best_loss:
+            self.best_loss = loss[0]
+            return True
+        else:
+            return False
+
+    def save_model(self, save_file):
+        self.model.save(self.session, save_file, self.config.save_overwrite)
 
     def loss_str(self, losses):
         loss, p, r, f, ap, p8 = losses
