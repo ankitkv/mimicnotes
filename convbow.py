@@ -30,8 +30,19 @@ class ConvolutionalBagOfWordsRunner(neuralbow.NeuralBagOfWordsRunner):
                                                             verbose=verbose)
 
     def visualize(self, verbose=True):
-        # TODO compute dot product of dynamic embeddings with label embeddings
-        raise NotImplementedError
+        with tf.variable_scope('Linear', reuse=True):
+            W = tf.get_variable('Matrix').eval()  # logistic regression weights
+        if self.config.query:
+            split = self.config.query
+        else:
+            split = 'test'
+        for batch in self.reader.get([split]):
+            dynamic_embs = self.session.run(self.model.dynamic_embs,
+                                            feed_dict={self.model.notes: batch[0],
+                                                       self.model.lengths: batch[1],
+                                                       self.model.labels: batch[2]})
+            # TODO compute dot product of dynamic embeddings with label embeddings
+            print(dynamic_embs.shape)
 
 
 def main(_):
