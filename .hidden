@@ -1,5 +1,6 @@
 bow.pyc
 config.pyc
+convbow.pyc
 model.pyc
 neuralbow.pyc
 reader.pyc

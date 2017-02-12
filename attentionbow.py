@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 
+import convbow
 from config import Config
 import neuralbow
 import utils
@@ -23,20 +24,18 @@ class AttentionBagOfWordsModel(neuralbow.NeuralBagOfWordsModel):
         else:
             channels = 1
         scores = utils.conv1d(embed, channels, self.config.attn_window)
-        self.probs = tf.nn.softmax(scores, 1)
-        return tf.reduce_sum(embed * self.probs, 1)
+        probs = tf.nn.softmax(scores, 1)
+        self.dynamic_embs = embed * probs
+        return tf.reduce_sum(self.dynamic_embs, 1)
 
 
-class AttentionBagOfWordsRunner(neuralbow.NeuralBagOfWordsRunner):
+class AttentionBagOfWordsRunner(convbow.ConvolutionalBagOfWordsRunner):
     '''Runner for the attention bag of words model.'''
 
     def __init__(self, config, session, verbose=True):
         super(AttentionBagOfWordsRunner, self).__init__(config, session,
                                                         model_class=AttentionBagOfWordsModel,
                                                         verbose=verbose)
-
-    def visualize(self, verbose=True):
-        raise NotImplementedError  # TODO
 
 
 def main(_):

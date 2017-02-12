@@ -17,20 +17,21 @@ class ConvolutionalBagOfWordsModel(neuralbow.NeuralBagOfWordsModel):
 
     def summarize(self, embed):
         '''Convolve input embeddings to get context-based embeddings'''
-        embed = utils.conv1d(embed, self.config.word_emb_size, self.config.attn_window)
-        return tf.reduce_sum(embed, 1)
+        self.dynamic_embs = utils.conv1d(embed, self.config.word_emb_size, self.config.attn_window)
+        return tf.reduce_sum(self.dynamic_embs, 1)
 
 
 class ConvolutionalBagOfWordsRunner(neuralbow.NeuralBagOfWordsRunner):
     '''Runner for the attention bag of words model.'''
 
-    def __init__(self, config, session, verbose=True):
+    def __init__(self, config, session, model_class=ConvolutionalBagOfWordsModel, verbose=True):
         super(ConvolutionalBagOfWordsRunner, self).__init__(config, session,
-                                                        model_class=ConvolutionalBagOfWordsModel,
-                                                        verbose=verbose)
+                                                            model_class=model_class,
+                                                            verbose=verbose)
 
     def visualize(self, verbose=True):
-        raise NotImplementedError  # TODO
+        # TODO compute dot product of dynamic embeddings with label embeddings
+        raise NotImplementedError
 
 
 def main(_):
