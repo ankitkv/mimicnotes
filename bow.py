@@ -90,6 +90,10 @@ class BagOfWordsRunner(runner.Runner):
             index = self.vocab.vocab_lookup.get(self.config.query, None)
             if index:
                 word_indices = [index]
+        # the weights are learnt based on the addition of embeddings, so the joint distribution of
+        # words in notes also plays a role, which is not visualized here (e.g. words A and B may
+        # always occur together with their addition perfectly aligned with a label embedding).
+        # can consider 2 and 3-tuples of words for additional visualizations.
         print()
         print('\nMOST INFLUENTIAL WORDS')
         print()
