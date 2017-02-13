@@ -19,6 +19,7 @@ flags.DEFINE_string ("emb_file",       "",                  "File to load embedd
 flags.DEFINE_string ("note_type",      "Discharge_summary", "The type of notes to consider")
 flags.DEFINE_string ("data_storage",   "pickle",            "Format to store data "
                                                             "(shelve or pickle)")
+flags.DEFINE_string ("runner",         "",                  "The Runner class to run")
 
 flags.DEFINE_integer("batch_size",     128,    "Batch size")
 flags.DEFINE_bool   ("length_sort",    True,   "Ensure similar note lengths in a batch")

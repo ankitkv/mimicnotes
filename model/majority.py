@@ -28,11 +28,3 @@ class MajorityRunner(util.Runner):
 
     def output(self, step, losses, extra, train=True):
         print("S:%d.  %s" % (step, self.loss_str(losses)))
-
-
-def main(_):
-    MajorityRunner(util.Config()).run()
-
-
-if __name__ == '__main__':
-    tf.app.run()

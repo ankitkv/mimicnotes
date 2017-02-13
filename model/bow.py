@@ -143,15 +143,3 @@ class BagOfWordsRunner(util.Runner):
                 print(self.vocab.aux_names['dgn'][self.vocab.aux_vocab['dgn'][index]].ljust(25),
                       weight)
         print()
-
-
-def main(_):
-    config = util.Config()
-    config_proto = tf.ConfigProto()
-    config_proto.gpu_options.allow_growth = True
-    with tf.Graph().as_default(), tf.Session(config=config_proto) as session:
-        BagOfWordsRunner(config, session).run()
-
-
-if __name__ == '__main__':
-    tf.app.run()

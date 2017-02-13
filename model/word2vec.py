@@ -155,15 +155,3 @@ class Word2vecRunner(util.Runner):
                          va='bottom')
         plt.savefig(filename)
         print('Saved to', filename)
-
-
-def main(_):
-    config = util.Config()
-    config_proto = tf.ConfigProto()
-    config_proto.gpu_options.allow_growth = True
-    with tf.Graph().as_default(), tf.Session(config=config_proto) as session:
-        Word2vecRunner(config, session).run()
-
-
-if __name__ == '__main__':
-    tf.app.run()

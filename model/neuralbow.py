@@ -4,7 +4,6 @@ from __future__ import print_function
 
 import tensorflow as tf
 
-import bow
 import model
 import util
 
@@ -42,7 +41,7 @@ class NeuralBagOfWordsModel(model.Model):
         return added
 
 
-class NeuralBagOfWordsRunner(bow.BagOfWordsRunner):
+class NeuralBagOfWordsRunner(model.bow.BagOfWordsRunner):
     '''Runner for the neural bag of words model.'''
 
     def __init__(self, config, session, model_class=NeuralBagOfWordsModel, verbose=True):
@@ -73,15 +72,3 @@ class NeuralBagOfWordsRunner(bow.BagOfWordsRunner):
 
     def visualize(self, verbose=True):
         super(NeuralBagOfWordsRunner, self).visualize(embeddings=self.model.embeddings.eval())
-
-
-def main(_):
-    config = util.Config()
-    config_proto = tf.ConfigProto()
-    config_proto.gpu_options.allow_growth = True
-    with tf.Graph().as_default(), tf.Session(config=config_proto) as session:
-        NeuralBagOfWordsRunner(config, session).run()
-
-
-if __name__ == '__main__':
-    tf.app.run()
