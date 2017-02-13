@@ -22,6 +22,7 @@ flags.DEFINE_string ("data_storage",   "pickle",            "Format to store dat
 
 flags.DEFINE_integer("batch_size",     128,    "Batch size")
 flags.DEFINE_bool   ("length_sort",    True,   "Ensure similar note lengths in a batch")
+flags.DEFINE_bool   ("sublinear_tf",   False,  "Sublinear term frequencies for stat BOW model")
 flags.DEFINE_integer("word_emb_size",  192,    "Word embedding size")
 flags.DEFINE_bool   ("train_embs",     True,   "Train word embeddings")
 flags.DEFINE_integer("attn_window",    5,      "The span of words to determine score for attention")

@@ -17,10 +17,10 @@ import utils
 class BagOfWordsModel(model.Model):
     '''A baseline bag of words model.'''
 
-    def __init__(self, config, vocab, label_space_size, sublinear_tf=False):
+    def __init__(self, config, vocab, label_space_size):
         super(BagOfWordsModel, self).__init__(config, vocab, label_space_size)
         self.vectorizer = TfidfVectorizer(vocabulary=self.vocab.vocab_lookup, use_idf=False,
-                                          sublinear_tf=sublinear_tf)
+                                          sublinear_tf=config.sublinear_tf)
         self.data = tf.placeholder(tf.float32, [config.batch_size, len(vocab.vocab)], name='data')
         self.labels = tf.placeholder(tf.float32, [config.batch_size, label_space_size],
                                      name='labels')
