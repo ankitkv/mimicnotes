@@ -11,7 +11,7 @@ flags = tf.flags
 
 # command-line config
 flags.DEFINE_string ("data_path",      "data",              "Data path")
-flags.DEFINE_string ("save_file",      "models/recent.dat", "Save file")
+flags.DEFINE_string ("save_file",      "saved/recent.dat",  "Save file")
 flags.DEFINE_string ("best_save_file", "",                  "Save file for best validation losses "
                                                             "(empty for save_file)")
 flags.DEFINE_string ("load_file",      "",                  "File to load model from")

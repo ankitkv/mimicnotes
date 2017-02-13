@@ -7,9 +7,8 @@ from six.moves import xrange
 import numpy as np
 import tensorflow as tf
 
-from config import Config
 import neuralbow
-import utils
+import util
 
 try:
     input = raw_input
@@ -105,7 +104,7 @@ class ConvolutionalBagOfWordsRunner(neuralbow.NeuralBagOfWordsRunner):
 
 
 def main(_):
-    config = Config()
+    config = util.Config()
     config_proto = tf.ConfigProto()
     config_proto.gpu_options.allow_growth = True
     with tf.Graph().as_default(), tf.Session(config=config_proto) as session:

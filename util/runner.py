@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import numpy as np
 
-import reader
+import util
 
 
 class Runner(object):
@@ -15,11 +15,11 @@ class Runner(object):
         self.config = config
         self.session = session
         if config.data_storage == 'shelve':
-            data = reader.NoteShelveData(config)
+            data = util.NoteShelveData(config)
         elif config.data_storage == 'pickle':
-            data = reader.NotePickleData(config)
-        self.vocab = reader.NoteVocab(config, data)
-        self.reader = reader.NoteICD9Reader(config, data, self.vocab)
+            data = util.NotePickleData(config)
+        self.vocab = util.NoteVocab(config, data)
+        self.util = util.NoteICD9Reader(config, data, self.vocab)
         self.train_splits = train_splits
         self.val_splits = val_splits
         self.test_splits = test_splits

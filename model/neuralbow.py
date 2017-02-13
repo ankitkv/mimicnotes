@@ -5,9 +5,8 @@ from __future__ import print_function
 import tensorflow as tf
 
 import bow
-from config import Config
 import model
-import utils
+import util
 
 
 class NeuralBagOfWordsModel(model.Model):
@@ -77,7 +76,7 @@ class NeuralBagOfWordsRunner(bow.BagOfWordsRunner):
 
 
 def main(_):
-    config = Config()
+    config = util.Config()
     config_proto = tf.ConfigProto()
     config_proto.gpu_options.allow_growth = True
     with tf.Graph().as_default(), tf.Session(config=config_proto) as session:

@@ -8,10 +8,8 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 import tensorflow as tf
 
-from config import Config
 import model
-import runner
-import utils
+import util
 
 
 class BagOfWordsModel(model.Model):
@@ -32,7 +30,7 @@ class BagOfWordsModel(model.Model):
         self.train_op = self.minimize_loss(self.loss)
 
 
-class BagOfWordsRunner(runner.Runner):
+class BagOfWordsRunner(util.Runner):
     '''Runner for the bag of words model.'''
 
     def __init__(self, config, session, model_init=True):
@@ -148,7 +146,7 @@ class BagOfWordsRunner(runner.Runner):
 
 
 def main(_):
-    config = Config()
+    config = util.Config()
     config_proto = tf.ConfigProto()
     config_proto.gpu_options.allow_growth = True
     with tf.Graph().as_default(), tf.Session(config=config_proto) as session:

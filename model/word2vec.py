@@ -10,9 +10,8 @@ from six.moves import xrange
 import numpy as np
 import tensorflow as tf
 
-from config import Config
 import model
-import runner
+import util
 
 
 class Word2vecModel(model.Model):
@@ -62,7 +61,7 @@ class Word2vecModel(model.Model):
         self.train_op = self.minimize_loss(self.loss)
 
 
-class Word2vecRunner(runner.Runner):
+class Word2vecRunner(util.Runner):
     '''Runner for the word2vec model.'''
 
     def __init__(self, config, session, skip_window=4, num_skips=6):
@@ -159,7 +158,7 @@ class Word2vecRunner(runner.Runner):
 
 
 def main(_):
-    config = Config()
+    config = util.Config()
     config_proto = tf.ConfigProto()
     config_proto.gpu_options.allow_growth = True
     with tf.Graph().as_default(), tf.Session(config=config_proto) as session:

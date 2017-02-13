@@ -16,8 +16,7 @@ import nltk
 import numpy as np
 import tensorflow as tf
 
-from config import Config
-import utils
+import util
 
 
 class NoteData(object):
@@ -500,7 +499,7 @@ class NoteICD9Reader(NoteReader):
 
 def main(_):
     '''Reader tests'''
-    config = Config()
+    config = util.Config()
     if config.data_storage == 'shelve':
         data = NoteShelveData(config)
     elif config.data_storage == 'pickle':

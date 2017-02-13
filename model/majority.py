@@ -5,12 +5,10 @@ from __future__ import print_function
 import numpy as np
 import tensorflow as tf
 
-from config import Config
-import runner
-import utils
+import util
 
 
-class MajorityRunner(runner.Runner):
+class MajorityRunner(util.Runner):
     '''Runner for the majority dummy model.'''
 
     def __init__(self, config, topk=8):
@@ -33,7 +31,7 @@ class MajorityRunner(runner.Runner):
 
 
 def main(_):
-    MajorityRunner(Config()).run()
+    MajorityRunner(util.Config()).run()
 
 
 if __name__ == '__main__':
