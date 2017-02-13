@@ -37,6 +37,12 @@ class ConvolutionalBagOfWordsRunner(neuralbow.NeuralBagOfWordsRunner):
                                                             model_class=model_class,
                                                             verbose=verbose)
 
+    def visualize_extra_ops(self):
+        return []
+
+    def visualize_extra(self, fetched, note, word):
+        return ''
+
     def visualize(self, verbose=True):
         n_labels = 5
         with tf.variable_scope('Linear', reuse=True):
@@ -46,10 +52,12 @@ class ConvolutionalBagOfWordsRunner(neuralbow.NeuralBagOfWordsRunner):
         else:
             split = 'test'
         for batch in self.reader.get([split]):
-            dynamic_embs, probs = self.session.run([self.model.dynamic_embs, self.model.probs],
-                                                   feed_dict={self.model.notes: batch[0],
-                                                              self.model.lengths: batch[1],
-                                                              self.model.labels: batch[2]})
+            ops = [self.model.dynamic_embs, self.model.probs]
+            ops.extend(self.visualize_extra_ops())
+            ret = self.session.run(ops, feed_dict={self.model.notes: batch[0],
+                                                   self.model.lengths: batch[1],
+                                                   self.model.labels: batch[2]})
+            dynamic_embs, probs = ret[:2]
             flat_embs = dynamic_embs.reshape([-1, dynamic_embs.shape[-1]])
             flat_scores = np.dot(flat_embs, W)
             all_scores = flat_scores.reshape([dynamic_embs.shape[0], dynamic_embs.shape[1], -1])
@@ -76,8 +84,8 @@ class ConvolutionalBagOfWordsRunner(neuralbow.NeuralBagOfWordsRunner):
                             color = utils.c.OKGREEN
                         elif score < -0.7:
                             color = utils.c.FAIL
-                        print(self.vocab.vocab[word] + color + ('{%.3f}' % score) + utils.c.ENDC,
-                              end=' ')
+                        print(self.vocab.vocab[word] + self.visualize_extra(ret[2:], i, k) + color +
+                              ('{%.3f}' % score) + utils.c.ENDC, end=' ')
                     print()
 #                print()
 #                print('LABELS PER WORD')
