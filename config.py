@@ -35,6 +35,8 @@ flags.DEFINE_integer("threads",        -1,     "Maximum number of threads/subpro
                                                "automatically determine")
 flags.DEFINE_integer("epochs",         -1,     "Number of training+val epochs. -1 for no limit, "
                                                "0 to skip to testing.")
+flags.DEFINE_bool   ("early_stop",     True,   "Stop early if validation loss stops improving")
+flags.DEFINE_integer("min_epochs",     15,     "Minimum number of epochs before early stopping.")
 flags.DEFINE_float  ("keep_vocab",     0.97,   "Fraction of data for vocab to cover")
 flags.DEFINE_float  ("train_split",    0.9,    "Fraction of patients for training. "
                                                "test = 1 - train - val")

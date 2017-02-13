@@ -35,8 +35,16 @@ class Runner(object):
     def run_loop(self, verbose=True):
         epoch = 1
         global_iter = 0
+        if self.config.early_stop:
+            target = self.config.min_epochs
+            if verbose:
+                print('Initializing early stop target to', target)
         while True:
             if self.config.epochs >= 0 and epoch > self.config.epochs:
+                break
+            if self.config.early_stop and epoch > target:
+                if verbose:
+                    print('Early stopping.')
                 break
             if verbose:
                 print('\nEpoch', epoch)
@@ -54,11 +62,17 @@ class Runner(object):
                     print('Epoch %d: Valid losses:' % epoch, self.loss_str(loss))
                 except:
                     pass
-            if self.config.best_save_file and self.best_val_loss(loss):
-                # TODO add early stopping. if no new best has been found for a while, stop.
+            if self.best_val_loss(loss):
                 if verbose:
                     print('Found new best validation loss!')
-                self.save_model(self.config.best_save_file)
+                if self.config.early_stop:
+                    new_target = epoch * 2
+                    if new_target > target:
+                        target = new_target
+                        if verbose:
+                            print('Updating early stop target to', target)
+                if self.config.best_save_file:
+                    self.save_model(self.config.best_save_file)
             epoch += 1
         global_iter, loss = self.run_epoch(epoch, global_iter, self.test_splits, train=False,
                                            verbose=verbose)
