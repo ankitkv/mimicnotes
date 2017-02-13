@@ -27,7 +27,7 @@ class NeuralBagOfWordsModel(model.Model):
             embed = tf.nn.embedding_lookup(self.embeddings, self.notes)
         embed *= tf.to_float(tf.expand_dims(tf.greater(self.notes, 0), -1))
         data = self.summarize(embed)
-        logits = utils.linear(data, self.label_space_size)
+        logits = util.linear(data, self.label_space_size)
         self.probs = tf.sigmoid(logits)
         self.preds = tf.to_int32(tf.greater_equal(logits, 0.0))
         self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits,
@@ -41,7 +41,7 @@ class NeuralBagOfWordsModel(model.Model):
         return added
 
 
-class NeuralBagOfWordsRunner(model.bow.BagOfWordsRunner):
+class NeuralBagOfWordsRunner(model.BagOfWordsRunner):
     '''Runner for the neural bag of words model.'''
 
     def __init__(self, config, session, model_class=NeuralBagOfWordsModel, verbose=True):
@@ -65,9 +65,9 @@ class NeuralBagOfWordsRunner(model.bow.BagOfWordsRunner):
         ret = self.session.run(ops, feed_dict={self.model.notes: notes, self.model.lengths: lengths,
                                                self.model.labels: labels})
         preds, probs = ret[1], ret[2]
-        p, r, f = utils.f1_score(preds, labels)
-        ap = utils.average_precision(probs, labels)
-        p8 = utils.precision_at_k(probs, labels, 8)
+        p, r, f = util.f1_score(preds, labels)
+        ap = util.average_precision(probs, labels)
+        p8 = util.precision_at_k(probs, labels, 8)
         return ([ret[0], p, r, f, ap, p8], [ret[3]])
 
     def visualize(self, verbose=True):

@@ -3,7 +3,6 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import tensorflow as tf
 
 import util
 
@@ -19,7 +18,7 @@ class MajorityRunner(util.Runner):
 
     def run_session(self, batch, train=True):
         labels = batch[2]
-        p, r, f = utils.f1_score(self.preds, labels)
+        p, r, f = util.f1_score(self.preds, labels)
         return ([p, r, f], [])
 
     def loss_str(self, losses):

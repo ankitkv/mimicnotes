@@ -24,7 +24,7 @@ class ConvolutionalBagOfWordsModel(neuralbow.NeuralBagOfWordsModel):
 
     def summarize(self, embed):
         '''Convolve input embeddings to get context-based embeddings'''
-        self.dynamic_embs = utils.conv1d(embed, self.config.word_emb_size, self.config.attn_window)
+        self.dynamic_embs = util.conv1d(embed, self.config.word_emb_size, self.config.attn_window)
         return tf.reduce_sum(self.dynamic_embs, 1)
 
 
@@ -78,13 +78,13 @@ class ConvolutionalBagOfWordsRunner(neuralbow.NeuralBagOfWordsRunner):
                     print('-----')
                     for k, word in enumerate(batch[0][i, :batch[1][i]]):
                         score = scores[k, label]
-                        color = utils.c.OKBLUE
+                        color = util.c.OKBLUE
                         if score > 0.7:
-                            color = utils.c.OKGREEN
+                            color = util.c.OKGREEN
                         elif score < -0.7:
-                            color = utils.c.FAIL
+                            color = util.c.FAIL
                         print(self.vocab.vocab[word] + self.visualize_extra(ret[2:], i, k) + color +
-                              ('{%.3f}' % score) + utils.c.ENDC, end=' ')
+                              ('{%.3f}' % score) + util.c.ENDC, end=' ')
                     print()
 #                print()
 #                print('LABELS PER WORD')

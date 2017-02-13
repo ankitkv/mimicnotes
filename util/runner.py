@@ -19,7 +19,7 @@ class Runner(object):
         elif config.data_storage == 'pickle':
             data = util.NotePickleData(config)
         self.vocab = util.NoteVocab(config, data)
-        self.util = util.NoteICD9Reader(config, data, self.vocab)
+        self.reader = util.NoteICD9Reader(config, data, self.vocab)
         self.train_splits = train_splits
         self.val_splits = val_splits
         self.test_splits = test_splits

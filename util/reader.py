@@ -72,9 +72,9 @@ class NoteShelveData(NoteData):
                 print('Chunk', i)
             group_size = int(0.5 + (len(plist) / self.config.threads))
             lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
-            data = utils.mt_map(self.config.threads, utils.partial_tokenize,
-                                zip(lists, [(str(pshelf_file),
-                                             self.config.note_type)] * len(lists)))
+            data = util.mt_map(self.config.threads, util.partial_tokenize,
+                               zip(lists, [(str(pshelf_file),
+                                            self.config.note_type)] * len(lists)))
             for thread_data in data:
                 for pid, (_, adm_map) in thread_data.items():
                     patients_set.add(pid)
@@ -122,8 +122,8 @@ class NoteShelveData(NoteData):
             if plist:
                 group_size = int(0.5 + (len(plist) / self.config.threads))
                 lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
-                data = utils.mt_map(self.config.threads, utils.partial_read,
-                                    zip(lists, [str(self.nshelf_file)] * len(lists)))
+                data = util.mt_map(self.config.threads, util.partial_read,
+                                   zip(lists, [str(self.nshelf_file)] * len(lists)))
                 for thread_data in data:
                     for admission in thread_data:
                         if len(self.cache) < self.max_cache_size:
@@ -172,9 +172,9 @@ class NotePickleData(NoteData):
                 print('Bucket', bucket, ' chunk', count)
             group_size = int(0.5 + (len(plist) / self.config.threads))
             lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
-            data = utils.mt_map(self.config.threads, utils.partial_tokenize,
-                                zip(lists, [(str(pshelf_file),
-                                             self.config.note_type)] * len(lists)))
+            data = util.mt_map(self.config.threads, util.partial_tokenize,
+                               zip(lists, [(str(pshelf_file),
+                                            self.config.note_type)] * len(lists)))
             for thread_data in data:
                 for pid, (patient, adm_map) in thread_data.items():
                     patients_set.add(pid)

@@ -21,7 +21,7 @@ class AttentionBagOfWordsModel(neuralbow.NeuralBagOfWordsModel):
             channels = self.config.word_emb_size
         else:
             channels = 1
-        scores = utils.conv1d(embed, channels, self.config.attn_window)
+        scores = util.conv1d(embed, channels, self.config.attn_window)
         self.attention = tf.nn.softmax(scores, 1)
         self.dynamic_embs = embed * self.attention
         return tf.reduce_sum(self.dynamic_embs, 1)
@@ -48,7 +48,7 @@ class AttentionBagOfWordsRunner(convbow.ConvolutionalBagOfWordsRunner):
             attention, = fetched
             prob = attention[note, word]
             if prob > 0.01:
-                color = utils.c.OKGREEN
+                color = util.c.OKGREEN
             else:
-                color = utils.c.OKBLUE
-            return color + ('[%.3f]' % prob) + utils.c.ENDC
+                color = util.c.OKBLUE
+            return color + ('[%.3f]' % prob) + util.c.ENDC

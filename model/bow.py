@@ -22,7 +22,7 @@ class BagOfWordsModel(model.Model):
         self.data = tf.placeholder(tf.float32, [config.batch_size, len(vocab.vocab)], name='data')
         self.labels = tf.placeholder(tf.float32, [config.batch_size, label_space_size],
                                      name='labels')
-        self.logits = utils.linear(self.data, self.label_space_size)
+        self.logits = util.linear(self.data, self.label_space_size)
         self.probs = tf.sigmoid(self.logits)
         self.preds = tf.to_int32(tf.greater_equal(self.logits, 0.0))
         self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
@@ -57,9 +57,9 @@ class BagOfWordsRunner(util.Runner):
             ops.append(self.model.train_op)
         ret = self.session.run(ops, feed_dict={self.model.data: data, self.model.labels: labels})
         preds, probs = ret[1], ret[2]
-        p, r, f = utils.f1_score(preds, labels)
-        ap = utils.average_precision(probs, labels)
-        p8 = utils.precision_at_k(probs, labels, 8)
+        p, r, f = util.f1_score(preds, labels)
+        ap = util.average_precision(probs, labels)
+        p8 = util.precision_at_k(probs, labels, 8)
         return ([ret[0], p, r, f, ap, p8], [ret[3]])
 
     def best_val_loss(self, loss):
