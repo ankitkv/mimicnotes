@@ -36,7 +36,7 @@ class Runner(object):
         epoch = 1
         global_iter = 0
         while True:
-            if self.config.epochs > 0 and epoch > self.config.epochs:
+            if self.config.epochs >= 0 and epoch > self.config.epochs:
                 break
             if verbose:
                 print('\nEpoch', epoch)
@@ -55,6 +55,7 @@ class Runner(object):
                 except:
                     pass
             if self.config.best_save_file and self.best_val_loss(loss):
+                # TODO add early stopping. if no new best has been found for a while, stop.
                 if verbose:
                     print('Found new best validation loss!')
                 self.save_model(self.config.best_save_file)

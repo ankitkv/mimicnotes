@@ -31,7 +31,7 @@ class ConvolutionalBagOfWordsRunner(neuralbow.NeuralBagOfWordsRunner):
 
     def visualize(self, verbose=True):
         with tf.variable_scope('Linear', reuse=True):
-            W = tf.get_variable('Matrix').eval()  # logistic regression weights
+            W = tf.get_variable('Matrix').eval()  # logistic regression weights (label embeddings)
         if self.config.query:
             split = self.config.query
         else:
