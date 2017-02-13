@@ -72,28 +72,28 @@ class ConvolutionalBagOfWordsRunner(neuralbow.NeuralBagOfWordsRunner):
                     for k, word in enumerate(batch[0][i, :batch[1][i]]):
                         score = scores[k, label]
                         color = utils.c.OKBLUE
-                        if score > 1.0:
+                        if score > 0.7:
                             color = utils.c.OKGREEN
-                        elif score < -1.0:
+                        elif score < -0.7:
                             color = utils.c.FAIL
                         print(self.vocab.vocab[word] + color + ('{%.3f}' % score) + utils.c.ENDC,
                               end=' ')
                     print()
-                print()
-                print('LABELS PER WORD')
-                print('-----')
-                for k, word in enumerate(batch[0][i, :batch[1][i]]):
-                    top_scores = [(j, s) for j, s in enumerate(scores[k]) if s > 1.0]
-                    top_scores.sort(key=lambda x: -x[1])
-                    top_scores = top_scores[:n_labels]
-                    str_labels = []
-                    for label, _ in top_scores:
-                        str_labels.append(self.vocab.aux_names
-                                                        ['dgn'][self.vocab.aux_vocab['dgn'][label]])
-                    print(self.vocab.vocab[word] + utils.c.OKBLUE + ('{%s}' % ', '.join(str_labels))
-                                                                            + utils.c.ENDC, end=' ')
-                print()
-                input('\nPress enter to continue ...')
+#                print()
+#                print('LABELS PER WORD')
+#                print('-----')
+#                for k, word in enumerate(batch[0][i, :batch[1][i]]):
+#                    top_scores = [(j, s) for j, s in enumerate(scores[k]) if s > 0.1]
+#                    top_scores.sort(key=lambda x: -x[1])
+#                    top_scores = top_scores[:n_labels]
+#                    str_labels = []
+#                    for label, _ in top_scores:
+#                        str_labels.append(self.vocab.aux_names
+#                                                       ['dgn'][self.vocab.aux_vocab['dgn'][label]])
+#                    print(self.vocab.vocab[word] + utils.c.OKBLUE +
+#                                          ('{%s}' % ', '.join(str_labels)) + utils.c.ENDC, end=' ')
+#                print()
+                input('\n\nPress enter to continue ...\n')
 
 
 def main(_):
