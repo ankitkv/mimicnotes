@@ -14,6 +14,15 @@ import sklearn
 import tensorflow as tf
 
 
+class c:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+
+
 re_anon = re.compile(r'\[\*\*.*?\*\*\]')
 fix_re = re.compile(r"[^a-z0-9/'?.,-:]+")
 num_re = re.compile(r'[0-9]{2,}')
