@@ -14,6 +14,7 @@ import util
 
 class BagOfWordsModel(model.Model):
     '''A baseline bag of words model.'''
+    # TODO add L1 regularization, tune hyperparameter separately for each label
 
     def __init__(self, config, vocab, label_space_size):
         super(BagOfWordsModel, self).__init__(config, vocab, label_space_size)
