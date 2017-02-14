@@ -65,7 +65,8 @@ class Word2vecRunner(util.Runner):
     '''Runner for the word2vec model.'''
 
     def __init__(self, config, session, skip_window=4, num_skips=6):
-        super(Word2vecRunner, self).__init__(config, session)
+        super(Word2vecRunner, self).__init__(config, session, train_splits=['train', 'val', 'test'],
+                                             val_splits=[], test_splits=[])
         assert num_skips <= 2 * skip_window
         self.skip_window = skip_window
         self.num_skips = num_skips
