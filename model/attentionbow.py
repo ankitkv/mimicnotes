@@ -22,7 +22,10 @@ class AttentionBagOfWordsModel(neuralbow.NeuralBagOfWordsModel):
         else:
             channels = 1
         scores = util.conv1d(embed, channels, self.config.attn_window)
-        self.attention = tf.nn.softmax(scores, 1)
+        if self.config.sigmoid_attn:
+            self.attention = tf.sigmoid(scores)
+        else:
+            self.attention = tf.nn.softmax(scores, 1)
         self.dynamic_embs = embed * self.attention
         return tf.reduce_sum(self.dynamic_embs, 1)
 
