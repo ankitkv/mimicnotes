@@ -22,8 +22,9 @@ flags.DEFINE_string ("data_storage",   "pickle",            "Format to store dat
 flags.DEFINE_string ("runner",         "",                  "The Runner class to run")
 
 flags.DEFINE_integer("batch_size",     128,    "Batch size")
+flags.DEFINE_float  ("l1_reg",         0.0,    "L1-regularization scale")
+flags.DEFINE_float  ("l2_reg",         0.0,    "L2-regularization scale")
 flags.DEFINE_bool   ("length_sort",    True,   "Ensure similar note lengths in a batch")
-flags.DEFINE_bool   ("sublinear_tf",   False,  "Sublinear term frequencies for stat BOW model")
 flags.DEFINE_integer("word_emb_size",  192,    "Word embedding size")
 flags.DEFINE_bool   ("train_embs",     True,   "Train word embeddings")
 flags.DEFINE_integer("attn_window",    5,      "The span of words to determine score for attention")
@@ -50,11 +51,16 @@ flags.DEFINE_bool   ("save_overwrite", True,   "Overwrite the same save file eac
 flags.DEFINE_bool   ("visualize",      False,  "Run visualizations")
 flags.DEFINE_string ("query",          "",     "Query for visualization")
 
+flags.DEFINE_bool   ("bow_stopwords",  False,  "Allow stopwords in stat BOW model")
+flags.DEFINE_bool   ("bow_log_tf",     True,   "Sublinear term frequencies for stat BOW model")
+flags.DEFINE_string ("bow_norm",       "",     "Normalize BOW vectors, can be 'l1' or 'l2'")
+
 
 class Config(object):
     '''This class encapsulates all the configuration for the model.'''
 
     def __init__(self, from_cmd_line=True, verbose=True):
+        self.dict = {}
         if from_cmd_line:
             if verbose:
                 print('Config:')
@@ -64,7 +70,7 @@ class Config(object):
 
             # copy flag values to attributes of this Config object
             for k, v in sorted(flags.FLAGS.__dict__['__flags'].items(), key=lambda x: x[0]):
-                setattr(self, k, v)
+                self.dict[k] = v
                 if verbose:
                     print(k.ljust(maxlen + 2), v)
             if verbose:
@@ -76,3 +82,9 @@ class Config(object):
                 if verbose:
                     print('Setting threads to', self.threads)
                     print()
+
+    def __getattr__(self, name):
+        try:
+            return self.dict[name]
+        except KeyError:
+            raise AttributeError

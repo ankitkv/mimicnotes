@@ -14,20 +14,32 @@ import util
 
 class BagOfWordsModel(model.Model):
     '''A baseline bag of words model.'''
-    # TODO add L1 regularization, tune hyperparameter separately for each label
+    # TODO tune L1 hyperparameter separately for each label
 
     def __init__(self, config, vocab, label_space_size):
         super(BagOfWordsModel, self).__init__(config, vocab, label_space_size)
+        if config.bow_stopwords:
+            stop_words = None
+        else:
+            stop_words = 'english'
+        if config.bow_norm:
+            norm = config.bow_norm
+        else:
+            norm = None
         self.vectorizer = TfidfVectorizer(vocabulary=self.vocab.vocab_lookup, use_idf=False,
-                                          sublinear_tf=config.sublinear_tf)
+                                          sublinear_tf=config.bow_log_tf, stop_words=stop_words,
+                                          norm=norm)
         self.data = tf.placeholder(tf.float32, [config.batch_size, len(vocab.vocab)], name='data')
         self.labels = tf.placeholder(tf.float32, [config.batch_size, label_space_size],
                                      name='labels')
         self.logits = util.linear(self.data, self.label_space_size)
+        with tf.variable_scope('Linear', reuse=True):
+            W = tf.get_variable('Matrix')
         self.probs = tf.sigmoid(self.logits)
-        self.preds = tf.to_int32(tf.greater_equal(self.logits, 0.0))
+        self.preds = tf.to_int32(tf.greater_equal(self.probs, 0.5))  # TODO use separate thresholds
         self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
-                                                                           labels=self.labels))
+                                                                           labels=self.labels)) + \
+                    self.l1_reg(W)
         self.train_op = self.minimize_loss(self.loss)
 
 

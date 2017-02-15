@@ -19,6 +19,14 @@ class Model(object):
             self.lr = tf.get_variable("lr", shape=[],
                                      initializer=tf.constant_initializer(self.config.learning_rate),
                                      trainable=False)
+        if config.l1_reg > 0.0:
+            self.l1_reg = tf.contrib.layers.l1_regularizer(config.l1_reg)
+        else:
+            self.l1_reg = lambda x: tf.zeros([])
+        if config.l2_reg > 0.0:
+            self.l2_reg = tf.contrib.layers.l2_regularizer(config.l2_reg)
+        else:
+            self.l2_reg = lambda x: tf.zeros([])
         if config.optimizer == 'sgd':
             self.optimizer = tf.train.GradientDescentOptimizer(self.lr)
         elif config.optimizer == 'adam':
