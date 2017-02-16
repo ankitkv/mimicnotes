@@ -37,11 +37,13 @@ class BagOfWordsModel(model.Model):
         self.data = tf.placeholder(tf.float32, [None, len(vocab.vocab)], name='data')
         self.labels = tf.placeholder(tf.float32, [None, label_space_size],
                                      name='labels')
+        data_size = tf.to_float(tf.shape(self.data)[0])
         self.logits = util.linear(self.data, self.label_space_size)
         self.probs = tf.sigmoid(self.logits)
-        self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
-                                                                           labels=self.labels)) + \
-                    tf.reduce_mean(self.l1_regularization())
+        self.loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
+                                                                          labels=self.labels))
+        self.loss += (data_size / config.batch_size) * tf.reduce_sum(self.l1_regularization())
+        self.loss /= data_size
         self.train_op = self.minimize_loss(self.loss)
 
     def l1_regularization(self):
