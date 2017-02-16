@@ -20,6 +20,8 @@ flags.DEFINE_string ("note_type",      "Discharge_summary", "The type of notes t
 flags.DEFINE_string ("data_storage",   "pickle",            "Format to store data "
                                                             "(shelve or pickle)")
 flags.DEFINE_string ("runner",         "",                  "The Runner class to run")
+flags.DEFINE_bool   ("use_tensorflow", True,                "Start a TensorFlow session for the "
+                                                            "runner")
 
 flags.DEFINE_integer("batch_size",     128,    "Batch size")
 flags.DEFINE_float  ("l1_reg",         0.0,    "L1-regularization scale")

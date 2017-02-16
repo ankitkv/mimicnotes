@@ -36,7 +36,6 @@ class BagOfWordsModel(model.Model):
         with tf.variable_scope('Linear', reuse=True):
             W = tf.get_variable('Matrix')
         self.probs = tf.sigmoid(self.logits)
-        self.preds = tf.to_int32(tf.greater_equal(self.probs, 0.5))  # TODO use separate thresholds
         self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
                                                                            labels=self.labels)) + \
                     self.l1_reg(W)
@@ -65,15 +64,14 @@ class BagOfWordsRunner(util.Runner):
                 out_note.append(self.vocab.vocab[word])
             X_raw.append(' '.join(out_note))
         data = self.model.vectorizer.transform(X_raw, copy=False).toarray()
-        ops = [self.model.loss, self.model.preds, self.model.probs, self.model.global_step]
+        ops = [self.model.loss, self.model.probs, self.model.global_step]
         if train:
             ops.append(self.model.train_op)
         ret = self.session.run(ops, feed_dict={self.model.data: data, self.model.labels: labels})
-        preds, probs = ret[1], ret[2]
-        p, r, f = util.f1_score(preds, labels)
+        p, r, f = util.f1_score(ret[1], labels, 0.5)  # TODO separate thresholds
         ap = util.average_precision(probs, labels)
         p8 = util.precision_at_k(probs, labels, 8)
-        return ([ret[0], p, r, f, ap, p8], [ret[3]])
+        return ([ret[0], p, r, f, ap, p8], [ret[2]])
 
     def best_val_loss(self, loss):
         '''Compare loss with the best validation loss, and return True if a new best is found'''

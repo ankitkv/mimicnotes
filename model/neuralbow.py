@@ -29,7 +29,6 @@ class NeuralBagOfWordsModel(model.Model):
         data = self.summarize(embed)
         logits = util.linear(data, self.label_space_size)
         self.probs = tf.sigmoid(logits)
-        self.preds = tf.to_int32(tf.greater_equal(logits, 0.0))
         self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits,
                                                                            labels=self.labels))
         self.train_op = self.minimize_loss(self.loss)
@@ -59,16 +58,15 @@ class NeuralBagOfWordsRunner(model.BagOfWordsRunner):
         notes = batch[0]
         lengths = batch[1]
         labels = batch[2]
-        ops = [self.model.loss, self.model.preds, self.model.probs, self.model.global_step]
+        ops = [self.model.loss, self.model.probs, self.model.global_step]
         if train:
             ops.append(self.model.train_op)
         ret = self.session.run(ops, feed_dict={self.model.notes: notes, self.model.lengths: lengths,
                                                self.model.labels: labels})
-        preds, probs = ret[1], ret[2]
-        p, r, f = util.f1_score(preds, labels)
+        p, r, f = util.f1_score(ret[1], labels, 0.5)  # TODO separate thresholds
         ap = util.average_precision(probs, labels)
         p8 = util.precision_at_k(probs, labels, 8)
-        return ([ret[0], p, r, f, ap, p8], [ret[3]])
+        return ([ret[0], p, r, f, ap, p8], [ret[2]])
 
     def visualize(self, verbose=True):
         super(NeuralBagOfWordsRunner, self).visualize(embeddings=self.model.embeddings.eval())
