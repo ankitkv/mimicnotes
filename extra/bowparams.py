@@ -97,6 +97,6 @@ if __name__ == '__main__':
     print(final_thresholds)
     print()
 
-    with open('bow_bests.pk', 'wb') as f:
+    with open('../saved/bow_bests.pk', 'wb') as f:
         pickle.dump([final_l1s, final_thresholds], f, -1)
     print('Dumped to pickle.')
