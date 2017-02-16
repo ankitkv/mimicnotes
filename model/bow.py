@@ -19,10 +19,10 @@ import util
 
 class BagOfWordsModel(model.Model):
     '''A baseline bag of words model.'''
-    # TODO tune L1 hyperparameter separately for each label
 
-    def __init__(self, config, vocab, label_space_size):
+    def __init__(self, config, vocab, label_space_size, l1_regs=None):
         super(BagOfWordsModel, self).__init__(config, vocab, label_space_size)
+        self.l1_regs = l1_regs
         if config.bow_stopwords:
             stop_words = None
         else:
@@ -38,26 +38,42 @@ class BagOfWordsModel(model.Model):
         self.labels = tf.placeholder(tf.float32, [None, label_space_size],
                                      name='labels')
         self.logits = util.linear(self.data, self.label_space_size)
-        with tf.variable_scope('Linear', reuse=True):
-            W = tf.get_variable('Matrix')
         self.probs = tf.sigmoid(self.logits)
         self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
                                                                            labels=self.labels)) + \
-                    self.l1_reg(W)
+                    self.l1_regularization()
         self.train_op = self.minimize_loss(self.loss)
+
+    def l1_regularization(self):
+        with tf.variable_scope('Linear', reuse=True):
+            W = tf.get_variable('Matrix')
+        norms = tf.norm(W, 1, axis=0)
+        if self.l1_regs:
+            return norms * self.l1_regs
+        else:
+            return norms * self.config.l1_reg
 
 
 class BagOfWordsRunner(util.Runner):
     '''Runner for the bag of words model.'''
 
-    def __init__(self, config, session, model_init=True):
+    def __init__(self, config, session, model_init=True, verbose=True):
         super(BagOfWordsRunner, self).__init__(config, session)
         self.best_loss = 10000.0
-        if model_init:  # False when __init__ is called by subclasses like neural BOW
-            self.model = BagOfWordsModel(self.config, self.vocab, self.reader.label_space_size())
-            self.model.initialize(self.session, self.config.load_file)
+        self.thresholds = 0.5
         if config.bow_search:
             self.all_stats = []
+            if verbose:
+                print('Searching for hyperparameters')
+        elif config.bow_hpfile:
+            with open(config.bow_hpfile, 'rb') as f:
+                l1_regs, self.thresholds = pickle.load(f)
+            if verbose:
+                print('Loaded custom hyperparameters')
+        if model_init:  # False when __init__ is called by subclasses like neural BOW
+            self.model = BagOfWordsModel(self.config, self.vocab, self.reader.label_space_size(),
+                                         l1_regs)
+            self.model.initialize(self.session, self.config.load_file)
 
     def start_epoch(self, epoch):
         if self.config.bow_search:
@@ -88,7 +104,7 @@ class BagOfWordsRunner(util.Runner):
             for thres in np.arange(0.1, 0.75, 0.1):
                 prf[int(thres * 10)] = util.f1_score(probs, labels, thres, average=None)[-1]
             self.current_stats.append(prf)
-        p, r, f = util.f1_score(probs, labels, 0.5)  # TODO load separate thresholds
+        p, r, f = util.f1_score(probs, labels, self.thresholds)
         ap = util.average_precision(probs, labels)
         p8 = util.precision_at_k(probs, labels, 8)
         return ([ret[0], p, r, f, ap, p8], [ret[2]])
