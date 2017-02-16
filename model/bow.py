@@ -41,14 +41,14 @@ class BagOfWordsModel(model.Model):
         self.probs = tf.sigmoid(self.logits)
         self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
                                                                            labels=self.labels)) + \
-                    self.l1_regularization()
+                    tf.reduce_mean(self.l1_regularization())
         self.train_op = self.minimize_loss(self.loss)
 
     def l1_regularization(self):
         with tf.variable_scope('Linear', reuse=True):
             W = tf.get_variable('Matrix')
-        norms = tf.norm(W, 1, axis=0)
-        if self.l1_regs:
+        norms = tf.norm(W, 1, axis=0, keep_dims=True)
+        if self.l1_regs is not None:
             return norms * self.l1_regs
         else:
             return norms * self.config.l1_reg
@@ -67,7 +67,9 @@ class BagOfWordsRunner(util.Runner):
                 print('Searching for hyperparameters')
         elif config.bow_hpfile:
             with open(config.bow_hpfile, 'rb') as f:
-                l1_regs, self.thresholds = pickle.load(f)
+                l1_regs, thresholds = pickle.load(f)
+                l1_regs = np.expand_dims(l1_regs, 0)
+                self.thresholds = np.expand_dims(thresholds, 0)
             if verbose:
                 print('Loaded custom hyperparameters')
         if model_init:  # False when __init__ is called by subclasses like neural BOW
