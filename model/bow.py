@@ -43,7 +43,6 @@ class BagOfWordsModel(model.Model):
         self.loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
                                                                           labels=self.labels))
         self.loss += (data_size / config.batch_size) * tf.reduce_sum(self.l1_regularization())
-        self.loss /= data_size
         self.train_op = self.minimize_loss(self.loss)
 
     def l1_regularization(self):
