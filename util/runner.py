@@ -48,6 +48,7 @@ class Runner(object):
                 break
             if verbose:
                 print('\nEpoch', epoch)
+            self.start_epoch(epoch)
             global_iter, loss = self.run_epoch(epoch, global_iter, self.train_splits,
                                                verbose=verbose)
             if verbose:
@@ -73,7 +74,9 @@ class Runner(object):
                             print('Updating early stop target to', target)
                 if self.config.best_save_file:
                     self.save_model(self.config.best_save_file)
+            self.finish_epoch(epoch)
             epoch += 1
+        self.start_epoch(None)
         global_iter, loss = self.run_epoch(epoch, global_iter, self.test_splits, train=False,
                                            verbose=verbose)
         if verbose:
@@ -81,6 +84,7 @@ class Runner(object):
                 print('Test losses:', self.loss_str(loss))
             except:
                 pass
+        self.finish_epoch(None)
 
     def run_epoch(self, epoch, global_iter, splits, train=True, verbose=True):
         loss = None
@@ -107,6 +111,14 @@ class Runner(object):
         '''Compare loss with the best validation loss, and return True if a new best is found.
            Take care that loss may be [0.0] when the val split was empty.'''
         return False
+
+    def start_epoch(self, epoch):
+        '''Called before the start of an epoch. epoch is None for testing (after training loop).'''
+        pass
+
+    def finish_epoch(self, epoch):
+        '''Called after finishing an epoch. epoch is None for testing (after training loop).'''
+        pass
 
     def save_model(self, save_file):
         pass

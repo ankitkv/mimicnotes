@@ -2,7 +2,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from pathlib import Path
 from six.moves import xrange
+try:
+    import cPickle as pickle
+except:
+    import pickle
 
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -29,8 +34,8 @@ class BagOfWordsModel(model.Model):
         self.vectorizer = TfidfVectorizer(vocabulary=self.vocab.vocab_lookup, use_idf=False,
                                           sublinear_tf=config.bow_log_tf, stop_words=stop_words,
                                           norm=norm)
-        self.data = tf.placeholder(tf.float32, [config.batch_size, len(vocab.vocab)], name='data')
-        self.labels = tf.placeholder(tf.float32, [config.batch_size, label_space_size],
+        self.data = tf.placeholder(tf.float32, [None, len(vocab.vocab)], name='data')
+        self.labels = tf.placeholder(tf.float32, [None, label_space_size],
                                      name='labels')
         self.logits = util.linear(self.data, self.label_space_size)
         with tf.variable_scope('Linear', reuse=True):
@@ -51,6 +56,12 @@ class BagOfWordsRunner(util.Runner):
         if model_init:  # False when __init__ is called by subclasses like neural BOW
             self.model = BagOfWordsModel(self.config, self.vocab, self.reader.label_space_size())
             self.model.initialize(self.session, self.config.load_file)
+        if config.bow_search:
+            self.all_stats = []
+
+    def start_epoch(self, epoch):
+        if self.config.bow_search:
+            self.current_stats = []
 
     def run_session(self, batch, train=True):
         notes = batch[0].tolist()
@@ -58,20 +69,38 @@ class BagOfWordsRunner(util.Runner):
         labels = batch[2]
         X_raw = []
         for note, length in zip(notes, lengths):
+            if not length:
+                break
             note = note[1:length-1]
             out_note = []
             for word in note:
                 out_note.append(self.vocab.vocab[word])
             X_raw.append(' '.join(out_note))
         data = self.model.vectorizer.transform(X_raw, copy=False).toarray()
+        labels = labels[:len(X_raw)]
         ops = [self.model.loss, self.model.probs, self.model.global_step]
         if train:
             ops.append(self.model.train_op)
         ret = self.session.run(ops, feed_dict={self.model.data: data, self.model.labels: labels})
-        p, r, f = util.f1_score(ret[1], labels, 0.5)  # TODO separate thresholds
+        probs = ret[1]
+        if self.config.bow_search and not train:
+            prf = {}
+            for thres in np.arange(0.1, 0.75, 0.1):
+                prf[int(thres * 10)] = util.f1_score(probs, labels, thres, average=None)[-1]
+            self.current_stats.append(prf)
+        p, r, f = util.f1_score(probs, labels, 0.5)  # TODO load separate thresholds
         ap = util.average_precision(probs, labels)
         p8 = util.precision_at_k(probs, labels, 8)
         return ([ret[0], p, r, f, ap, p8], [ret[2]])
+
+    def finish_epoch(self, epoch):
+        if self.config.bow_search and epoch is not None:
+            self.all_stats.append(self.current_stats)
+            save_file = self.config.save_file or self.config.best_save_file
+            save_file += '-search.pk'
+            with Path(save_file).open('wb') as f:
+                pickle.dump([self.config.l1_reg, self.all_stats], f, -1)
+                print('Dumped stats to', save_file)
 
     def best_val_loss(self, loss):
         '''Compare loss with the best validation loss, and return True if a new best is found'''

@@ -140,11 +140,11 @@ def mt_map(threads, func, operands):
     return ret
 
 
-def f1_score(probs, labels, thres):
+def f1_score(probs, labels, thres, average='micro'):
     '''Returns (precision, recall, F1 score) from a batch of predictions (thresholded probabilities)
        given a batch of labels (for macro-averaging across batches)'''
     preds = (probs >= thres).astype(np.int32)
-    p, r, f, _ = sklearn.metrics.precision_recall_fscore_support(labels, preds, average='micro',
+    p, r, f, _ = sklearn.metrics.precision_recall_fscore_support(labels, preds, average=average,
                                                                  warn_for=())
     return p, r, f
 

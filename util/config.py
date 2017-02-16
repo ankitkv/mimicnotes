@@ -56,6 +56,7 @@ flags.DEFINE_string ("query",          "",     "Query for visualization")
 flags.DEFINE_bool   ("bow_stopwords",  False,  "Allow stopwords in stat BOW model")
 flags.DEFINE_bool   ("bow_log_tf",     True,   "Sublinear term frequencies for stat BOW model")
 flags.DEFINE_string ("bow_norm",       "",     "Normalize BOW vectors, can be 'l1' or 'l2'")
+flags.DEFINE_bool   ("bow_search",     False,  "Search for optimal BOW hyperparameters")
 
 
 class Config(object):
