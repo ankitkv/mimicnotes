@@ -61,6 +61,7 @@ class BagOfWordsRunner(util.Runner):
         super(BagOfWordsRunner, self).__init__(config, session)
         self.best_loss = 10000.0
         self.thresholds = 0.5
+        l1_regs = None
         if config.bow_search:
             self.all_stats = []
             if verbose:
