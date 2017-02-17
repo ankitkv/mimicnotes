@@ -60,7 +60,7 @@ class BagOfWordsRunner(util.Runner):
 
     def __init__(self, config, session, model_init=True, verbose=True):
         super(BagOfWordsRunner, self).__init__(config, session)
-        self.best_loss = 10000.0
+        self.best_loss = float('inf')
         self.thresholds = 0.5
         l1_regs = None
         if config.bow_search:
