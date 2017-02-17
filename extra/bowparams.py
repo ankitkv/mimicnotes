@@ -12,6 +12,10 @@ except:
 import numpy as np
 
 
+# True if need to find the best epoch instead of the last epoch
+find_best_epoch = False
+
+
 if __name__ == '__main__':
     fnames = glob.glob('../saved/*search.pk')
     data = []
@@ -53,9 +57,14 @@ if __name__ == '__main__':
 
     l1_data = []
     argmaxes = {}
-    for l1, records in nothres_data:
-        argmaxes[l1] = np.argmax(records, axis=0)
-        l1_data.append((l1, np.amax(records, axis=0)))
+    if find_best_epoch:
+        for l1, records in nothres_data:
+            argmaxes[l1] = np.argmax(records, axis=0)
+            l1_data.append((l1, np.amax(records, axis=0)))
+    else:
+        for l1, records in nothres_data:
+            argmaxes[l1] = np.ones_like(records[0], dtype=np.int32) * (len(records) - 1)
+            l1_data.append((l1, records[-1]))
     # now l1_data = [(l1, f_scores), ...] each for one value of l1
 
     l1s = np.array([l1 for l1, f_scores in l1_data])
