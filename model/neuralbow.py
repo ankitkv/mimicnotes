@@ -64,7 +64,7 @@ class NeuralBagOfWordsRunner(model.BagOfWordsRunner):
         ret = self.session.run(ops, feed_dict={self.model.notes: notes, self.model.lengths: lengths,
                                                self.model.labels: labels})
         probs = ret[1]
-        p, r, f = util.f1_score(probs, labels, 0.5)  # TODO separate thresholds
+        p, r, f = util.f1_score(probs, labels, self.thresholds)
         ap = util.average_precision(probs, labels)
         p8 = util.precision_at_k(probs, labels, 8)
         return ([ret[0], p, r, f, ap, p8], [ret[2]])
