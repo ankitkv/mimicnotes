@@ -13,7 +13,7 @@ import numpy as np
 
 
 # True if need to find the best epoch instead of the last epoch
-find_best_epoch = False
+find_best_epoch = True
 
 
 if __name__ == '__main__':
@@ -105,6 +105,10 @@ if __name__ == '__main__':
     print(final_thresholds)
     print()
 
-    with open('../saved/bow_bests.pk', 'wb') as f:
+    if find_best_epoch:
+        fname = '../saved/bow_bests_bestepoch.pk'
+    else:
+        fname = '../saved/bow_bests_lastepoch.pk'
+    with open(fname, 'wb') as f:
         pickle.dump([final_l1s, final_thresholds], f, -1)
     print('Dumped to pickle.')
