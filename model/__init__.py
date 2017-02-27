@@ -5,3 +5,4 @@ from bow import *
 from neuralbow import *
 from convbow import *
 from attentionbow import *
+from entnet import *

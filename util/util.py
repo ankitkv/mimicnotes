@@ -161,6 +161,21 @@ def precision_at_k(probs, labels, k):
     return sklearn.metrics.precision_score(labels, preds, average='micro')
 
 
+def prelu(features, initializer=None, scope=None):
+    """
+    Implementation of [Parametric ReLU](https://arxiv.org/abs/1502.01852) borrowed from Keras.
+
+    Based on https://github.com/jimfleming/recurrent-entity-networks.
+    """
+    if initializer is None:
+        initializer=tf.ones_initializer()
+    with tf.variable_scope(scope, 'PReLU', initializer=initializer):
+        alpha = tf.get_variable('alpha', features.get_shape().as_list()[1:])
+        pos = tf.nn.relu(features)
+        neg = alpha * (features - tf.abs(features)) * 0.5
+        return pos + neg
+
+
 def linear(args, output_size, bias=True, bias_start=0.0, scope=None, initializer=None):
     """Linear map: sum_i(args[i] * W[i]), where W[i] is a variable.
     Args:

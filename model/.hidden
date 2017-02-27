@@ -1,6 +1,7 @@
 attentionbow.pyc
 bow.pyc
 convbow.pyc
+entnet.pyc
 __init__.pyc
 majority.pyc
 model.pyc
