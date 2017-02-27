@@ -10,25 +10,25 @@ flags = tf.flags
 
 
 # command-line config
-flags.DEFINE_string ("data_path",      "data",              "Data path")
-flags.DEFINE_string ("save_file",      "saved/recent.dat",  "Save file")
-flags.DEFINE_string ("best_save_file", "",                  "Save file for best validation losses "
-                                                            "(empty for save_file)")
-flags.DEFINE_string ("load_file",      "",                  "File to load model from")
-flags.DEFINE_string ("emb_file",       "",                  "File to load embeddings from")
-flags.DEFINE_string ("note_type",      "Discharge_summary", "The type of notes to consider")
-flags.DEFINE_string ("data_storage",   "pickle",            "Format to store data "
-                                                            "(shelve or pickle)")
-flags.DEFINE_string ("runner",         "",                  "The Runner class to run")
-flags.DEFINE_bool   ("use_tensorflow", True,                "Start a TensorFlow session for the "
-                                                            "runner")
+flags.DEFINE_string ("data_path",      "data",                "Data path")
+flags.DEFINE_string ("save_file",      "saved/recent.dat",    "Save file")
+flags.DEFINE_string ("best_save_file", "",                    "Save file for best validation "
+                                                              "losses (empty for save_file)")
+flags.DEFINE_string ("load_file",      "",                    "File to load model from")
+flags.DEFINE_string ("emb_file",       "",                    "File to load embeddings from")
+flags.DEFINE_string ("note_type",      "Discharge_summary",   "The type of notes to consider")
+flags.DEFINE_string ("data_storage",   "pickle",              "Format to store data "
+                                                              "(shelve or pickle)")
+flags.DEFINE_string ("runner",         "EntityNetworkRunner", "The Runner class to run")
+flags.DEFINE_bool   ("use_tensorflow", True,                  "Start a TensorFlow session for the "
+                                                              "runner")
 
-flags.DEFINE_integer("batch_size",     128,    "Batch size")
+flags.DEFINE_integer("batch_size",     32,     "Batch size")
 flags.DEFINE_float  ("l1_reg",         0.0,    "L1-regularization scale")
 flags.DEFINE_float  ("l2_reg",         0.0,    "L2-regularization scale")
 flags.DEFINE_bool   ("length_sort",    True,   "Ensure similar note lengths in a batch")
 flags.DEFINE_integer("word_emb_size",  192,    "Word embedding size")
-flags.DEFINE_integer("num_blocks",     16,     "Number of blocks for EntNet")
+flags.DEFINE_integer("num_blocks",     10,     "Number of blocks for EntNet")
 flags.DEFINE_bool   ("train_embs",     True,   "Train word embeddings")
 flags.DEFINE_integer("attn_window",    5,      "The span of words to determine score for attention")
 flags.DEFINE_bool   ("attn_on_dims",   True,   "Apply attention on each dimension individually")

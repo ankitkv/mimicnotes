@@ -119,27 +119,35 @@ class EntityNetworkModel(model.Model):
                                  initializer=tf.random_normal_initializer(stddev=0.1),
                                  activation=util.prelu)
 
-        # Recurrence
+        # recurrence
         initial_state = cell.zero_state(config.batch_size, tf.float32)
         _, last_state = tf.nn.dynamic_rnn(cell, embed, sequence_length=self.lengths,
                                           initial_state=initial_state)
 
+        # start with uniform attention
         attention = tf.get_variable('attention', [label_space_size, config.num_blocks],
-                                    initializer=tf.random_normal_initializer(stddev=0.1))
+                                    initializer=tf.zeros_initializer())
         self.attention = tf.nn.softmax(attention)
 
+        # replicate each column of the attention matrix emb_size times (11112222...)
         attention = tf.tile(self.attention, [1, config.word_emb_size])
         attention = tf.reshape(attention, [label_space_size, config.word_emb_size,
                                            config.num_blocks])
         attention = tf.transpose(attention, [0, 2, 1])
         attention = tf.reshape(attention, [label_space_size, -1])
 
+        # weight matrix from emb_size to label_space_size. this is the weight matrix that acts
+        # on the post-attention embeddings from last_state.
         weight = tf.get_variable('weight', [label_space_size, config.word_emb_size],
                                             initializer=tf.contrib.layers.xavier_initializer())
-        weight = tf.tile(weight, [1, config.num_blocks])
 
+        # tile the weight matrix num_blocks times in the second dimension and multiply the
+        # attention to it. this is equivalent to doing attention + sum over all the blocks for
+        # each label.
+        weight = tf.tile(weight, [1, config.num_blocks])
         attended_weight = weight * attention
 
+        # label bias
         bias = tf.get_variable("bias", [label_space_size], initializer=tf.zeros_initializer())
 
         logits = tf.nn.bias_add(tf.matmul(last_state, tf.transpose(attended_weight)), bias)
