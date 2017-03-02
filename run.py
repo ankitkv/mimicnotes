@@ -18,7 +18,7 @@ def main(_):
         with tf.Graph().as_default(), tf.Session(config=config_proto) as session:
             ModelClass(config, session).run()
     else:
-        ModelClass(config, None).run()
+        ModelClass(config).run()
 
 
 if __name__ == '__main__':
