@@ -106,7 +106,7 @@ class EntityNetworkModel(model.Model):
                                                              config.word_emb_size],
                                               initializer=tf.random_uniform_initializer(-init_width,
                                                                                         init_width),
-                                         trainable=config.train_embs)
+                                              trainable=config.train_embs)
             mask = tf.constant([0 if i == 0 else 1 for i in range(len(vocab.vocab))],
                                dtype=tf.float32, shape=[len(vocab.vocab), 1])
             embeddings = self.embeddings * mask

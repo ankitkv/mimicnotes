@@ -6,4 +6,5 @@ __init__.pyc
 majority.pyc
 model.pyc
 neuralbow.pyc
+rnn.pyc
 word2vec.pyc
