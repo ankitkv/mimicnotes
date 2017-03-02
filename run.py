@@ -11,14 +11,14 @@ import util
 
 def main(_):
     config = util.Config()
-    ModelClass = getattr(importlib.import_module("model"), config.runner)
-    if config.use_tensorflow:
+    RunnerClass = getattr(importlib.import_module("model"), config.runner)
+    if issubclass(RunnerClass, util.Runner):
         config_proto = tf.ConfigProto()
         config_proto.gpu_options.allow_growth = True
         with tf.Graph().as_default(), tf.Session(config=config_proto) as session:
-            ModelClass(config, session).run()
+            RunnerClass(config, session).run()
     else:
-        ModelClass(config).run()
+        RunnerClass(config).run()
 
 
 if __name__ == '__main__':
