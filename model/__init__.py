@@ -1,4 +1,6 @@
 from model import *
+from tf_model import *
+from torch_model import *
 from majority import *
 from word2vec import *
 from bow import *

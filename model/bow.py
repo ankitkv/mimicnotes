@@ -17,7 +17,7 @@ import model
 import util
 
 
-class BagOfWordsModel(model.Model):
+class BagOfWordsModel(model.TFModel):
     '''A baseline bag of words model.'''
 
     def __init__(self, config, vocab, label_space_size, l1_regs=None):

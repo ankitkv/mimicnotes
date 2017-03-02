@@ -14,7 +14,7 @@ import model
 import util
 
 
-class Word2vecModel(model.Model):
+class Word2vecModel(model.TFModel):
     '''A word2vec model.'''
 
     def __init__(self, config, vocab, notes_count, skip_window, num_skips):

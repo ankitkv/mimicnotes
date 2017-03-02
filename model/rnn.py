@@ -8,7 +8,7 @@ import model
 import util
 
 
-class RecurrentNetworkModel(model.Model):
+class RecurrentNetworkModel(model.TFModel):
     '''A baseline recurrent network model.'''
 
     def __init__(self, config, vocab, label_space_size):

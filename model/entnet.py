@@ -91,7 +91,7 @@ class DynamicMemoryCell(tf.contrib.rnn.RNNCell):
         return state_next, state_next
 
 
-class EntityNetworkModel(model.Model):
+class EntityNetworkModel(model.TFModel):
     '''A recurrent entity network model.'''
 
     def __init__(self, config, vocab, label_space_size):

@@ -8,7 +8,7 @@ import model
 import util
 
 
-class NeuralBagOfWordsModel(model.Model):
+class NeuralBagOfWordsModel(model.TFModel):
     '''A neural bag of words model.'''
 
     def __init__(self, config, vocab, label_space_size):
