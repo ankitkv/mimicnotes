@@ -7,4 +7,3 @@ from neuralbow import *
 from convbow import *
 from attentionbow import *
 from rnn import *
-from entnet import *
