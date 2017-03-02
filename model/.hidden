@@ -8,5 +8,4 @@ model.pyc
 neuralbow.pyc
 rnn.pyc
 tf_model.pyc
-torch_model.pyc
 word2vec.pyc
