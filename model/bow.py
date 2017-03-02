@@ -59,7 +59,7 @@ class BagOfWordsRunner(util.Runner):
     '''Runner for the bag of words model.'''
 
     def __init__(self, config, session, model_init=True, verbose=True):
-        super(BagOfWordsRunner, self).__init__(config, session)
+        super(BagOfWordsRunner, self).__init__(config, session=session)
         self.best_loss = float('inf')
         self.thresholds = 0.5
         l1_regs = None

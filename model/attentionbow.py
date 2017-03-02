@@ -34,7 +34,7 @@ class AttentionBagOfWordsRunner(convbow.ConvolutionalBagOfWordsRunner):
     '''Runner for the attention bag of words model.'''
 
     def __init__(self, config, session, verbose=True):
-        super(AttentionBagOfWordsRunner, self).__init__(config, session,
+        super(AttentionBagOfWordsRunner, self).__init__(config, session=session,
                                                         model_class=AttentionBagOfWordsModel,
                                                         verbose=verbose)
 

@@ -44,7 +44,7 @@ class NeuralBagOfWordsRunner(model.BagOfWordsRunner):
     '''Runner for the neural bag of words model.'''
 
     def __init__(self, config, session, model_class=NeuralBagOfWordsModel, verbose=True):
-        super(NeuralBagOfWordsRunner, self).__init__(config, session, model_init=False)
+        super(NeuralBagOfWordsRunner, self).__init__(config, session=session, model_init=False)
         self.model = model_class(self.config, self.vocab, self.reader.label_space_size())
         self.model.initialize(self.session, self.config.load_file)
         if config.emb_file:

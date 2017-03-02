@@ -165,7 +165,7 @@ class EntityNetworkRunner(util.Runner):
     '''Runner for the recurrent entity network model.'''
 
     def __init__(self, config, session, verbose=True):
-        super(EntityNetworkRunner, self).__init__(config, session)
+        super(EntityNetworkRunner, self).__init__(config, session=session)
         self.best_loss = float('inf')
         self.thresholds = 0.5
         self.model = EntityNetworkModel(self.config, self.vocab, self.reader.label_space_size())

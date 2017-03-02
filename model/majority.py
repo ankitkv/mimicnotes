@@ -11,7 +11,7 @@ class MajorityRunner(util.Runner):
     '''Runner for the majority dummy model.'''
 
     def __init__(self, config, topk=8):
-        super(MajorityRunner, self).__init__(config, None, train_splits=['train', 'val', 'test'],
+        super(MajorityRunner, self).__init__(config, train_splits=['train', 'val', 'test'],
                                              val_splits=[], test_splits=[])
         self.preds = np.zeros([config.batch_size, self.reader.label_space_size()], dtype=np.int)
         self.preds[:, :topk] = 1

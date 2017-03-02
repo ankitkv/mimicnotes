@@ -43,7 +43,7 @@ class RecurrentNetworkRunner(util.Runner):
     '''Runner for the recurrent network model.'''
 
     def __init__(self, config, session, verbose=True):
-        super(RecurrentNetworkRunner, self).__init__(config, session)
+        super(RecurrentNetworkRunner, self).__init__(config, session=session)
         self.best_loss = float('inf')
         self.thresholds = 0.5
         self.model = RecurrentNetworkModel(self.config, self.vocab, self.reader.label_space_size())

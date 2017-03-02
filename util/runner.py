@@ -10,8 +10,8 @@ import util
 class Runner(object):
     '''Base class for all runners.'''
 
-    def __init__(self, config, session, train_splits=['train'], val_splits=['val'],
-                 test_splits=['test']):
+    def __init__(self, config, train_splits=['train'], val_splits=['val'], test_splits=['test'],
+                 session=None):
         self.config = config
         self.session = session
         if config.data_storage == 'shelve':
