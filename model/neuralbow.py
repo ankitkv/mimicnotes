@@ -2,6 +2,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import time
+
 import tensorflow as tf
 
 import model
@@ -58,16 +60,20 @@ class NeuralBagOfWordsRunner(model.BagOfWordsRunner):
         notes = batch[0]
         lengths = batch[1]
         labels = batch[2]
+        n_words = lengths.sum()
         ops = [self.model.loss, self.model.probs, self.model.global_step]
         if train:
             ops.append(self.model.train_op)
+        start = time.time()
         ret = self.session.run(ops, feed_dict={self.model.notes: notes, self.model.lengths: lengths,
                                                self.model.labels: labels})
+        end = time.time()
+        wps = n_words / (end - start)
         probs = ret[1]
         p, r, f = util.f1_score(probs, labels, self.thresholds)
         ap = util.average_precision(probs, labels)
         p8 = util.precision_at_k(probs, labels, 8)
-        return ([ret[0], p, r, f, ap, p8], [ret[2]])
+        return ([ret[0], p, r, f, ap, p8, wps], [ret[2]])
 
     def visualize(self, verbose=True):
         super(NeuralBagOfWordsRunner, self).visualize(embeddings=self.model.embeddings.eval())
