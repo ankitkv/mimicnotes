@@ -124,6 +124,8 @@ class RecurrentNetworkModel(model.TFModel):
         initial_state = cell.zero_state(config.batch_size, tf.float32)
         _, last_state = tf.nn.dynamic_rnn(cell, embed, sequence_length=self.lengths,
                                           initial_state=initial_state)
+        if config.rnn_type == 'lstm':
+            last_state = tf.concat([s for s in last_state], 1)
 
         if config.rnn_type == 'entnet' and config.use_attention:
             # start with uniform attention
