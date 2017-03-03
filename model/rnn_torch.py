@@ -111,6 +111,8 @@ class RecurrentNetworkTorchRunner(util.Runner):
 
     def save_model(self, save_file, verbose=True):
         if save_file:
+            if not self.config.save_overwrite:
+                save_file += '.' + int(self.global_step)
             if verbose:
                 print('Saving model to', save_file, '...')
             with open(save_file, 'wb') as f:

@@ -39,7 +39,7 @@ class TFModel(model.Model):
     def initialize(self, session, load_file, verbose=True):
         '''Load a model from a saved file or initialize it if no valid load file given'''
         self.saver = tf.train.Saver(max_to_keep=None)
-        try:
+        if load_file:
             # try to restore a saved model file
             self.saver.restore(session, load_file)
             if verbose:
@@ -47,10 +47,10 @@ class TFModel(model.Model):
             # update the learning rate when a model is loaded. this should be replaced with
             # something nicer once we have learning rate decay
             session.run(tf.assign(self.lr, self.config.learning_rate))
-        except tf.errors.NotFoundError:
+        else:
             session.run(tf.global_variables_initializer())
             if verbose:
-                print("No loadable model file, new model initialized.")
+                print("No model file to load, new model initialized.")
 
     def save(self, session, save_file, overwrite, verbose=True):
         '''Save model to file'''
