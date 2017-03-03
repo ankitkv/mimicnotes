@@ -66,6 +66,16 @@ class RecurrentNetworkTorchRunner(util.Runner):
         self.optimizer = util.torch_optimizer(config.optimizer, config.learning_rate,
                                               self.model.parameters())
         self.global_step = 0
+        if config.load_file:
+            if verbose:
+                print('Loading model from', config.load_file, '...')
+            state_dict = torch.load(config.load_file)
+            self.global_step = state_dict['global_step']
+            del state_dict['global_step']
+            self.model.load_state_dict(state_dict)
+            self.optimizer.load_state_dict(torch.load(config.load_file + '.optim'))
+            if verbose:
+                print('Loaded.')
 
     def run_session(self, batch, train=True):
         notes = batch[0]
@@ -102,8 +112,18 @@ class RecurrentNetworkTorchRunner(util.Runner):
         else:
             return False
 
-    def save_model(self, save_file):
-        pass  # TODO
+    def save_model(self, save_file, verbose=True):
+        if save_file:
+            if verbose:
+                print('Saving model to', save_file, '...')
+            with open(save_file, 'wb') as f:
+                state_dict = self.model.state_dict()
+                state_dict['global_step'] = self.global_step
+                torch.save(state_dict, f)
+            with open(save_file + '.optim', 'wb') as f:
+                torch.save(self.optimizer.state_dict(), f)
+            if verbose:
+                print('Saved.')
 
     def loss_str(self, losses):
         loss, p, r, f, ap, p8, wps = losses
