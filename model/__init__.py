@@ -7,4 +7,11 @@ from neuralbow import *
 from convbow import *
 from attentionbow import *
 from rnn import *
-from rnn_torch import *
+
+try:
+    import torch
+except ImportError:
+    pass
+else:
+    # torch models
+    from rnn_torch import *
