@@ -7,3 +7,4 @@ from neuralbow import *
 from convbow import *
 from attentionbow import *
 from rnn import *
+from rnn_torch import *

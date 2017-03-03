@@ -7,5 +7,6 @@ majority.pyc
 model.pyc
 neuralbow.pyc
 rnn.pyc
+rnn_torch.pyc
 tf_model.pyc
 word2vec.pyc
