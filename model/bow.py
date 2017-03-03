@@ -86,6 +86,7 @@ class BagOfWordsRunner(util.Runner):
 
     def run_session(self, notes, lengths, labels, train=True):
         n_words = lengths.sum()
+        start = time.time()
         notes = notes.tolist()
         lengths = lengths.tolist()
         X_raw = []
@@ -102,10 +103,7 @@ class BagOfWordsRunner(util.Runner):
         ops = [self.model.loss, self.model.probs, self.model.global_step]
         if train:
             ops.append(self.model.train_op)
-        start = time.time()
         ret = self.session.run(ops, feed_dict={self.model.data: data, self.model.labels: labels})
-        end = time.time()
-        wps = n_words / (end - start)
         probs = ret[1]
         if self.config.bow_search and not train:
             prf = {}
@@ -115,6 +113,8 @@ class BagOfWordsRunner(util.Runner):
         p, r, f = util.f1_score(probs, labels, self.thresholds)
         ap = util.average_precision(probs, labels)
         p8 = util.precision_at_k(probs, labels, 8)
+        end = time.time()
+        wps = n_words / (end - start)
         return ([ret[0], p, r, f, ap, p8, wps], [ret[2]])
 
     def finish_epoch(self, epoch):

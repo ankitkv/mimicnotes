@@ -58,18 +58,18 @@ class NeuralBagOfWordsRunner(model.BagOfWordsRunner):
 
     def run_session(self, notes, lengths, labels, train=True):
         n_words = lengths.sum()
+        start = time.time()
         ops = [self.model.loss, self.model.probs, self.model.global_step]
         if train:
             ops.append(self.model.train_op)
-        start = time.time()
         ret = self.session.run(ops, feed_dict={self.model.notes: notes, self.model.lengths: lengths,
                                                self.model.labels: labels})
-        end = time.time()
-        wps = n_words / (end - start)
         probs = ret[1]
         p, r, f = util.f1_score(probs, labels, self.thresholds)
         ap = util.average_precision(probs, labels)
         p8 = util.precision_at_k(probs, labels, 8)
+        end = time.time()
+        wps = n_words / (end - start)
         return ([ret[0], p, r, f, ap, p8, wps], [ret[2]])
 
     def visualize(self, verbose=True):

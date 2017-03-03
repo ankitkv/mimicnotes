@@ -79,8 +79,8 @@ class RecurrentNetworkTorchRunner(util.Runner):
 
     def run_session(self, notes, lengths, labels, train=True):
         n_words = lengths.sum()
-        notes = torch.from_numpy(notes).long()
         start = time.time()
+        notes = torch.from_numpy(notes).long()
         if train:
             self.model.zero_grad()
             notes = Variable(notes)
@@ -92,13 +92,13 @@ class RecurrentNetworkTorchRunner(util.Runner):
             loss.backward()
             self.optimizer.step()
             self.global_step += 1
-        end = time.time()
-        wps = n_words / (end - start)
         probs = probs.data.cpu().numpy()
         loss = loss.data.cpu().numpy()
         p, r, f = util.f1_score(probs, labels, self.thresholds)
         ap = util.average_precision(probs, labels)
         p8 = util.precision_at_k(probs, labels, 8)
+        end = time.time()
+        wps = n_words / (end - start)
         return ([loss, p, r, f, ap, p8, wps], [])
 
     def best_val_loss(self, loss):
