@@ -59,6 +59,8 @@ class TorchRunner(util.Runner):
         model.embedding.cpu()  # don't waste GPU memory on embeddings
         if embeddings is not None:
             model.embedding.weight.data.copy_(torch.from_numpy(embeddings))
+            if model.embedding.padding_idx is not None:
+                model.embedding.weight.data[model.embedding.padding_idx].fill_(0)
 
     def run_session(self, notes, lengths, labels, train=True):
         n_words = lengths.sum()
