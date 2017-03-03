@@ -69,11 +69,13 @@ class RecurrentNetworkTorchRunner(util.Runner):
         if config.load_file:
             if verbose:
                 print('Loading model from', config.load_file, '...')
-            state_dict = torch.load(config.load_file)
-            self.global_step = state_dict['global_step']
-            del state_dict['global_step']
-            self.model.load_state_dict(state_dict)
-            self.optimizer.load_state_dict(torch.load(config.load_file + '.optim'))
+            model_state_dict, optim_state_dict, self.global_step, optim_name = \
+                                                                        torch.load(config.load_file)
+            self.model.load_state_dict(model_state_dict)
+            if config.optimizer == optim_name:
+                self.optimizer.load_state_dict(optim_state_dict)
+            else:
+                print('warning: saved model has a different optimizer, not loading optimizer.')
             if verbose:
                 print('Loaded.')
 
@@ -116,11 +118,9 @@ class RecurrentNetworkTorchRunner(util.Runner):
             if verbose:
                 print('Saving model to', save_file, '...')
             with open(save_file, 'wb') as f:
-                state_dict = self.model.state_dict()
-                state_dict['global_step'] = self.global_step
-                torch.save(state_dict, f)
-            with open(save_file + '.optim', 'wb') as f:
-                torch.save(self.optimizer.state_dict(), f)
+                states = [self.model.state_dict(), self.optimizer.state_dict(), self.global_step,
+                          self.config.optimizer]
+                torch.save(states, f)
             if verbose:
                 print('Saved.')
 
