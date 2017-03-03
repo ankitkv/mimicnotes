@@ -60,7 +60,6 @@ class RecurrentNetworkTorchRunner(util.Runner):
         self.best_loss = float('inf')
         self.thresholds = 0.5
         self.model = RecurrentNetworkTorchModel(config, self.vocab, self.reader.label_space_size())
-        self.model.apply(util.torch_initialize)
         self.model.cuda()
         self.model.embedding.cpu()  # don't waste GPU memory on embeddings
         self.criterion = nn.BCELoss()

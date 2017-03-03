@@ -161,27 +161,6 @@ def precision_at_k(probs, labels, k):
     return sklearn.metrics.precision_score(labels, preds, average='micro')
 
 
-def torch_initialize(m):
-    '''Initialize weights of a torch module'''
-    import torch.nn as nn
-
-    def linear_init(weight):
-        fan_out, fan_in = weight.size()
-        weight.data.normal_(0.0, np.sqrt(2.0 / (fan_in + fan_out)))
-    if isinstance(m, nn.Linear):
-        linear_init(m.weight)
-    elif isinstance(m, nn.GRUCell):
-        linear_init(m.weight_ih)
-        linear_init(m.weight_hh)
-    elif isinstance(m, nn.GRU):
-        for param in m.parameters():
-            if len(param.size()) == 2:
-                linear_init(param)
-                linear_init(param)
-    elif isinstance(m, nn.Embedding):
-        m.weight.data.uniform_()
-
-
 def torch_optimizer(name, lr, params):
     '''Return an optimizer for Torch that learns params'''
     import torch.optim as optim
