@@ -92,7 +92,8 @@ class Runner(object):
         for step, batch in enumerate(self.reader.get(splits)):
             if train:
                 global_iter += 1
-            losses, extra = self.run_session(batch, train=train)
+            notes, lengths, labels = batch
+            losses, extra = self.run_session(notes, lengths, labels, train=train)
             if loss is None:
                 loss = np.array(losses)
             else:
@@ -132,7 +133,7 @@ class Runner(object):
     def output(self, step, losses, extra, train=True):
         pass
 
-    def run_session(self, batch, train=True):
+    def run_session(self, notes, lengths, labels, train=True):
         '''Should return (losses, extra_info)'''
         raise NotImplementedError
 

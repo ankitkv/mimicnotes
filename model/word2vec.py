@@ -76,7 +76,7 @@ class Word2vecRunner(util.Runner):
                                    skip_window, num_skips)
         self.model.initialize(self.session, self.config.load_file)
 
-    def run_session(self, raw_batch, train=True):
+    def run_session(self, notes, lengths, labels, train=True):
         batch = np.ndarray(shape=(self.config.batch_size), dtype=np.int32)
         labels = np.ndarray(shape=(self.config.batch_size, 1), dtype=np.int32)
         span = 2 * self.skip_window + 1  # [ skip_window target skip_window ]
@@ -84,8 +84,8 @@ class Word2vecRunner(util.Runner):
         total_steps = 0
         gs = 0
 
-        notes = raw_batch[0].tolist()
-        lengths = raw_batch[1].tolist()
+        notes = notes.tolist()
+        lengths = lengths.tolist()
         batch_index = 0
 
         ops = [self.model.loss, self.model.global_step]

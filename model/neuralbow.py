@@ -56,10 +56,7 @@ class NeuralBagOfWordsRunner(model.BagOfWordsRunner):
             if verbose:
                 print("Embeddings loaded from", config.emb_file)
 
-    def run_session(self, batch, train=True):
-        notes = batch[0]
-        lengths = batch[1]
-        labels = batch[2]
+    def run_session(self, notes, lengths, labels, train=True):
         n_words = lengths.sum()
         ops = [self.model.loss, self.model.probs, self.model.global_step]
         if train:

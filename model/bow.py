@@ -84,11 +84,10 @@ class BagOfWordsRunner(util.Runner):
         if self.config.bow_search:
             self.current_stats = []
 
-    def run_session(self, batch, train=True):
-        notes = batch[0].tolist()
-        lengths = batch[1].tolist()
-        labels = batch[2]
-        n_words = batch[1].sum()
+    def run_session(self, notes, lengths, labels, train=True):
+        n_words = lengths.sum()
+        notes = notes.tolist()
+        lengths = lengths.tolist()
         X_raw = []
         for note, length in zip(notes, lengths):
             if not length:

@@ -16,8 +16,7 @@ class MajorityRunner(util.Runner):
         self.preds = np.zeros([config.batch_size, self.reader.label_space_size()], dtype=np.int)
         self.preds[:, :topk] = 1
 
-    def run_session(self, batch, train=True):
-        labels = batch[2]
+    def run_session(self, notes, lengths, labels, train=True):
         p, r, f = util.f1_score(self.preds, labels)
         return ([p, r, f], [])
 

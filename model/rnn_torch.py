@@ -54,7 +54,7 @@ class RecurrentNetworkTorchModel(nn.Module):
 class RecurrentNetworkTorchRunner(util.Runner):
     '''Runner for the Torch recurrent network model.'''
 
-    def __init__(self, config, session, verbose=True):
+    def __init__(self, config, verbose=True):
         super(RecurrentNetworkTorchRunner, self).__init__(config)
         cudnn.benchmark = True
         self.best_loss = float('inf')
@@ -77,10 +77,7 @@ class RecurrentNetworkTorchRunner(util.Runner):
             if verbose:
                 print('Loaded.')
 
-    def run_session(self, batch, train=True):
-        notes = batch[0]
-        lengths = batch[1]
-        labels = batch[2]
+    def run_session(self, notes, lengths, labels, train=True):
         n_words = lengths.sum()
         notes = torch.from_numpy(notes).long()
         start = time.time()
