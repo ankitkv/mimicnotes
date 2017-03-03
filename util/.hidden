@@ -2,4 +2,5 @@ config.pyc
 __init__.pyc
 reader.pyc
 runner.pyc
+torch_runner.pyc
 util.pyc

@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import time
 
+import tensorflow as tf
 import torch
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
@@ -22,11 +23,24 @@ class TorchRunner(util.Runner):
         if args is None:
             args = [config, self.vocab, self.reader.label_space_size()]
         self.model = ModelClass(*args)
-        self.initialize_model(self.model)
         self.criterion = nn.BCELoss()
         self.optimizer = util.torch_optimizer(config.optimizer, config.learning_rate,
                                               self.model.parameters())
         self.global_step = 0
+        embeddings = None
+        if config.emb_file:
+            config_proto = tf.ConfigProto()
+            config_proto.gpu_options.allow_growth = True
+            with tf.Graph().as_default(), tf.Session(config=config_proto) as session:
+                embeddings = tf.get_variable('embeddings', [len(self.vocab.vocab),
+                                                            config.word_emb_size])
+                saver = tf.train.Saver([embeddings])
+                # try to restore a saved embedding model
+                saver.restore(session, config.emb_file)
+                if verbose:
+                    print("Embeddings loaded from", config.emb_file)
+                embeddings = embeddings.eval()
+        self.initialize_model(self.model, embeddings)
         if config.load_file:
             if verbose:
                 print('Loading model from', config.load_file, '...')
@@ -40,9 +54,11 @@ class TorchRunner(util.Runner):
             if verbose:
                 print('Loaded.')
 
-    def initialize_model(self, model):
+    def initialize_model(self, model, embeddings):
         model.cuda()
         model.embedding.cpu()  # don't waste GPU memory on embeddings
+        if embeddings is not None:
+            model.embedding.weight.data.copy_(torch.from_numpy(embeddings))
 
     def run_session(self, notes, lengths, labels, train=True):
         n_words = lengths.sum()
