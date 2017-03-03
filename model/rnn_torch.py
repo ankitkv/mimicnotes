@@ -20,17 +20,34 @@ class RecurrentNetworkTorchModel(nn.Module):
 
     def __init__(self, config, vocab, label_space_size):
         super(RecurrentNetworkTorchModel, self).__init__()
+        self.config = config
         self.embedding = nn.Embedding(len(vocab.vocab), config.word_emb_size, padding_idx=0)
-        self.rnn = nn.GRU(input_size=config.word_emb_size,
-                          hidden_size=config.word_emb_size*config.num_blocks, batch_first=True)
-        self.dist = nn.Linear(config.word_emb_size * config.num_blocks, label_space_size)
-        self.zero_state = torch.zeros([1, config.batch_size,
+        output_size = config.word_emb_size * config.num_blocks
+        if config.rnn_type == 'gru':
+            self.rnn = nn.GRU(input_size=config.word_emb_size,
+                              hidden_size=config.word_emb_size*config.num_blocks, batch_first=True)
+            self.zero_state = torch.zeros([1, config.batch_size,
+                                           config.word_emb_size * config.num_blocks]).cuda()
+        elif config.rnn_type == 'lstm':
+            self.rnn = nn.LSTM(input_size=config.word_emb_size,
+                               hidden_size=config.word_emb_size*config.num_blocks, batch_first=True)
+            self.zero_h = torch.zeros([1, config.batch_size,
                                        config.word_emb_size * config.num_blocks]).cuda()
+            self.zero_c = torch.zeros([1, config.batch_size,
+                                       config.word_emb_size * config.num_blocks]).cuda()
+            output_size *= 2
+        else:
+            raise NotImplementedError
+        self.dist = nn.Linear(output_size, label_space_size)
 
     def forward(self, notes):
         inputs = self.embedding(notes)
         inputs = inputs.cuda()
-        _, last_state = self.rnn(inputs, Variable(self.zero_state))
+        if self.config.rnn_type == 'gru':
+            _, last_state = self.rnn(inputs, Variable(self.zero_state))
+        elif self.config.rnn_type == 'lstm':
+            _, last_state = self.rnn(inputs, (Variable(self.zero_h), Variable(self.zero_c)))
+            last_state = torch.cat(last_state, 2)
         last_state = last_state.squeeze(0)
         logits = self.dist(last_state)
         return F.sigmoid(logits)
