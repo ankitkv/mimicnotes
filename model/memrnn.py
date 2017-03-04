@@ -8,32 +8,6 @@ import model
 import util
 
 
-class MemoryRNNCell(tf.contrib.rnn.RNNCell):
-
-    def __init__(self, num_units, activation=tf.tanh):
-        self._num_units = num_units
-        self._activation = activation
-
-    @property
-    def state_size(self):
-        return tf.contrib.rnn.LSTMStateTuple(self._num_units, self._num_units)
-
-    @property
-    def output_size(self):
-        return self._num_units
-
-    def __call__(self, inputs, state, scope=None):
-        with tf.variable_scope(scope or "memory_lstm_cell"):
-            c, h = state
-            concat = util.linear([inputs, h], (3 * self._num_units))
-            j, f, o = tf.split(value=concat, num_or_size_splits=3, axis=1)
-            forget = tf.sigmoid(f)
-            new_c = forget * c + (1. - forget) * self._activation(j)
-            new_h = self._activation(new_c) * tf.sigmoid(o)
-            new_state = tf.contrib.rnn.LSTMStateTuple(new_c, new_h)
-            return new_h, new_state
-
-
 class MemoryRNNModel(model.TFModel):
     '''The memory LSTM model.'''
 
@@ -52,13 +26,12 @@ class MemoryRNNModel(model.TFModel):
                                               trainable=config.train_embs)
             embed = tf.nn.embedding_lookup(self.embeddings, self.notes)
 
-        # TODO try different activations (will need changes with loss as well)
-        cell = MemoryRNNCell(label_space_size)
+        cell = tf.contrib.rnn.GRUCell(label_space_size + (config.word_emb_size * config.num_blocks))
 
         # recurrence
         _, last_state = tf.nn.dynamic_rnn(cell, embed, sequence_length=self.lengths,
                                           swap_memory=True, dtype=tf.float32)
-        self.probs = (last_state.c + 1.0) / 2.0
+        self.probs = (last_state[:, :label_space_size] + 1.0) / 2.0
         clipped_probs1 = tf.maximum(self.probs, 1e-8)
         clipped_probs0 = 1. - tf.minimum(self.probs, 1. - 1e-8)
 
