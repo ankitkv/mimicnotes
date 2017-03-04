@@ -7,6 +7,7 @@ from neuralbow import *
 from convbow import *
 from attentionbow import *
 from rnn import *
+from memrnn import *
 
 try:
     import torch

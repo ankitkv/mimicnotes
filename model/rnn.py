@@ -169,11 +169,11 @@ class RecurrentNetworkModel(model.TFModel):
 class RecurrentNetworkRunner(util.Runner):
     '''Runner for the recurrent network model.'''
 
-    def __init__(self, config, session, verbose=True):
+    def __init__(self, config, session, ModelClass=RecurrentNetworkModel, verbose=True):
         super(RecurrentNetworkRunner, self).__init__(config, session=session)
         self.best_loss = float('inf')
         self.thresholds = 0.5
-        self.model = RecurrentNetworkModel(self.config, self.vocab, self.reader.label_space_size())
+        self.model = ModelClass(self.config, self.vocab, self.reader.label_space_size())
         self.model.initialize(self.session, self.config.load_file)
         if config.emb_file:
             saver = tf.train.Saver([self.model.embeddings])

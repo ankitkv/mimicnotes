@@ -4,6 +4,7 @@ convbow.pyc
 entnet.pyc
 __init__.pyc
 majority.pyc
+memrnn.pyc
 model.pyc
 neuralbow.pyc
 rnn.pyc

@@ -228,7 +228,7 @@ def linear(args, output_size, bias=True, bias_start=0.0, scope=None, initializer
         if len(args) == 1:
             res = tf.matmul(args[0], matrix)
         else:
-            res = tf.matmul(tf.concat(1, args), matrix)
+            res = tf.matmul(tf.concat(args, 1), matrix)
         if not bias:
             return res
         bias_term = tf.get_variable("Bias", [output_size], dtype=dtype,
