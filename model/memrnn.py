@@ -33,11 +33,8 @@ class MemoryRNNModel(model.TFModel):
         # recurrence
         _, last_state = tf.nn.dynamic_rnn(cell, embed, sequence_length=self.lengths,
                                           swap_memory=True, dtype=tf.float32)
-        self.probs = (last_state[:, :label_space_size] + 1.0) / 2.0
-        clipped_probs1 = tf.maximum(self.probs, 1e-8)
-        clipped_probs0 = 1. - tf.minimum(self.probs, 1. - 1e-8)
-
-        loss = self.labels * -tf.log(clipped_probs1) + (1. - self.labels) * -tf.log(clipped_probs0)
+        self.probs = ((last_state[:, :label_space_size] * (1 - 2*1e-6)) + 1) / 2
+        loss = self.labels * -tf.log(self.probs) + (1. - self.labels) * -tf.log(1. - self.probs)
         self.loss = tf.reduce_mean(loss)
         self.train_op = self.minimize_loss(self.loss)
 
