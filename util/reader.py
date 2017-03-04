@@ -389,6 +389,11 @@ class NoteReader(object):
         self.config = config
         self.data = data
         self.vocab = vocab
+        if config.curriculum:
+            # length is incremented at the start of an epoch, so go back a bit to start correctly
+            self.max_note_len = float(config.len_start) / (1 + config.len_multiply)
+        else:
+            self.max_note_len = float(config.max_note_len)
         random.seed(0)  # deterministic random
 
     def label_info(self, admission):
@@ -408,8 +413,8 @@ class NoteReader(object):
                 note_text = sum(note, [])
                 vocab_note = [self.vocab.sos_index] + self.vocab.words2idxs(note_text) + \
                              [self.vocab.eos_index]
-                if self.config.max_note_len > 0:
-                    vocab_note = vocab_note[:self.config.max_note_len]
+                if self.max_note_len > 0:
+                    vocab_note = vocab_note[:int(self.max_note_len)]
                 yield (vocab_note, label_info)
 
     def buffered_read_sorted_notes(self, splits, batches=32):
@@ -461,10 +466,21 @@ class NoteReader(object):
             lengths[i] = len(b[0])
         return (ret_batch, lengths, self.label_pack([b[1] for b in batch]))
 
-    def get(self, splits, verbose=True):
+    def get(self, splits, force_curriculum=None, verbose=True):
         '''Read batches from data'''
         if verbose:
             print('Getting data from', '+'.join(splits), 'split')
+        if force_curriculum is None:
+            force_curriculum = 'train' in splits
+        if self.config.curriculum and force_curriculum:
+            old = int(self.max_note_len)
+            self.max_note_len += self.max_note_len * self.config.len_multiply
+            if self.max_note_len > self.config.max_note_len:
+                self.config.curriculum = False
+                self.max_note_len = self.config.max_note_len
+            new = int(self.max_note_len)
+            if verbose and old != new:
+                print('(reader) Increasing max note len to', new)
         for batch in self.buffered_read(splits):
             yield batch
 

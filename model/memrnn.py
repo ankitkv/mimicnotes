@@ -59,7 +59,7 @@ class MemoryRNNRunner(model.RecurrentNetworkRunner):
             split = self.config.query
         else:
             split = 'test'
-        for batch in self.reader.get([split]):
+        for batch in self.reader.get([split], force_curriculum=False):
             ops = [self.model.probs, self.model.step_probs]
             probs, step_probs = self.session.run(ops, feed_dict={self.model.notes: batch[0],
                                                                  self.model.lengths: batch[1],
