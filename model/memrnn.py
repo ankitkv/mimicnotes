@@ -26,7 +26,9 @@ class MemoryRNNModel(model.TFModel):
                                               trainable=config.train_embs)
             embed = tf.nn.embedding_lookup(self.embeddings, self.notes)
 
-        cell = tf.contrib.rnn.GRUCell(label_space_size + (config.word_emb_size * config.num_blocks))
+        with tf.variable_scope('gru', initializer=tf.contrib.layers.xavier_initializer()):
+            cell = tf.contrib.rnn.GRUCell(label_space_size +
+                                          (config.word_emb_size * config.num_blocks))
 
         # recurrence
         _, last_state = tf.nn.dynamic_rnn(cell, embed, sequence_length=self.lengths,
