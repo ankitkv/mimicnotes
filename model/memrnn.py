@@ -45,6 +45,17 @@ class MemoryRNNModel(model.TFModel):
         self.probs = ((last_state[:, :label_space_size] * (1 - 2*1e-6)) + 1) / 2
         loss = self.labels * -tf.log(self.probs) + (1. - self.labels) * -tf.log(1. - self.probs)
         self.loss = tf.reduce_mean(loss)
+        if config.lm_weight > 0.0:
+            flat_out = tf.reshape(out[:, :-1, label_space_size:],
+                                  [-1, config.word_emb_size * config.num_blocks])
+            flat_targets = tf.reshape(self.notes[:, 1:], [-1])
+            flat_mask = tf.to_float(flat_targets > 0)
+            lm_logits = util.linear(flat_out, len(vocab.vocab))
+            lm_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=flat_targets,
+                                                                     logits=lm_logits) * flat_mask
+            lm_loss = tf.reduce_sum(lm_loss) / tf.maximum(tf.reduce_sum(flat_mask), 1.0)
+            self.loss += config.lm_weight * lm_loss
+
         self.train_op = self.minimize_loss(self.loss)
 
 

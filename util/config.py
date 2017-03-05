@@ -31,6 +31,7 @@ flags.DEFINE_integer("num_blocks",     8,      "Number of blocks for EntNet, hid
                                                "emb_size * num_blocks for RNN")
 flags.DEFINE_bool   ("train_embs",     True,   "Train word embeddings")
 flags.DEFINE_bool   ("use_attention",  True,   "Use attention where optional")
+flags.DEFINE_float  ("lm_weight",      0.0,    "Language modeling objective weight")
 flags.DEFINE_integer("attn_window",    5,      "The span of words to determine score for attention")
 flags.DEFINE_bool   ("attn_on_dims",   True,   "Apply attention on each dimension individually")
 flags.DEFINE_bool   ("sigmoid_attn",   False,  "Use sigmoid instead of softmax for attention")
