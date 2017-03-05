@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
 from six.moves import xrange
 
 import tensorflow as tf
@@ -54,7 +55,6 @@ class MemoryRNNRunner(model.RecurrentNetworkRunner):
         super(MemoryRNNRunner, self).__init__(config, session, ModelClass=MemoryRNNModel)
 
     def visualize(self, verbose=True):
-        n_labels = 5
         if self.config.query:
             split = self.config.query
         else:
@@ -70,13 +70,19 @@ class MemoryRNNRunner(model.RecurrentNetworkRunner):
                 doc_probs = step_probs[i]  # seq_len x labels
                 prob = [(j, p) for j, p in enumerate(probs[i]) if p > 0.5]
                 prob.sort(key=lambda x: -x[1])
-                prob = prob[:n_labels]
-                for label, _ in prob:
+                labels = collections.OrderedDict((l, True) for l, _ in prob)
+                for j in xrange(len(batch[2][i])):
+                    if batch[2][i, j] and j not in labels:
+                        labels[j] = False
+                for label, predicted in labels.items():
                     label_prob = doc_probs[:, label]  # seq_len
-                    if batch[2][i, label]:
-                        verdict = 'correct'
+                    if predicted:
+                        if batch[2][i, label]:
+                            verdict = 'correct'
+                        else:
+                            verdict = 'incorrect'
                     else:
-                        verdict = 'incorrect'
+                        verdict = 'missed'
                     print()
                     print('LABEL (%s):' % verdict,
                           self.vocab.aux_names['dgn'][self.vocab.aux_vocab['dgn'][label]])
