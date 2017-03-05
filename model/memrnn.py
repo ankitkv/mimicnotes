@@ -83,13 +83,18 @@ class MemoryRNNRunner(model.RecurrentNetworkRunner):
                     print('-----')
                     for k, word in enumerate(batch[0][i, :batch[1][i]]):
                         prob = label_prob[k]
-                        color = util.c.ENDC
-                        if prob > 0.65:
+                        if prob > 0.8:
                             color = util.c.OKGREEN
-                        elif prob > 0.5:
+                        elif prob > 0.6:
                             color = util.c.WARNING
-                        elif prob < 0.35:
+                        elif prob > 0.5:
+                            color = util.c.ENDC
+                        elif prob <= 0.2:
                             color = util.c.FAIL
+                        elif prob <= 0.4:
+                            color = util.c.HEADER
+                        elif prob <= 0.5:
+                            color = util.c.OKBLUE
                         print(color + self.vocab.vocab[word] + util.c.ENDC, end=' ')
                     print()
                 input('\n\nPress enter to continue ...\n')
