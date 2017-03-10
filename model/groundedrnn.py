@@ -61,14 +61,15 @@ class GroundedRNNModel(model.TFModel):
             loss = self.labels * -tf.log(self.probs) + (1. - self.labels) * -tf.log(1. - self.probs)
             self.loss = tf.reduce_mean(loss)
         elif config.grnn_summary == 'fixed':
-            W = np.zeros([config.latent_size, label_space_size], dtype=np.float32)
+            Wm = np.zeros([config.latent_size, label_space_size], dtype=np.float32)
             for i in xrange(label_space_size):
                 indices = np.random.randint(0, config.latent_size, size=[config.grnn_fixedsize])
-                W[:,i][indices] = 1.0
-            logits = tf.matmul(latent, W) / (1e-6 + config.grnn_fixedsize)
-            self.probs = (logits + 1) / 2
-            loss = self.labels * -tf.log(self.probs) + (1. - self.labels) * -tf.log(1. - self.probs)
-            self.loss = tf.reduce_mean(loss)
+                Wm[:,i][indices] = 1.0
+            W = tf.get_variable('W', [config.latent_size, label_space_size]) * Wm
+            logits = tf.matmul(latent, W)
+            self.probs = tf.sigmoid(logits)
+            self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits,
+                                       labels=self.labels))
 
         self.train_op = self.minimize_loss(self.loss)
 
