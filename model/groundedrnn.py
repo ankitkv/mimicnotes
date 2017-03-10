@@ -2,6 +2,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from six.moves import xrange
+
+import numpy as np
 import tensorflow as tf
 
 import model
@@ -32,18 +35,38 @@ class GroundedRNNModel(model.TFModel):
         out, last_state = tf.nn.dynamic_rnn(cell, embed, sequence_length=self.lengths,
                                             swap_memory=True, dtype=tf.float32)
         # concatenate 1's to the input to learn label bias
-        latent = tf.concat([last_state[:, :config.latent_size], tf.ones([config.batch_size, 1])], 1)
-        W = tf.get_variable('W', [config.latent_size + 1, label_space_size])
-        logits = tf.matmul(latent, W)
-        if config.grnn_sigmoid:
+        latent = last_state[:, :config.latent_size]
+        if config.grnn_summary == 'sigmoid':
+            latent = tf.concat([latent, tf.ones([config.batch_size, 1])], 1)
+            W = tf.get_variable('W', [config.latent_size + 1, label_space_size])
+            logits = tf.matmul(latent, W)
             self.probs = tf.sigmoid(logits)
             self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits,
                                        labels=self.labels))
-        else:
+        elif config.grnn_summary == 'cosine':  # doesn't work at all
+            latent = tf.concat([latent, tf.ones([config.batch_size, 1])], 1)
+            W = tf.get_variable('W', [config.latent_size + 1, label_space_size])
+            logits = tf.matmul(latent, W)
             Xnorm = tf.sqrt(tf.reduce_sum(tf.square(latent), 1, keep_dims=True))
             Wnorm = tf.sqrt(tf.reduce_sum(tf.square(W), 0, keep_dims=True))
             logits /= tf.matmul(Xnorm, Wnorm)
             self.probs = ((logits * (1 - 2*1e-8)) + 1) / 2
+            loss = self.labels * -tf.log(self.probs) + (1. - self.labels) * -tf.log(1. - self.probs)
+            self.loss = tf.reduce_mean(loss)
+        elif config.grnn_summary == 'softmax':
+            W = tf.get_variable('W', [config.latent_size, label_space_size])
+            W = tf.nn.softmax(W, 0)
+            logits = tf.matmul(latent, W)
+            self.probs = ((logits * (1 - 2*1e-8)) + 1) / 2
+            loss = self.labels * -tf.log(self.probs) + (1. - self.labels) * -tf.log(1. - self.probs)
+            self.loss = tf.reduce_mean(loss)
+        elif config.grnn_summary == 'fixed':
+            W = np.zeros([config.latent_size, label_space_size], dtype=np.float32)
+            for i in xrange(label_space_size):
+                indices = np.random.randint(0, config.latent_size, size=[config.grnn_fixedsize])
+                W[:,i][indices] = 1.0
+            logits = tf.matmul(latent, W) / (1e-6 + config.grnn_fixedsize)
+            self.probs = (logits + 1) / 2
             loss = self.labels * -tf.log(self.probs) + (1. - self.labels) * -tf.log(1. - self.probs)
             self.loss = tf.reduce_mean(loss)
 
