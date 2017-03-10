@@ -16,3 +16,4 @@ except ImportError:
 else:
     # torch models
     from rnn_torch import *
+    from groundedrnn import *

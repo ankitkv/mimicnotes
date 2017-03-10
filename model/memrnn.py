@@ -96,7 +96,7 @@ class MemoryRNNRunner(model.RecurrentNetworkRunner):
                     else:
                         verdict = 'missed'
                     print()
-                    print('LABEL (%s):' % verdict,
+                    print('LABEL (%s): #%d' % (verdict, label+1),
                           self.vocab.aux_names['dgn'][self.vocab.aux_vocab['dgn'][label]])
                     print('-----')
                     for k, word in enumerate(batch[0][i, :batch[1][i]]):

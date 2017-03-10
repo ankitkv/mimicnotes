@@ -27,8 +27,11 @@ flags.DEFINE_float  ("l2_reg",         0.0,    "L2-regularization scale")
 flags.DEFINE_bool   ("length_sort",    True,   "Ensure similar note lengths in a batch")
 flags.DEFINE_integer("word_emb_size",  192,    "Word embedding size")
 flags.DEFINE_string ("rnn_type",       'gru',  "gru/lstm/entnet")
-flags.DEFINE_integer("num_blocks",     8,      "Number of blocks for EntNet, hidden_size = "
-                                               "emb_size * num_blocks for RNN")
+flags.DEFINE_integer("num_blocks",     8,      "Number of blocks for EntNet")
+flags.DEFINE_integer("hidden_size",    192,    "Hidden size for RNN")
+flags.DEFINE_integer("latent_size",    192,    "Latent label space size for grounded RNN")
+flags.DEFINE_bool   ("grnn_sigmoid",   False,  "Use sigmoid for labels instead of cosine "
+                                               "similarity for GRNN")
 flags.DEFINE_bool   ("train_embs",     True,   "Train word embeddings")
 flags.DEFINE_bool   ("use_attention",  True,   "Use attention where optional")
 flags.DEFINE_float  ("lm_weight",      0.0,    "Language modeling objective weight")
