@@ -2,51 +2,56 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import torch
-from torch.autograd import Variable
-import torch.nn as nn
-import torch.nn.functional as F
+import tensorflow as tf
 
-import util
+import model
 
 
-class GroundedRNNModel(nn.Module):
-    '''Grounded recurrent network model.'''
+class GroundedRNNModel(model.TFModel):
+    '''The grounded RNN model.'''
 
     def __init__(self, config, vocab, label_space_size):
-        super(GroundedRNNModel, self).__init__()
-        self.config = config
-        self.embedding = nn.Embedding(len(vocab.vocab), config.word_emb_size, padding_idx=0)
-        hidden_size = config.latent_size + config.hidden_size
-        self.rnn = nn.GRU(input_size=config.word_emb_size, hidden_size=hidden_size,
-                          batch_first=True)
-        self.zero_state = torch.zeros([1, config.batch_size, hidden_size]).cuda()
-        self.dist = nn.Linear(config.latent_size + 1, label_space_size, bias=False)
+        super(GroundedRNNModel, self).__init__(config, vocab, label_space_size)
+        self.notes = tf.placeholder(tf.int32, [config.batch_size, None], name='notes')
+        self.lengths = tf.placeholder(tf.int32, [config.batch_size], name='lengths')
+        self.labels = tf.placeholder(tf.float32, [config.batch_size, label_space_size],
+                                     name='labels')
+        with tf.device('/cpu:0'):
+            init_width = 0.5 / config.word_emb_size
+            self.embeddings = tf.get_variable('embeddings', [len(vocab.vocab),
+                                                             config.word_emb_size],
+                                              initializer=tf.random_uniform_initializer(-init_width,
+                                                                                        init_width),
+                                              trainable=config.train_embs)
+            embed = tf.nn.embedding_lookup(self.embeddings, self.notes)
 
-    def forward(self, notes, lengths):
-        inputs = self.embedding(notes)
-        inputs = inputs.cuda()  # TODO use packed sequences
-        _, last_state = self.rnn(inputs, Variable(self.zero_state))
-        last_state = last_state.squeeze(0)
-        # concatenate ones to handle the bias
-        latent = torch.cat([Variable(torch.ones(self.config.batch_size, 1).cuda(),
-                                     requires_grad=False),
-                            last_state[:, :self.config.latent_size]], 1)
-        logits = self.dist(latent)
-        if self.config.grnn_sigmoid:
-            return F.sigmoid(logits)
+        with tf.variable_scope('gru', initializer=tf.contrib.layers.xavier_initializer()):
+            cell = tf.contrib.rnn.GRUCell(config.latent_size + config.hidden_size)
+
+        # recurrence
+        out, last_state = tf.nn.dynamic_rnn(cell, embed, sequence_length=self.lengths,
+                                            swap_memory=True, dtype=tf.float32)
+        # concatenate 1's to the input to learn label bias
+        latent = tf.concat([last_state[:, :config.latent_size], tf.ones([config.batch_size, 1])], 1)
+        W = tf.get_variable('W', [config.latent_size + 1, label_space_size])
+        logits = tf.matmul(latent, W)
+        if config.grnn_sigmoid:
+            self.probs = tf.sigmoid(logits)
+            self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits,
+                                       labels=self.labels))
         else:
-            XX = latent * latent
-            WW = self.dist.weight * self.dist.weight
-            Xnorms = torch.sqrt(torch.sum(XX, 1))
-            Wnorms = torch.sqrt(torch.sum(WW, 1))
-            norms = torch.mm(Xnorms, Wnorms.transpose(1, 0))
-            out = logits / norms
-            return ((out * (1 - 2*1e-6)) + 1) / 2
+            Xnorm = tf.sqrt(tf.reduce_sum(tf.square(latent), 1, keep_dims=True))
+            Wnorm = tf.sqrt(tf.reduce_sum(tf.square(W), 0, keep_dims=True))
+            logits /= tf.matmul(Xnorm, Wnorm)
+            self.probs = ((logits * (1 - 2*1e-8)) + 1) / 2
+            loss = self.labels * -tf.log(self.probs) + (1. - self.labels) * -tf.log(1. - self.probs)
+            self.loss = tf.reduce_mean(loss)
+
+        self.train_op = self.minimize_loss(self.loss)
 
 
-class GroundedRNNRunner(util.TorchRunner):
-    '''Runner for the grounded recurrent network model.'''
+class GroundedRNNRunner(model.RecurrentNetworkRunner):
+    '''Runner for the grounded RNN model.'''
 
-    def __init__(self, config, verbose=True):
-        super(GroundedRNNRunner, self).__init__(config, GroundedRNNModel)
+    def __init__(self, config, session):
+        super(GroundedRNNRunner, self).__init__(config, session, ModelClass=GroundedRNNModel)

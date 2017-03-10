@@ -17,7 +17,7 @@ except NameError:
 
 
 class MemoryRNNModel(model.TFModel):
-    '''The memory LSTM model.'''
+    '''The memory RNN model.'''
 
     def __init__(self, config, vocab, label_space_size):
         super(MemoryRNNModel, self).__init__(config, vocab, label_space_size)
@@ -61,7 +61,7 @@ class MemoryRNNModel(model.TFModel):
 
 
 class MemoryRNNRunner(model.RecurrentNetworkRunner):
-    '''Runner for the memory LSTM model.'''
+    '''Runner for the memory RNN model.'''
 
     def __init__(self, config, session):
         super(MemoryRNNRunner, self).__init__(config, session, ModelClass=MemoryRNNModel)

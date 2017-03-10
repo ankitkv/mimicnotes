@@ -8,6 +8,7 @@ from convbow import *
 from attentionbow import *
 from rnn import *
 from memrnn import *
+from groundedrnn import *
 
 try:
     import torch
@@ -16,4 +17,3 @@ except ImportError:
 else:
     # torch models
     from rnn_torch import *
-    from groundedrnn import *
