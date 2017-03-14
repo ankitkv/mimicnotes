@@ -5,6 +5,7 @@ from __future__ import print_function
 import tensorflow as tf
 
 import model
+import util
 
 
 class NormalizedLSTMModel(model.TFModel):
@@ -26,15 +27,19 @@ class NormalizedLSTMModel(model.TFModel):
             embed = tf.nn.embedding_lookup(self.embeddings, self.notes)
 
         with tf.variable_scope('lstm', initializer=tf.contrib.layers.xavier_initializer()):
-            cell = tf.contrib.rnn.LayerNormBasicLSTMCell(label_space_size + config.hidden_size)
+            cell = tf.contrib.rnn.LayerNormBasicLSTMCell(config.hidden_size)
 
         # recurrence
-        out, _ = tf.nn.dynamic_rnn(cell, embed, sequence_length=self.lengths, swap_memory=True,
-                                   dtype=tf.float32)
-        self.step_probs = ((out[:, :, :label_space_size] * (1 - 2*1e-6)) + 1) / 2
-        self.probs = ((out[:, -1, :label_space_size] * (1 - 2*1e-6)) + 1) / 2
-        loss = self.labels * -tf.log(self.probs) + (1. - self.labels) * -tf.log(1. - self.probs)
-        self.loss = tf.reduce_mean(loss)
+        _, last_state = tf.nn.dynamic_rnn(cell, embed, sequence_length=self.lengths,
+                                          swap_memory=True, dtype=tf.float32)
+        if config.lstm_hidden == 'c':
+            last_state = last_state.c
+        elif config.lstm_hidden == 'h':
+            last_state = last_state.h
+        logits = util.linear(last_state, label_space_size)
+        self.probs = tf.sigmoid(logits)
+        self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits,
+                                   labels=self.labels))
         self.train_op = self.minimize_loss(self.loss)
 
 
