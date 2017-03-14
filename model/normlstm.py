@@ -27,7 +27,10 @@ class NormalizedLSTMModel(model.TFModel):
             embed = tf.nn.embedding_lookup(self.embeddings, self.notes)
 
         with tf.variable_scope('lstm', initializer=tf.contrib.layers.xavier_initializer()):
-            cell = tf.contrib.rnn.LayerNormBasicLSTMCell(config.hidden_size)
+            if config.normlstm_mem:
+                cell = tf.contrib.rnn.LayerNormBasicLSTMCell(label_space_size + config.hidden_size)
+            else:
+                cell = tf.contrib.rnn.LayerNormBasicLSTMCell(config.hidden_size)
 
         # recurrence
         _, last_state = tf.nn.dynamic_rnn(cell, embed, sequence_length=self.lengths,
@@ -36,7 +39,15 @@ class NormalizedLSTMModel(model.TFModel):
             last_state = last_state.c
         elif config.lstm_hidden == 'h':
             last_state = last_state.h
-        logits = util.linear(last_state, label_space_size)
+        if config.normlstm_mem:
+            state = last_state[:, :label_space_size]
+            multipliers = tf.get_variable('mult', [1, label_space_size],
+                                          initializer=tf.ones_initializer())
+            bias = tf.get_variable('bias', [label_space_size],
+                                   initializer=tf.zeros_initializer())
+            logits = tf.nn.bias_add(state * multipliers, bias)
+        else:
+            logits = util.linear(last_state, label_space_size)
         self.probs = tf.sigmoid(logits)
         self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits,
                                    labels=self.labels))

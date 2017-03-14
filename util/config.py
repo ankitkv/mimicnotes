@@ -28,6 +28,7 @@ flags.DEFINE_bool   ("length_sort",    True,      "Ensure similar note lengths i
 flags.DEFINE_integer("word_emb_size",  192,       "Word embedding size")
 flags.DEFINE_string ("rnn_type",       "gru",     "gru/lstm/entnet")
 flags.DEFINE_string ("lstm_hidden",    "ch",      "c, h, ch")
+flags.DEFINE_bool   ("normlstm_mem",   False,     "One dim per concept for normlstm")
 flags.DEFINE_integer("num_blocks",     8,         "Number of blocks for EntNet")
 flags.DEFINE_integer("hidden_size",    192,       "Hidden size for RNN")
 flags.DEFINE_integer("latent_size",    192,       "Latent label space size for grounded RNN")
