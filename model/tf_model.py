@@ -65,4 +65,8 @@ class TFModel(model.Model):
 
     def minimize_loss(self, loss):
         '''Returns a train op that minimizes given loss'''
-        return self.optimizer.minimize(loss, global_step=self.global_step)
+        tvars = tf.trainable_variables()
+        grads = tf.gradients(loss, tvars)
+        if self.config.max_grad_norm > 0:
+            grads, _ = tf.clip_by_global_norm(grads, self.config.max_grad_norm)
+        return self.optimizer.apply_gradients(zip(grads, tvars), global_step=self.global_step)
