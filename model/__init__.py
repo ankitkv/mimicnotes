@@ -8,6 +8,7 @@ from convbow import *
 from attentionbow import *
 from rnn import *
 from memrnn import *
+from normlstm import *
 from groundedrnn import *
 
 try:

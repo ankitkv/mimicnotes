@@ -63,8 +63,8 @@ class MemoryRNNModel(model.TFModel):
 class MemoryRNNRunner(model.RecurrentNetworkRunner):
     '''Runner for the memory RNN model.'''
 
-    def __init__(self, config, session):
-        super(MemoryRNNRunner, self).__init__(config, session, ModelClass=MemoryRNNModel)
+    def __init__(self, config, session, ModelClass=MemoryRNNModel):
+        super(MemoryRNNRunner, self).__init__(config, session, ModelClass=ModelClass)
 
     def visualize(self, verbose=True):
         if self.config.query:

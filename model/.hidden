@@ -8,6 +8,7 @@ majority.pyc
 memrnn.pyc
 model.pyc
 neuralbow.pyc
+normlstm.pyc
 rnn.pyc
 rnn_torch.pyc
 tf_model.pyc
