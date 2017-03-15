@@ -2,13 +2,13 @@ attentionbow.pyc
 bow.pyc
 convbow.pyc
 entnet.pyc
-groundedrnn.pyc
 __init__.pyc
 majority.pyc
 memrnn.pyc
 model.pyc
 neuralbow.pyc
 normlstm.pyc
+partialrnn.pyc
 rnn.pyc
 rnn_torch.pyc
 tf_model.pyc

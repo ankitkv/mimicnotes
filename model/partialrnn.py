@@ -10,11 +10,11 @@ import tensorflow as tf
 import model
 
 
-class GroundedRNNModel(model.TFModel):
+class PartialRNNModel(model.TFModel):
     '''The grounded RNN model.'''
 
     def __init__(self, config, vocab, label_space_size):
-        super(GroundedRNNModel, self).__init__(config, vocab, label_space_size)
+        super(PartialRNNModel, self).__init__(config, vocab, label_space_size)
         self.notes = tf.placeholder(tf.int32, [config.batch_size, None], name='notes')
         self.lengths = tf.placeholder(tf.int32, [config.batch_size], name='lengths')
         self.labels = tf.placeholder(tf.float32, [config.batch_size, label_space_size],
@@ -74,8 +74,8 @@ class GroundedRNNModel(model.TFModel):
         self.train_op = self.minimize_loss(self.loss)
 
 
-class GroundedRNNRunner(model.RecurrentNetworkRunner):
-    '''Runner for the grounded RNN model.'''
+class PartialRNNRunner(model.RecurrentNetworkRunner):
+    '''Runner for the partial RNN model.'''
 
     def __init__(self, config, session):
-        super(GroundedRNNRunner, self).__init__(config, session, ModelClass=GroundedRNNModel)
+        super(PartialRNNRunner, self).__init__(config, session, ModelClass=PartialRNNModel)
