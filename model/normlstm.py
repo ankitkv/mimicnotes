@@ -54,7 +54,7 @@ class NormalizedLSTMModel(model.TFModel):
         self.train_op = self.minimize_loss(self.loss)
 
 
-class NormalizedLSTMRunner(model.MemoryRNNRunner):
+class NormalizedLSTMRunner(model.GroundedRNNRunner):
     '''Runner for the normalized LSTM model.'''
 
     def __init__(self, config, session):

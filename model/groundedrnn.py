@@ -16,11 +16,11 @@ except NameError:
     pass
 
 
-class MemoryRNNModel(model.TFModel):
+class GroundedRNNModel(model.TFModel):
     '''The memory RNN model.'''
 
     def __init__(self, config, vocab, label_space_size):
-        super(MemoryRNNModel, self).__init__(config, vocab, label_space_size)
+        super(GroundedRNNModel, self).__init__(config, vocab, label_space_size)
         self.notes = tf.placeholder(tf.int32, [config.batch_size, None], name='notes')
         self.lengths = tf.placeholder(tf.int32, [config.batch_size], name='lengths')
         self.labels = tf.placeholder(tf.float32, [config.batch_size, label_space_size],
@@ -59,11 +59,11 @@ class MemoryRNNModel(model.TFModel):
         self.train_op = self.minimize_loss(self.loss)
 
 
-class MemoryRNNRunner(model.RecurrentNetworkRunner):
+class GroundedRNNRunner(model.RecurrentNetworkRunner):
     '''Runner for the memory RNN model.'''
 
-    def __init__(self, config, session, ModelClass=MemoryRNNModel):
-        super(MemoryRNNRunner, self).__init__(config, session, ModelClass=ModelClass)
+    def __init__(self, config, session, ModelClass=GroundedRNNModel):
+        super(GroundedRNNRunner, self).__init__(config, session, ModelClass=ModelClass)
 
     def visualize(self, verbose=True):
         if self.config.query:
