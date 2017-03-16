@@ -59,8 +59,8 @@ class GroundedRNNModel(model.TFModel):
             out, last_state = tf.nn.dynamic_rnn(cell, inputs, sequence_length=self.lengths,
                                                 swap_memory=True, dtype=tf.float32)
 
-        self.step_probs = ((out[:, :, :label_space_size] * (1 - 2*1e-8)) + 1) / 2
-        self.probs = ((last_state[:, :label_space_size] * (1 - 2*1e-8)) + 1) / 2
+        self.step_probs = ((out[:, :, :label_space_size] * (1 - 2*1e-6)) + 1) / 2
+        self.probs = ((last_state[:, :label_space_size] * (1 - 2*1e-6)) + 1) / 2
         loss = self.labels * -tf.log(self.probs) + (1. - self.labels) * -tf.log(1. - self.probs)
         self.loss = tf.reduce_mean(loss)
 
