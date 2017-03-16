@@ -28,8 +28,8 @@ class GroundedRNNModel(model.TFModel):
         with tf.device('/cpu:0'):
             self.notes = tf.placeholder(tf.int32, [config.batch_size, None], name='notes')
             if config.bidirectional:
-                rev_notes = tf.reverse_sequence(self.notes[:, 1:], self.lengths - 1, seq_axis=1,
-                                                batch_axis=0)
+                rev_notes = tf.reverse_sequence(self.notes[:, 1:], tf.maximum(self.lengths - 1, 0),
+                                                seq_axis=1, batch_axis=0)
                 rev_notes = tf.concat([tf.constant(vocab.eos_index,
                                        dtype=tf.int32, shape=[config.batch_size, 1]), rev_notes], 1)
 
