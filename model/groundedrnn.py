@@ -17,15 +17,22 @@ except NameError:
 
 
 class GroundedRNNModel(model.TFModel):
-    '''The memory RNN model.'''
+    '''The grounded RNN model.'''
 
     def __init__(self, config, vocab, label_space_size):
         super(GroundedRNNModel, self).__init__(config, vocab, label_space_size)
-        self.notes = tf.placeholder(tf.int32, [config.batch_size, None], name='notes')
         self.lengths = tf.placeholder(tf.int32, [config.batch_size], name='lengths')
         self.labels = tf.placeholder(tf.float32, [config.batch_size, label_space_size],
                                      name='labels')
+
         with tf.device('/cpu:0'):
+            self.notes = tf.placeholder(tf.int32, [config.batch_size, None], name='notes')
+            if config.bidirectional:
+                rev_notes = tf.reverse_sequence(self.notes[:, 1:], self.lengths - 1, seq_axis=1,
+                                                batch_axis=0)
+                rev_notes = tf.concat([tf.constant(vocab.eos_index,
+                                       dtype=tf.int32, shape=[config.batch_size, 1]), rev_notes], 1)
+
             init_width = 0.5 / config.word_emb_size
             self.embeddings = tf.get_variable('embeddings', [len(vocab.vocab),
                                                              config.word_emb_size],
@@ -33,17 +40,30 @@ class GroundedRNNModel(model.TFModel):
                                                                                         init_width),
                                               trainable=config.train_embs)
             embed = tf.nn.embedding_lookup(self.embeddings, self.notes)
+            if config.bidirectional:
+                rev_embed = tf.nn.embedding_lookup(self.embeddings, rev_notes)
+
+        inputs = embed
+        if config.bidirectional:
+            with tf.variable_scope('gru_rev', initializer=tf.contrib.layers.xavier_initializer()):
+                rev_cell = tf.contrib.rnn.GRUCell(config.hidden_size)
+                # backward recurrence
+                rev_out, _ = tf.nn.dynamic_rnn(rev_cell, rev_embed, sequence_length=self.lengths,
+                                               swap_memory=True, dtype=tf.float32)
+            inputs = tf.concat([inputs, rev_out], 2)
 
         with tf.variable_scope('gru', initializer=tf.contrib.layers.xavier_initializer()):
             cell = tf.contrib.rnn.GRUCell(label_space_size + config.hidden_size)
+            # forward recurrence
+            out, last_state = tf.nn.dynamic_rnn(cell, inputs, sequence_length=self.lengths,
+                                                swap_memory=True, dtype=tf.float32)
 
-        # recurrence
-        out, last_state = tf.nn.dynamic_rnn(cell, embed, sequence_length=self.lengths,
-                                            swap_memory=True, dtype=tf.float32)
-        self.step_probs = ((out[:, :, :label_space_size] * (1 - 2*1e-6)) + 1) / 2
-        self.probs = ((last_state[:, :label_space_size] * (1 - 2*1e-6)) + 1) / 2
+        self.step_probs = ((out[:, :, :label_space_size] * (1 - 2*1e-8)) + 1) / 2
+        self.probs = ((last_state[:, :label_space_size] * (1 - 2*1e-8)) + 1) / 2
         loss = self.labels * -tf.log(self.probs) + (1. - self.labels) * -tf.log(1. - self.probs)
         self.loss = tf.reduce_mean(loss)
+
+        # optional language modeling objective for controller dims
         if config.lm_weight > 0.0:
             flat_out = tf.reshape(out[:, :-1,
                                       label_space_size:label_space_size + config.word_emb_size],
@@ -60,7 +80,7 @@ class GroundedRNNModel(model.TFModel):
 
 
 class GroundedRNNRunner(model.RecurrentNetworkRunner):
-    '''Runner for the memory RNN model.'''
+    '''Runner for the grounded RNN model.'''
 
     def __init__(self, config, session, ModelClass=GroundedRNNModel):
         super(GroundedRNNRunner, self).__init__(config, session, ModelClass=ModelClass)
