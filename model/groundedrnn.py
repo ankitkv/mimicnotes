@@ -50,6 +50,7 @@ class GroundedRNNModel(model.TFModel):
                 # backward recurrence
                 rev_out, _ = tf.nn.dynamic_rnn(rev_cell, rev_embed, sequence_length=self.lengths,
                                                swap_memory=True, dtype=tf.float32)
+                rev_out = tf.reverse_sequence(rev_out, self.lengths, seq_axis=1, batch_axis=0)
             inputs = tf.concat([inputs, rev_out], 2)
 
         with tf.variable_scope('gru', initializer=tf.contrib.layers.xavier_initializer()):
