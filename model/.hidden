@@ -11,5 +11,6 @@ normlstm.pyc
 partialrnn.pyc
 rnn.pyc
 rnn_torch.pyc
+slicing_grnn.pyc
 tf_model.pyc
 word2vec.pyc
