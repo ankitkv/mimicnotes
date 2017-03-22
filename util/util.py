@@ -237,6 +237,34 @@ def linear(args, output_size, bias=True, bias_start=0.0, scope=None, initializer
     return res + bias_term
 
 
+def diagonal_linear(inputs, diagonal_size, bias=True, bias_start=0.0, scope=None,
+                    initializer=None):
+    """Similar to linear, but with the weight matrix restricted to be partially diagonal."""
+    nondiag_size = inputs.get_shape()[1].value - diagonal_size
+    dtype = inputs.dtype
+    if initializer is None:
+        initializer = tf.contrib.layers.xavier_initializer()
+
+    with tf.variable_scope(scope or "DiagonalLinear"):
+        diagonal = tf.get_variable("Diagonal", [diagonal_size], dtype=dtype,
+                                   initializer=initializer)
+        if nondiag_size > 0:
+            diagonal = tf.concat([diagonal, tf.zeros([nondiag_size], dtype=dtype)], 0)
+            matrix = tf.get_variable("Matrix", [nondiag_size, diagonal_size + nondiag_size],
+                                     dtype=dtype, initializer=initializer)
+            res = tf.matmul(inputs[:, diagonal_size:], matrix)
+        else:
+            res = tf.zeros_like(inputs)
+        res += inputs * tf.expand_dims(diagonal, 0)
+
+        if not bias:
+            return res
+        bias_term = tf.get_variable("Bias", [diagonal_size + nondiag_size], dtype=dtype,
+                                    initializer=tf.constant_initializer(bias_start,
+                                                                        dtype=dtype))
+    return tf.nn.bias_add(res, bias_term)
+
+
 def conv1d(inputs, output_dims, kernel_width, stride=1, padding='SAME', scope=None):
     '''Convolve one-dimensional data such as text.'''
     with tf.variable_scope(scope or "Convolution"):
