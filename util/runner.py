@@ -44,7 +44,7 @@ class Runner(object):
                 break
             if self.config.early_stop and epoch > target:
                 if verbose:
-                    print('Early stopping.')
+                    print('Early stopping.\n')
                 break
             if verbose:
                 print('\nEpoch', epoch)
@@ -75,6 +75,14 @@ class Runner(object):
                 if self.config.best_save_file:
                     self.save_model(self.config.best_save_file)
             self.finish_epoch(epoch)
+            if epoch == self.config.sanity_epoch:
+                if not self.sanity_check_loss(loss):
+                    if verbose:
+                        print('Sanity check failed, quitting.\n')
+                    break
+                else:
+                    if verbose:
+                        print('Sanity check passed.')
             epoch += 1
         self.start_epoch(None)
         global_iter, loss = self.run_epoch(epoch, global_iter, self.test_splits, train=False,
@@ -107,6 +115,11 @@ class Runner(object):
         if loss is None:
             loss = np.array([0.0])
         return global_iter, loss / (step + 1)  # problem: gives unequal weight to smaller batches
+
+    def sanity_check_loss(self, loss):
+        '''Check if the loss we care about is within sanity bounds
+           [config.sanity_min, config.sanity_max]'''
+        return True
 
     def best_val_loss(self, loss):
         '''Compare loss with the best validation loss, and return True if a new best is found.

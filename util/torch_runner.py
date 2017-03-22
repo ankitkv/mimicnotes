@@ -86,6 +86,10 @@ class TorchRunner(util.Runner):
         wps = n_words / (end - start)
         return ([loss, p, r, f, ap, p8, wps], [])
 
+    def sanity_check_loss(self, losses):
+        loss, p, r, f, ap, p8, wps = losses
+        return f >= self.config.sanity_min and f <= self.config.sanity_max
+
     def best_val_loss(self, loss):
         '''Compare loss with the best validation loss, and return True if a new best is found'''
         if loss[3] >= self.best_f1:
