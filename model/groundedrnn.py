@@ -16,6 +16,42 @@ except NameError:
     pass
 
 
+class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
+    """Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078) with diagonal weights."""
+
+    def __init__(self, label_space_size, control_size, activation=tf.tanh, reuse=None):
+        self._label_space_size = label_space_size
+        self._control_size = control_size
+        self._activation = activation
+        self._reuse = reuse
+
+    @property
+    def state_size(self):
+        return self._label_space_size + self._control_size
+
+    @property
+    def output_size(self):
+        return self._label_space_size + self._control_size
+
+    def __call__(self, inputs, state, scope=None):
+        """Gated recurrent unit (GRU) with nunits cells."""
+        with tf.variable_scope(scope or "diagonal_gru_cell", reuse=self._reuse):
+            with tf.variable_scope("r_gate"):
+                r = tf.sigmoid(util.diagonal_linear(tf.concat([state, inputs], 1),
+                                                    self._label_space_size, self.state_size,
+                                                    True, 1.0))
+            with tf.variable_scope("u_gate"):
+                u = tf.sigmoid(util.diagonal_linear(tf.concat([state, inputs], 1),
+                                                    self._label_space_size, self.state_size,
+                                                    True, 1.0))
+            with tf.variable_scope("candidate"):
+                c = self._activation(util.diagonal_linear(tf.concat([r * state, inputs], 1),
+                                                          self._label_space_size, self.state_size,
+                                                          True))
+            new_h = u * state + (1 - u) * c
+        return new_h, new_h
+
+
 class GroundedRNNModel(model.TFModel):
     '''The grounded RNN model.'''
 
@@ -54,7 +90,10 @@ class GroundedRNNModel(model.TFModel):
             inputs = tf.concat([inputs, rev_out], 2)
 
         with tf.variable_scope('gru', initializer=tf.contrib.layers.xavier_initializer()):
-            cell = tf.contrib.rnn.GRUCell(label_space_size + config.hidden_size)
+            if config.diagonal_cell:
+                cell = DiagonalGRUCell(label_space_size, config.hidden_size)
+            else:
+                cell = tf.contrib.rnn.GRUCell(label_space_size + config.hidden_size)
             # forward recurrence
             out, last_state = tf.nn.dynamic_rnn(cell, inputs, sequence_length=self.lengths,
                                                 swap_memory=True, dtype=tf.float32)
