@@ -118,9 +118,9 @@ class RecurrentNetworkModel(model.TFModel):
                                      initializer=tf.contrib.layers.xavier_initializer(),
                                      activation=util.prelu)
         elif config.rnn_type == 'gru':
-            cell = tf.contrib.rnn.GRUCell(config.num_blocks * config.word_emb_size)
+            cell = tf.contrib.rnn.GRUCell(config.hidden_size)
         elif config.rnn_type == 'lstm':
-            cell = tf.contrib.rnn.BasicLSTMCell(config.num_blocks * config.word_emb_size)
+            cell = tf.contrib.rnn.BasicLSTMCell(config.hidden_size)
 
         # recurrence
         initial_state = cell.zero_state(config.batch_size, tf.float32)
