@@ -19,7 +19,7 @@ class TorchRunner(util.Runner):
     def __init__(self, config, ModelClass, args=None, verbose=True):
         super(TorchRunner, self).__init__(config)
         cudnn.benchmark = True
-        self.best_f1 = 0.0
+        self.best_ap = 0.0
         if args is None:
             args = [config, self.vocab, self.reader.label_space_size()]
         self.model = ModelClass(*args)
@@ -92,8 +92,8 @@ class TorchRunner(util.Runner):
 
     def best_val_loss(self, loss):
         '''Compare loss with the best validation loss, and return True if a new best is found'''
-        if loss[3] >= self.best_f1:
-            self.best_f1 = loss[3]
+        if loss[3] >= self.best_ap:
+            self.best_ap = loss[4]
             return True
         else:
             return False

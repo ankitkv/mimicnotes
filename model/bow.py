@@ -61,7 +61,7 @@ class BagOfWordsRunner(util.Runner):
 
     def __init__(self, config, session, model_init=True, verbose=True):
         super(BagOfWordsRunner, self).__init__(config, session=session)
-        self.best_f1 = 0.0
+        self.best_ap = 0.0
         self.thresholds = 0.5
         l1_regs = None
         if config.bow_search:
@@ -132,8 +132,8 @@ class BagOfWordsRunner(util.Runner):
 
     def best_val_loss(self, loss):
         '''Compare loss with the best validation loss, and return True if a new best is found'''
-        if loss[3] >= self.best_f1:
-            self.best_f1 = loss[3]
+        if loss[3] >= self.best_ap:
+            self.best_ap = loss[4]
             return True
         else:
             return False
