@@ -92,7 +92,7 @@ class TorchRunner(util.Runner):
 
     def best_val_loss(self, loss):
         '''Compare loss with the best validation loss, and return True if a new best is found'''
-        if loss[3] >= self.best_ap:
+        if loss[4] >= self.best_ap:
             self.best_ap = loss[4]
             return True
         else:
