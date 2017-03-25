@@ -67,7 +67,7 @@ class Runner(object):
                 if verbose:
                     print('Found new best validation loss!')
                 if self.config.early_stop:
-                    new_target = epoch * 2
+                    new_target = int(epoch * self.config.stop_increment)
                     if new_target > target:
                         target = new_target
                         if verbose:

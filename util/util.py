@@ -248,15 +248,18 @@ def diagonal_linear(inputs, diagonal_size, output_size, bias=True, bias_start=0.
     with tf.variable_scope(scope or "DiagonalLinear"):
         diagonal = tf.get_variable("Diagonal", [diagonal_size], dtype=dtype,
                                    initializer=initializer)
+        diag_res = inputs[:, :diagonal_size] * tf.expand_dims(diagonal, 0)
         if nondiag_size > 0:
-            diagonal = tf.concat([diagonal, tf.zeros([output_size - diagonal_size], dtype=dtype)],
-                                 0)
-            matrix = tf.get_variable("Matrix", [nondiag_size, output_size],
-                                     dtype=dtype, initializer=initializer)
-            res = tf.matmul(inputs[:, diagonal_size:], matrix)
+            right_matrix = tf.get_variable("RightMatrix", [nondiag_size, output_size],
+                                           dtype=dtype, initializer=initializer)
+            # it's a good idea to regularize the following matrix:
+            bottom_matrix = tf.get_variable("BottomMatrix", [diagonal_size,
+                                                             output_size - diagonal_size],
+                                            dtype=dtype, initializer=initializer)
+            res = tf.matmul(inputs[:, diagonal_size:], right_matrix)
+            res += tf.concat([diag_res, tf.matmul(inputs[:, :diagonal_size], bottom_matrix)], 1)
         else:
-            res = tf.zeros([inputs.get_shape()[0].value, output_size], dtype=dtype)
-        res += inputs[:, :output_size] * tf.expand_dims(diagonal, 0)
+            res = diag_res
 
         if not bias:
             return res
