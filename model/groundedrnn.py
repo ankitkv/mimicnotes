@@ -107,6 +107,11 @@ class GroundedRNNModel(model.TFModel):
             self.probs = (last_state[:, :label_space_size] + 1) / 2
             loss = tf.abs(self.labels - self.probs)
         self.loss = tf.reduce_mean(loss)
+        if self.config.l1_reg > 0.0 or self.config.l2_reg > 0.0:
+            bottom_matrices = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
+                                                scope='.*DiagonalLinear/BottomMatrix')
+            accumulated = tf.concat([tf.reshape(v, [-1]) for v in bottom_matrices], 0)
+            self.loss += self.l1_reg(accumulated) + self.l2_reg(accumulated)
 
         # optional language modeling objective for controller dims
         if config.lm_weight > 0.0:
