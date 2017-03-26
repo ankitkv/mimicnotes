@@ -115,7 +115,7 @@ class BagOfWordsRunner(util.Runner):
         p8 = util.precision_at_k(probs, labels, 8)
         end = time.time()
         wps = n_words / (end - start)
-        return ([ret[0], p, r, f, ap, p8, wps], [ret[2]])
+        return ([ret[0], p, r, f, ap, p8, wps], [], [ret[2]])
 
     def finish_epoch(self, epoch):
         if self.config.bow_search and epoch is not None:
@@ -126,11 +126,11 @@ class BagOfWordsRunner(util.Runner):
                 pickle.dump([self.config.l1_reg, self.all_stats], f, -1)
                 print('Dumped stats to', save_file)
 
-    def sanity_check_loss(self, losses):
+    def sanity_check_loss(self, losses, acc_loss):
         loss, p, r, f, ap, p8, wps = losses
         return f >= self.config.sanity_min and f <= self.config.sanity_max
 
-    def best_val_loss(self, loss):
+    def best_val_loss(self, loss, acc_loss):
         '''Compare loss with the best validation loss, and return True if a new best is found'''
         if loss[4] >= self.best_ap:
             self.best_ap = loss[4]
@@ -141,14 +141,14 @@ class BagOfWordsRunner(util.Runner):
     def save_model(self, save_file):
         self.model.save(self.session, save_file, self.config.save_overwrite)
 
-    def loss_str(self, losses):
+    def loss_str(self, losses, acc_loss):
         loss, p, r, f, ap, p8, wps = losses
         return "Loss: %.4f, Precision: %.4f, Recall: %.4f, F-score: %.4f, AvgPrecision: %.4f, " \
                "Precision@8: %.4f, WPS: %.2f" % (loss, p, r, f, ap, p8, wps)
 
-    def output(self, step, losses, extra, train=True):
+    def output(self, step, losses, acc_loss, extra, train=True):
         global_step = extra[0]
-        print("GS:%d, S:%d.  %s" % (global_step, step, self.loss_str(losses)))
+        print("GS:%d, S:%d.  %s" % (global_step, step, self.loss_str(losses, acc_loss)))
 
     def visualize(self, embeddings=None, verbose=True):
         '''Visualizations for a BOW model. If embeddings is None, it is treated as an identity
