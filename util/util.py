@@ -149,21 +149,21 @@ def f1_score(probs, labels, thres, average='micro'):
     return p, r, f
 
 
-def auc_pr(probs, labels):
+def auc_pr(probs, labels, average='micro'):
     '''Precision integrated over all thresholds (area under the precision-recall curve)'''
-    return sklearn.metrics.average_precision_score(labels, probs, average='micro')
+    return sklearn.metrics.average_precision_score(labels, probs, average=average)
 
 
-def auc_roc(probs, labels):
+def auc_roc(probs, labels, average='micro'):
     '''Area under the ROC curve'''
-    return sklearn.metrics.roc_auc_score(labels, probs, average='micro')
+    return sklearn.metrics.roc_auc_score(labels, probs, average=average)
 
 
-def precision_at_k(probs, labels, k):
+def precision_at_k(probs, labels, k, average='micro'):
     indices = np.argpartition(-probs, k-1, axis=1)[:, :k]
     preds = np.zeros(probs.shape, dtype=np.int)
     preds[np.arange(preds.shape[0])[:, np.newaxis], indices] = 1
-    return sklearn.metrics.precision_score(labels, preds, average='micro')
+    return sklearn.metrics.precision_score(labels, preds, average=average)
 
 
 def torch_optimizer(name, lr, params):
