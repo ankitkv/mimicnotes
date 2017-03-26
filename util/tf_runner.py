@@ -37,6 +37,7 @@ class TFRunner(util.Runner):
             ops.append(self.model.train_op)
         ret = self.session.run(ops, feed_dict={self.model.notes: notes, self.model.lengths: lengths,
                                                self.model.labels: labels})
+        self.global_step = ret[2]
         probs = ret[1]
         p, r, f = util.f1_score(probs, labels, 0.5)
         ap = util.auc_pr(probs, labels)
@@ -66,6 +67,5 @@ class TFRunner(util.Runner):
         return "Loss: %.4f, Precision: %.4f, Recall: %.4f, F-score: %.4f, AUC(PR): %.4f, " \
                "AUC(ROC): %.4f, Precision@8: %.4f, WPS: %.2f" % (loss, p, r, f, ap, auc, p8, wps)
 
-    def output(self, step, losses, extra, train=True):
-        global_step = extra[0]
-        print("GS:%d, S:%d.  %s" % (global_step, step, self.loss_str(losses)))
+    def output(self, step, train=True):
+        print("GS:%d, S:%d.  %s" % (self.global_step, step, self.loss_str(self.losses())))

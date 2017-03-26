@@ -24,5 +24,5 @@ class MajorityRunner(util.Runner):
         p, r, f = losses
         return "Precision: %.4f, Recall: %.4f, F-score: %.4f" % (p, r, f)
 
-    def output(self, step, losses, extra, train=True):
-        print("S:%d.  %s" % (step, self.loss_str(losses)))
+    def output(self, step, train=True):
+        print("S:%d.  %s" % (step, self.loss_str(self.losses())))

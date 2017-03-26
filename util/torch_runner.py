@@ -119,5 +119,5 @@ class TorchRunner(util.Runner):
         return "Loss: %.4f, Precision: %.4f, Recall: %.4f, F-score: %.4f, AUC(PR): %.4f, " \
                "AUC(ROC): %.4f, Precision@8: %.4f, WPS: %.2f" % (loss, p, r, f, ap, auc, p8, wps)
 
-    def output(self, step, losses, extra, train=True):
-        print("GS:%d, S:%d.  %s" % (self.global_step, step, self.loss_str(losses)))
+    def output(self, step, train=True):
+        print("GS:%d, S:%d.  %s" % (self.global_step, step, self.loss_str(self.losses())))
