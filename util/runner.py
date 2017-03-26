@@ -49,21 +49,29 @@ class Runner(object):
             if verbose:
                 print('\nEpoch', epoch)
             self.start_epoch(epoch)
+            self.initialize_acc_losses()
             global_iter, loss = self.run_epoch(epoch, global_iter, self.train_splits,
                                                verbose=verbose)
+            acc_loss = self.acc_losses()
             if verbose:
                 try:
-                    print('Epoch %d: Train losses:' % epoch, self.loss_str(loss))
+                    print('Epoch %d: Train losses:     ' % epoch, self.loss_str(loss))
+                    if acc_loss is not None:
+                        print('Epoch %d: Acc. train losses:' % epoch, self.acc_loss_str(acc_loss))
                 except:  # for empty splits
                     pass
+            self.initialize_acc_losses()
             global_iter, loss = self.run_epoch(epoch, global_iter, self.val_splits, train=False,
                                                verbose=verbose)
+            acc_loss = self.acc_losses()
             if verbose:
                 try:
-                    print('Epoch %d: Valid losses:' % epoch, self.loss_str(loss))
+                    print('Epoch %d: Valid losses:     ' % epoch, self.loss_str(loss))
+                    if acc_loss is not None:
+                        print('Epoch %d: Acc. valid losses:' % epoch, self.acc_loss_str(acc_loss))
                 except:
                     pass
-            if self.best_val_loss(loss):
+            if self.best_val_loss(loss, acc_loss):
                 if verbose:
                     print('Found new best validation loss!')
                 if self.config.early_stop:
@@ -85,11 +93,15 @@ class Runner(object):
                         print('Sanity check passed.')
             epoch += 1
         self.start_epoch(None)
+        self.initialize_acc_losses()
         global_iter, loss = self.run_epoch(epoch, global_iter, self.test_splits, train=False,
                                            verbose=verbose)
+        acc_loss = self.acc_losses()
         if verbose:
             try:
-                print('Test losses:', self.loss_str(loss))
+                print('Test losses:     ', self.loss_str(loss))
+                if acc_loss is not None:
+                    print('Acc. test losses:', self.acc_loss_str(acc_loss))
             except:
                 pass
         self.finish_epoch(None)
@@ -121,7 +133,7 @@ class Runner(object):
            [config.sanity_min, config.sanity_max]'''
         return True
 
-    def best_val_loss(self, loss):
+    def best_val_loss(self, loss, acc_loss):
         '''Compare loss with the best validation loss, and return True if a new best is found.
            Take care that loss may be [0.0] when the val split was empty.'''
         return False
@@ -134,11 +146,22 @@ class Runner(object):
         '''Called after finishing an epoch. epoch is None for testing (after training loop).'''
         pass
 
+    def initialize_acc_losses(self):
+        '''Initialize stuff for accumulated losses'''
+        pass
+
+    def acc_losses(self):
+        '''Return the accumulated losses'''
+        return None
+
     def save_model(self, save_file):
         pass
 
     def loss_str(self, loss):
         return str(loss)
+
+    def acc_loss_str(self, acc_loss):
+        return str(acc_loss)
 
     def verbose_output(self, step, losses, extra, train=True):
         pass

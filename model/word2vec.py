@@ -123,7 +123,7 @@ class Word2vecRunner(util.TFRunner):
     def sanity_check_loss(self, loss):
         return True
 
-    def best_val_loss(self, loss):
+    def best_val_loss(self, loss, acc_loss):
         return False
 
     def loss_str(self, losses):
