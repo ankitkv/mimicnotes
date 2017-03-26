@@ -12,13 +12,17 @@ import util
 def main(_):
     config = util.Config()
     RunnerClass = getattr(importlib.import_module("model"), config.runner)
-    if issubclass(RunnerClass, util.Runner):
+    try:
+        is_torch_class = issubclass(RunnerClass, util.TorchRunner)
+    except AttributeError:
+        is_torch_class = False
+    if is_torch_class:
+        RunnerClass(config).run()
+    else:
         config_proto = tf.ConfigProto()
         config_proto.gpu_options.allow_growth = True
         with tf.Graph().as_default(), tf.Session(config=config_proto) as session:
             RunnerClass(config, session).run()
-    else:
-        RunnerClass(config).run()
 
 
 if __name__ == '__main__':
