@@ -49,29 +49,24 @@ class Runner(object):
             if verbose:
                 print('\nEpoch', epoch)
             self.start_epoch(epoch)
-            self.initialize_acc_losses()
-            global_iter, loss = self.run_epoch(epoch, global_iter, self.train_splits,
-                                               verbose=verbose)
-            acc_loss = self.acc_losses()
+            self.initialize_losses()
+            global_iter = self.run_epoch(epoch, global_iter, self.train_splits, verbose=verbose)
+            loss = self.losses()
             if verbose:
                 try:
-                    print('Epoch %d: Train losses:     ' % epoch, self.loss_str(loss))
-                    if acc_loss is not None:
-                        print('Epoch %d: Acc. train losses:' % epoch, self.acc_loss_str(acc_loss))
+                    print('Epoch %d: Train losses: ' % epoch, self.loss_str(loss))
                 except:  # for empty splits
                     pass
-            self.initialize_acc_losses()
-            global_iter, loss = self.run_epoch(epoch, global_iter, self.val_splits, train=False,
-                                               verbose=verbose)
-            acc_loss = self.acc_losses()
+            self.initialize_losses()
+            global_iter = self.run_epoch(epoch, global_iter, self.val_splits, train=False,
+                                         verbose=verbose)
+            loss = self.losses()
             if verbose:
                 try:
-                    print('Epoch %d: Valid losses:     ' % epoch, self.loss_str(loss))
-                    if acc_loss is not None:
-                        print('Epoch %d: Acc. valid losses:' % epoch, self.acc_loss_str(acc_loss))
+                    print('Epoch %d: Valid losses: ' % epoch, self.loss_str(loss))
                 except:
                     pass
-            if self.best_val_loss(loss, acc_loss):
+            if self.best_val_loss(loss):
                 if verbose:
                     print('Found new best validation loss!')
                 if self.config.early_stop:
@@ -93,47 +88,38 @@ class Runner(object):
                         print('Sanity check passed.')
             epoch += 1
         self.start_epoch(None)
-        self.initialize_acc_losses()
-        global_iter, loss = self.run_epoch(epoch, global_iter, self.test_splits, train=False,
-                                           verbose=verbose)
-        acc_loss = self.acc_losses()
+        self.initialize_losses()
+        global_iter = self.run_epoch(epoch, global_iter, self.test_splits, train=False,
+                                     verbose=verbose)
+        loss = self.losses()
         if verbose:
             try:
-                print('Test losses:     ', self.loss_str(loss))
-                if acc_loss is not None:
-                    print('Acc. test losses:', self.acc_loss_str(acc_loss))
+                print('Test losses: ', self.loss_str(loss))
             except:
                 pass
         self.finish_epoch(None)
 
     def run_epoch(self, epoch, global_iter, splits, train=True, verbose=True):
-        loss = None
         step = 0
         for step, batch in enumerate(self.reader.get(splits)):
             if train:
                 global_iter += 1
             notes, lengths, labels = batch
-            losses, extra = self.run_session(notes, lengths, labels, train=train)
-            if loss is None:
-                loss = np.array(losses)
-            else:
-                loss += np.array(losses)
+            self.run_session(notes, lengths, labels, train=train)
             if verbose:
-                self.verbose_output(step, losses, extra, train=train)
+                self.verbose_output(step, train=train)
             if step % self.config.print_every == 0:
-                self.output(step, losses, extra, train=train)
+                self.output(step, train=train)
             if train and self.config.save_every > 0 and global_iter % self.config.save_every == 0:
                 self.save_model(self.config.save_file)
-        if loss is None:
-            loss = np.array([0.0])
-        return global_iter, loss / (step + 1)  # problem: gives unequal weight to smaller batches
+        return global_iter
 
     def sanity_check_loss(self, loss):
         '''Check if the loss we care about is within sanity bounds
            [config.sanity_min, config.sanity_max]'''
         return True
 
-    def best_val_loss(self, loss, acc_loss):
+    def best_val_loss(self, loss):
         '''Compare loss with the best validation loss, and return True if a new best is found.
            Take care that loss may be [0.0] when the val split was empty.'''
         return False
@@ -146,11 +132,11 @@ class Runner(object):
         '''Called after finishing an epoch. epoch is None for testing (after training loop).'''
         pass
 
-    def initialize_acc_losses(self):
-        '''Initialize stuff for accumulated losses'''
+    def initialize_losses(self):
+        '''Initialize stuff for tracking losses'''
         pass
 
-    def acc_losses(self):
+    def losses(self):
         '''Return the accumulated losses'''
         return None
 
@@ -160,17 +146,13 @@ class Runner(object):
     def loss_str(self, loss):
         return str(loss)
 
-    def acc_loss_str(self, acc_loss):
-        return str(acc_loss)
-
-    def verbose_output(self, step, losses, extra, train=True):
+    def verbose_output(self, step, train=True):
         pass
 
-    def output(self, step, losses, extra, train=True):
+    def output(self, step, train=True):
         pass
 
     def run_session(self, notes, lengths, labels, train=True):
-        '''Should return (losses, extra_info)'''
         raise NotImplementedError
 
     def visualize(self, verbose=True):
