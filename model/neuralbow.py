@@ -64,15 +64,11 @@ class NeuralBagOfWordsRunner(model.BagOfWordsRunner):
             ops.append(self.model.train_op)
         ret = self.session.run(ops, feed_dict={self.model.notes: notes, self.model.lengths: lengths,
                                                self.model.labels: labels})
-        self.global_step = ret[2]
-        probs = ret[1]
-        p, r, f = util.f1_score(probs, labels, self.thresholds)
-        ap = util.auc_pr(probs, labels)
-        auc = util.auc_roc(probs, labels)
-        p8 = util.precision_at_k(probs, labels, 8)
+        self.loss, self.probs, self.global_step = ret[:3]
+        self.labels = labels
         end = time.time()
-        wps = n_words / (end - start)
-        return ret[0], p, r, f, ap, auc, p8, wps
+        self.wps = n_words / (end - start)
+        self.accumulate()
 
     def visualize(self, verbose=True):
         super(NeuralBagOfWordsRunner, self).visualize(embeddings=self.model.embeddings.eval())

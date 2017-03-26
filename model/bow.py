@@ -61,7 +61,6 @@ class BagOfWordsRunner(util.TFRunner):
 
     def __init__(self, config, session, model_init=True, verbose=True):
         super(BagOfWordsRunner, self).__init__(config, session)
-        self.thresholds = 0.5
         l1_regs = None
         if config.bow_search:
             self.all_stats = []
@@ -69,9 +68,7 @@ class BagOfWordsRunner(util.TFRunner):
                 print('Searching for hyperparameters')
         elif config.bow_hpfile:
             with open(config.bow_hpfile, 'rb') as f:
-                l1_regs, thresholds = pickle.load(f)
-                l1_regs = np.expand_dims(l1_regs, 0)
-                self.thresholds = np.expand_dims(thresholds, 0)
+                l1_regs = np.expand_dims(pickle.load(f), 0)
             if verbose:
                 print('Loaded custom hyperparameters')
         if model_init:  # False when __init__ is called by subclasses like neural BOW
@@ -103,20 +100,17 @@ class BagOfWordsRunner(util.TFRunner):
         if train:
             ops.append(self.model.train_op)
         ret = self.session.run(ops, feed_dict={self.model.data: data, self.model.labels: labels})
-        self.global_step = ret[2]
-        probs = ret[1]
+        self.loss, self.probs, self.global_step = ret[:3]
+        self.labels = labels
+        # TODO remove this and use AUC(PR) to determine best hyperparameters:
         if self.config.bow_search and not train:
             prf = {}
             for thres in np.arange(0.1, 0.75, 0.1):
-                prf[int(thres * 10)] = util.f1_score(probs, labels, thres, average=None)[-1]
+                prf[int(thres * 10)] = util.f1_score(self.probs, labels, thres, average=None)[-1]
             self.current_stats.append(prf)
-        p, r, f = util.f1_score(probs, labels, self.thresholds)
-        ap = util.auc_pr(probs, labels)
-        auc = util.auc_roc(probs, labels)
-        p8 = util.precision_at_k(probs, labels, 8)
         end = time.time()
-        wps = n_words / (end - start)
-        return ret[0], p, r, f, ap, auc, p8, wps
+        self.wps = n_words / (end - start)
+        self.accumulate()
 
     def finish_epoch(self, epoch):
         if self.config.bow_search and epoch is not None:

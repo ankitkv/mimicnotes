@@ -110,5 +110,6 @@ if __name__ == '__main__':
     else:
         fname = '../saved/bow_bests_lastepoch.pk'
     with open(fname, 'wb') as f:
-        pickle.dump([final_l1s, final_thresholds], f, -1)
+        #pickle.dump([final_l1s, final_thresholds], f, -1)
+        pickle.dump(final_l1s, f, -1)
     print('Dumped to pickle.')
