@@ -13,16 +13,70 @@ class MajorityRunner(util.Runner):
     def __init__(self, config, topk=8):
         super(MajorityRunner, self).__init__(config, train_splits=['train', 'val', 'test'],
                                              val_splits=[], test_splits=[])
-        self.preds = np.zeros([config.batch_size, self.reader.label_space_size()], dtype=np.int)
-        self.preds[:, :topk] = 1
+        self.probs = np.zeros([config.batch_size, self.reader.label_space_size()])
+        self.probs[:, :topk] = 1.0
 
     def run_session(self, notes, lengths, labels, train=True):
-        p, r, f = util.f1_score(self.preds, labels, 0.5)
-        return p, r, f
+        self.labels = labels
+        self.accumulate()
+
+    def initialize_losses(self):
+        self.all_probs = []
+        self.all_labels = []
+
+    def accumulate(self):
+        self.all_probs.append(self.probs)
+        self.all_labels.append(self.labels)
+
+    def losses(self):
+        probs = np.concatenate(self.all_probs)
+        labels = np.concatenate(self.all_labels)
+        # micro-averaged stats
+        p, r, f = util.f1_score(probs, labels, 0.5)
+        ap = util.auc_pr(probs, labels)
+        try:
+            auc = util.auc_roc(probs, labels)
+        except ValueError:
+            auc = float('nan')
+        p8 = util.precision_at_k(probs, labels, 8)
+        micro = [p, r, f, ap, auc, p8]
+        # macro-averaged stats
+        p, r, f = util.f1_score(probs, labels, 0.5, average='macro')
+        ap = util.auc_pr(probs, labels, average='macro')
+        try:
+            auc = util.auc_roc(probs, labels, average='macro')
+        except ValueError:
+            auc = float('nan')
+        p8 = util.precision_at_k(probs, labels, 8, average='macro')
+        macro = [p, r, f, ap, auc, p8]
+        return micro, macro
+
+    def sanity_check_loss(self, loss):
+        return True
+
+    def best_val_loss(self, loss):
+        return False
 
     def loss_str(self, losses):
-        p, r, f = losses
-        return "Precision: %.4f, Recall: %.4f, F-score: %.4f" % (p, r, f)
+        micro, macro = losses
+        p, r, f, ap, auc, p8 = micro
+        micro_str = "Precision (micro): %.4f, Recall (micro): %.4f, F-score (micro): %.4f, " \
+                    "AUC(PR) (micro): %.4f, AUC(ROC) (micro): %.4f, Precision@8 (micro): %.4f" % \
+                    (p, r, f, ap, auc, p8)
+        p, r, f, ap, auc, p8 = macro
+        macro_str = "Precision (macro): %.4f, Recall (macro): %.4f, F-score (macro): %.4f, " \
+                    "AUC(PR) (macro): %.4f, AUC(ROC) (macro): %.4f, Precision@8 (macro): %.4f" % \
+                    (p, r, f, ap, auc, p8)
+        return ' | '.join([micro_str, macro_str])
 
     def output(self, step, train=True):
-        print("S:%d.  %s" % (step, self.loss_str(self.losses())))
+        p, r, f = util.f1_score(self.probs, self.labels, 0.5)
+        ap = util.auc_pr(self.probs, self.labels)
+        try:
+            auc = util.auc_roc(self.probs, self.labels)
+        except ValueError:
+            auc = float('nan')
+        p8 = util.precision_at_k(self.probs, self.labels, 8)
+        print("GS:%d, S:%d.  Precision: %.4f, Recall: %.4f, F-score: %.4f, "
+              "AUC(PR): %.4f, AUC(ROC): %.4f, Precision@8: %.4f, WPS: %.2f" %
+              (self.global_step, step, p, r, f, ap, auc, p8, self.wps))
