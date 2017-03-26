@@ -111,13 +111,23 @@ class Word2vecRunner(util.TFRunner):
                     if batch_index == self.config.batch_size:
                         ret = self.session.run(ops, feed_dict={self.model.train_inputs: batch,
                                                                self.model.train_labels: labels})
-                        loss, self.global_step = ret[0], ret[1]
+                        loss, self.global_step = ret[:2]
                         total_loss += loss
                         total_steps += 1
                         batch_index = 0
                 buffer.append(data[data_index])
                 data_index += 1
-        return total_loss / total_steps
+        self.loss = total_loss / total_steps
+        self.accumulate()
+
+    def initialize_losses(self):
+        self.all_losses = []
+
+    def accumulate(self):
+        self.all_losses.append(self.loss)
+
+    def losses(self):
+        return np.mean(self.all_losses)
 
     def sanity_check_loss(self, loss):
         return True
@@ -125,9 +135,11 @@ class Word2vecRunner(util.TFRunner):
     def best_val_loss(self, loss):
         return False
 
-    def loss_str(self, losses):
-        loss, = losses
+    def loss_str(self, loss):
         return "Loss: %.4f" % loss
+
+    def output(self, step, train=True):
+        print("GS:%d, S:%d.  Loss: %.4f" % (self.global_step, step, self.loss))
 
     def visualize(self, verbose=True):
         from sklearn.manifold import TSNE
