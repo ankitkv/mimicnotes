@@ -29,6 +29,8 @@ class MajorityRunner(util.Runner):
         self.all_labels.append(self.labels)
 
     def losses(self):
+        if not self.all_probs:
+            return None
         probs = np.concatenate(self.all_probs)
         labels = np.concatenate(self.all_labels)
         # micro-averaged stats
@@ -58,6 +60,8 @@ class MajorityRunner(util.Runner):
         return False
 
     def loss_str(self, losses):
+        if losses is None:
+            return "N/A"
         micro, macro = losses
         p, r, f, ap, auc, p8 = micro
         micro_str = "Precision (micro): %.4f, Recall (micro): %.4f, F-score (micro): %.4f, " \
@@ -77,6 +81,5 @@ class MajorityRunner(util.Runner):
         except ValueError:
             auc = float('nan')
         p8 = util.precision_at_k(self.probs, self.labels, 8)
-        print("GS:%d, S:%d.  Precision: %.4f, Recall: %.4f, F-score: %.4f, "
-              "AUC(PR): %.4f, AUC(ROC): %.4f, Precision@8: %.4f, WPS: %.2f" %
-              (self.global_step, step, p, r, f, ap, auc, p8, self.wps))
+        print("S:%d.  Precision: %.4f, Recall: %.4f, F-score: %.4f, AUC(PR): %.4f, AUC(ROC): %.4f, "
+              "Precision@8: %.4f" % (step, p, r, f, ap, auc, p8))

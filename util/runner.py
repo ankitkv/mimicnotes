@@ -53,19 +53,13 @@ class Runner(object):
             global_iter = self.run_epoch(epoch, global_iter, self.train_splits, verbose=verbose)
             loss = self.losses()
             if verbose:
-                try:
-                    print('Epoch %d: Train losses: ' % epoch, self.loss_str(loss))
-                except:  # for empty splits
-                    pass
+                print('Epoch %d: Train losses: ' % epoch, self.loss_str(loss))
             self.initialize_losses()
             global_iter = self.run_epoch(epoch, global_iter, self.val_splits, train=False,
                                          verbose=verbose)
             loss = self.losses()
             if verbose:
-                try:
-                    print('Epoch %d: Valid losses: ' % epoch, self.loss_str(loss))
-                except:
-                    pass
+                print('Epoch %d: Valid losses: ' % epoch, self.loss_str(loss))
             if self.best_val_loss(loss):
                 if verbose:
                     print('Found new best validation loss!')
@@ -93,10 +87,7 @@ class Runner(object):
                                      verbose=verbose)
         loss = self.losses()
         if verbose:
-            try:
-                print('Test losses: ', self.loss_str(loss))
-            except:
-                pass
+            print('Test losses: ', self.loss_str(loss))
         self.finish_epoch(None)
 
     def run_epoch(self, epoch, global_iter, splits, train=True, verbose=True):
