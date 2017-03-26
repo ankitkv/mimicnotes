@@ -110,11 +110,12 @@ class BagOfWordsRunner(util.TFRunner):
                 prf[int(thres * 10)] = util.f1_score(probs, labels, thres, average=None)[-1]
             self.current_stats.append(prf)
         p, r, f = util.f1_score(probs, labels, self.thresholds)
-        ap = util.average_precision(probs, labels)
+        ap = util.auc_pr(probs, labels)
+        auc = util.auc_roc(probs, labels)
         p8 = util.precision_at_k(probs, labels, 8)
         end = time.time()
         wps = n_words / (end - start)
-        return ([ret[0], p, r, f, ap, p8, wps], [ret[2]])
+        return ([ret[0], p, r, f, ap, auc, p8, wps], [ret[2]])
 
     def finish_epoch(self, epoch):
         if self.config.bow_search and epoch is not None:

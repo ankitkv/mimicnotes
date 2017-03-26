@@ -82,14 +82,15 @@ class TorchRunner(util.Runner):
         probs = probs.data.cpu().numpy()
         loss = loss.data.cpu().numpy()
         p, r, f = util.f1_score(probs, labels, 0.5)
-        ap = util.average_precision(probs, labels)
+        ap = util.auc_pr(probs, labels)
+        auc = util.auc_roc(probs, labels)
         p8 = util.precision_at_k(probs, labels, 8)
         end = time.time()
         wps = n_words / (end - start)
-        return ([loss, p, r, f, ap, p8, wps], [])
+        return ([loss, p, r, f, ap, auc, p8, wps], [])
 
     def sanity_check_loss(self, losses):
-        loss, p, r, f, ap, p8, wps = losses
+        loss, p, r, f, ap, auc, p8, wps = losses
         return f >= self.config.sanity_min and f <= self.config.sanity_max
 
     def best_val_loss(self, loss):
@@ -114,9 +115,9 @@ class TorchRunner(util.Runner):
                 print('Saved.')
 
     def loss_str(self, losses):
-        loss, p, r, f, ap, p8, wps = losses
-        return "Loss: %.4f, Precision: %.4f, Recall: %.4f, F-score: %.4f, AvgPrecision: %.4f, " \
-               "Precision@8: %.4f, WPS: %.2f" % (loss, p, r, f, ap, p8, wps)
+        loss, p, r, f, ap, auc, p8, wps = losses
+        return "Loss: %.4f, Precision: %.4f, Recall: %.4f, F-score: %.4f, AUC(PR): %.4f, " \
+               "AUC(ROC): %.4f, Precision@8: %.4f, WPS: %.2f" % (loss, p, r, f, ap, auc, p8, wps)
 
     def output(self, step, losses, extra, train=True):
         print("GS:%d, S:%d.  %s" % (self.global_step, step, self.loss_str(losses)))

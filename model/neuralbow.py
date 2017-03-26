@@ -66,11 +66,12 @@ class NeuralBagOfWordsRunner(model.BagOfWordsRunner):
                                                self.model.labels: labels})
         probs = ret[1]
         p, r, f = util.f1_score(probs, labels, self.thresholds)
-        ap = util.average_precision(probs, labels)
+        ap = util.auc_pr(probs, labels)
+        auc = util.auc_roc(probs, labels)
         p8 = util.precision_at_k(probs, labels, 8)
         end = time.time()
         wps = n_words / (end - start)
-        return ([ret[0], p, r, f, ap, p8, wps], [ret[2]])
+        return ([ret[0], p, r, f, ap, auc, p8, wps], [ret[2]])
 
     def visualize(self, verbose=True):
         super(NeuralBagOfWordsRunner, self).visualize(embeddings=self.model.embeddings.eval())

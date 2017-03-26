@@ -39,14 +39,15 @@ class TFRunner(util.Runner):
                                                self.model.labels: labels})
         probs = ret[1]
         p, r, f = util.f1_score(probs, labels, 0.5)
-        ap = util.average_precision(probs, labels)
+        ap = util.auc_pr(probs, labels)
+        auc = util.auc_roc(probs, labels)
         p8 = util.precision_at_k(probs, labels, 8)
         end = time.time()
         wps = n_words / (end - start)
-        return ([ret[0], p, r, f, ap, p8, wps], [ret[2]])
+        return ([ret[0], p, r, f, ap, auc, p8, wps], [ret[2]])
 
     def sanity_check_loss(self, losses):
-        loss, p, r, f, ap, p8, wps = losses
+        loss, p, r, f, ap, auc, p8, wps = losses
         return f >= self.config.sanity_min and f <= self.config.sanity_max
 
     def best_val_loss(self, loss):
@@ -61,9 +62,9 @@ class TFRunner(util.Runner):
         self.model.save(self.session, save_file, self.config.save_overwrite)
 
     def loss_str(self, losses):
-        loss, p, r, f, ap, p8, wps = losses
-        return "Loss: %.4f, Precision: %.4f, Recall: %.4f, F-score: %.4f, AvgPrecision: %.4f, " \
-               "Precision@8: %.4f, WPS: %.2f" % (loss, p, r, f, ap, p8, wps)
+        loss, p, r, f, ap, auc, p8, wps = losses
+        return "Loss: %.4f, Precision: %.4f, Recall: %.4f, F-score: %.4f, AUC(PR): %.4f, " \
+               "AUC(ROC): %.4f, Precision@8: %.4f, WPS: %.2f" % (loss, p, r, f, ap, auc, p8, wps)
 
     def output(self, step, losses, extra, train=True):
         global_step = extra[0]

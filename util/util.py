@@ -149,9 +149,14 @@ def f1_score(probs, labels, thres, average='micro'):
     return p, r, f
 
 
-def average_precision(probs, labels):
+def auc_pr(probs, labels):
     '''Precision integrated over all thresholds (area under the precision-recall curve)'''
     return sklearn.metrics.average_precision_score(labels, probs, average='micro')
+
+
+def auc_roc(probs, labels):
+    '''Area under the ROC curve'''
+    return sklearn.metrics.roc_auc_score(labels, probs, average='micro')
 
 
 def precision_at_k(probs, labels, k):
