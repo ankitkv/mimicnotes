@@ -81,7 +81,6 @@ class Word2vecRunner(util.TFRunner):
         span = 2 * self.skip_window + 1  # [ skip_window target skip_window ]
         total_loss = 0.0
         total_steps = 0
-        gs = 0
 
         notes = notes.tolist()
         lengths = lengths.tolist()
@@ -112,13 +111,13 @@ class Word2vecRunner(util.TFRunner):
                     if batch_index == self.config.batch_size:
                         ret = self.session.run(ops, feed_dict={self.model.train_inputs: batch,
                                                                self.model.train_labels: labels})
-                        loss, gs = ret[0], ret[1]
+                        loss, self.global_step = ret[0], ret[1]
                         total_loss += loss
                         total_steps += 1
                         batch_index = 0
                 buffer.append(data[data_index])
                 data_index += 1
-        return ([total_loss / total_steps], [gs])
+        return total_loss / total_steps
 
     def sanity_check_loss(self, loss):
         return True

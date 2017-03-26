@@ -45,7 +45,7 @@ class TFRunner(util.Runner):
         p8 = util.precision_at_k(probs, labels, 8)
         end = time.time()
         wps = n_words / (end - start)
-        return ([ret[0], p, r, f, ap, auc, p8, wps], [ret[2]])
+        return ret[0], p, r, f, ap, auc, p8, wps
 
     def sanity_check_loss(self, losses):
         loss, p, r, f, ap, auc, p8, wps = losses

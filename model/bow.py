@@ -103,6 +103,7 @@ class BagOfWordsRunner(util.TFRunner):
         if train:
             ops.append(self.model.train_op)
         ret = self.session.run(ops, feed_dict={self.model.data: data, self.model.labels: labels})
+        self.global_step = ret[2]
         probs = ret[1]
         if self.config.bow_search and not train:
             prf = {}
@@ -115,7 +116,7 @@ class BagOfWordsRunner(util.TFRunner):
         p8 = util.precision_at_k(probs, labels, 8)
         end = time.time()
         wps = n_words / (end - start)
-        return ([ret[0], p, r, f, ap, auc, p8, wps], [ret[2]])
+        return ret[0], p, r, f, ap, auc, p8, wps
 
     def finish_epoch(self, epoch):
         if self.config.bow_search and epoch is not None:
