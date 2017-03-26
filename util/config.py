@@ -57,6 +57,7 @@ flags.DEFINE_integer("threads",        -1,        "Maximum number of threads/sub
                                                   "automatically determine")
 flags.DEFINE_integer("epochs",         -1,        "Number of training+val epochs. -1 for no limit, "
                                                   "0 to skip to testing.")
+flags.DEFINE_integer("max_steps",      -1,        "Max steps per epoch (for debugging)")
 flags.DEFINE_integer("sanity_epoch",   -1,        "Epoch to sanity check loss at. -1 to disable.")
 flags.DEFINE_float  ("sanity_min",     0.33,      "Minimum loss at sanity epoch to not quit")
 flags.DEFINE_float  ("sanity_max",     1.0,       "Maximum loss at sanity epoch to not quit")

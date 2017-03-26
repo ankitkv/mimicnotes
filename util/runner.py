@@ -95,6 +95,8 @@ class Runner(object):
     def run_epoch(self, epoch, global_iter, splits, train=True, verbose=True):
         step = 0
         for step, batch in enumerate(self.reader.get(splits)):
+            if self.config.max_steps > 0 and step >= self.config.max_steps:
+                break
             if train:
                 global_iter += 1
             notes, lengths, labels = batch
