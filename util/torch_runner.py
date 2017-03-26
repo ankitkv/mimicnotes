@@ -16,8 +16,10 @@ import util
 class TorchRunner(util.Runner):
     '''Runner for Torch models.'''
 
-    def __init__(self, config, ModelClass, args=None, verbose=True):
-        super(TorchRunner, self).__init__(config)
+    def __init__(self, config, ModelClass, args=None, verbose=True, train_splits=['train'],
+                 val_splits=['val'], test_splits=['test']):
+        super(TorchRunner, self).__init__(config, train_splits=train_splits,
+                                          val_splits=val_splits, test_splits=test_splits)
         cudnn.benchmark = True
         self.best_ap = 0.0
         if args is None:

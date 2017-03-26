@@ -17,7 +17,7 @@ class MajorityRunner(util.Runner):
         self.preds[:, :topk] = 1
 
     def run_session(self, notes, lengths, labels, train=True):
-        p, r, f = util.f1_score(self.preds, labels)
+        p, r, f = util.f1_score(self.preds, labels, 0.5)
         return ([p, r, f], [])
 
     def loss_str(self, losses):

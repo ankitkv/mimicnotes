@@ -2,6 +2,7 @@ from util import *
 from config import *
 from reader import *
 from runner import *
+from tf_runner import *
 
 try:
     import torch

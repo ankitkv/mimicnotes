@@ -61,12 +61,11 @@ class Word2vecModel(model.TFModel):
         self.train_op = self.minimize_loss(self.loss)
 
 
-class Word2vecRunner(util.Runner):
+class Word2vecRunner(util.TFRunner):
     '''Runner for the word2vec model.'''
 
     def __init__(self, config, session, skip_window=4, num_skips=6):
-        super(Word2vecRunner, self).__init__(config, session=session,
-                                             train_splits=['train', 'val', 'test'],
+        super(Word2vecRunner, self).__init__(config, session, train_splits=['train', 'val', 'test'],
                                              val_splits=[], test_splits=[])
         assert num_skips <= 2 * skip_window
         self.skip_window = skip_window
@@ -121,16 +120,15 @@ class Word2vecRunner(util.Runner):
                 data_index += 1
         return ([total_loss / total_steps], [gs])
 
-    def save_model(self, save_file):
-        self.model.save(self.session, save_file, self.config.save_overwrite)
+    def sanity_check_loss(self, loss):
+        return True
+
+    def best_val_loss(self, loss):
+        return False
 
     def loss_str(self, losses):
         loss, = losses
         return "Loss: %.4f" % loss
-
-    def output(self, step, losses, extra, train=True):
-        global_step = extra[0]
-        print("GS:%d, S:%d.  %s" % (global_step, step, self.loss_str(losses)))
 
     def visualize(self, verbose=True):
         from sklearn.manifold import TSNE
