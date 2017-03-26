@@ -84,13 +84,13 @@ class TorchRunner(util.Runner):
         p8 = util.precision_at_k(probs, labels, 8)
         end = time.time()
         wps = n_words / (end - start)
-        return ([loss, p, r, f, ap, p8, wps], [], [])
+        return ([loss, p, r, f, ap, p8, wps], [])
 
-    def sanity_check_loss(self, losses, acc_loss):
+    def sanity_check_loss(self, losses):
         loss, p, r, f, ap, p8, wps = losses
         return f >= self.config.sanity_min and f <= self.config.sanity_max
 
-    def best_val_loss(self, loss, acc_loss):
+    def best_val_loss(self, loss):
         '''Compare loss with the best validation loss, and return True if a new best is found'''
         if loss[4] >= self.best_ap:
             self.best_ap = loss[4]
@@ -111,10 +111,10 @@ class TorchRunner(util.Runner):
             if verbose:
                 print('Saved.')
 
-    def loss_str(self, losses, acc_loss):
+    def loss_str(self, losses):
         loss, p, r, f, ap, p8, wps = losses
         return "Loss: %.4f, Precision: %.4f, Recall: %.4f, F-score: %.4f, AvgPrecision: %.4f, " \
                "Precision@8: %.4f, WPS: %.2f" % (loss, p, r, f, ap, p8, wps)
 
-    def output(self, step, losses, acc_loss, extra, train=True):
-        print("GS:%d, S:%d.  %s" % (self.global_step, step, self.loss_str(losses, acc_loss)))
+    def output(self, step, losses, extra, train=True):
+        print("GS:%d, S:%d.  %s" % (self.global_step, step, self.loss_str(losses)))

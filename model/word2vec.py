@@ -119,18 +119,18 @@ class Word2vecRunner(util.Runner):
                         batch_index = 0
                 buffer.append(data[data_index])
                 data_index += 1
-        return ([total_loss / total_steps], [], [gs])
+        return ([total_loss / total_steps], [gs])
 
     def save_model(self, save_file):
         self.model.save(self.session, save_file, self.config.save_overwrite)
 
-    def loss_str(self, losses, acc_loss):
+    def loss_str(self, losses):
         loss, = losses
         return "Loss: %.4f" % loss
 
-    def output(self, step, losses, acc_loss, extra, train=True):
+    def output(self, step, losses, extra, train=True):
         global_step = extra[0]
-        print("GS:%d, S:%d.  %s" % (global_step, step, self.loss_str(losses, acc_loss)))
+        print("GS:%d, S:%d.  %s" % (global_step, step, self.loss_str(losses)))
 
     def visualize(self, verbose=True):
         from sklearn.manifold import TSNE

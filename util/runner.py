@@ -49,21 +49,21 @@ class Runner(object):
             if verbose:
                 print('\nEpoch', epoch)
             self.start_epoch(epoch)
-            global_iter, loss, acc_loss = self.run_epoch(epoch, global_iter, self.train_splits,
-                                                         verbose=verbose)
+            global_iter, loss = self.run_epoch(epoch, global_iter, self.train_splits,
+                                               verbose=verbose)
             if verbose:
                 try:
-                    print('Epoch %d: Train losses:' % epoch, self.loss_str(loss, acc_loss))
+                    print('Epoch %d: Train losses:' % epoch, self.loss_str(loss))
                 except:  # for empty splits
                     pass
-            global_iter, loss, acc_loss = self.run_epoch(epoch, global_iter, self.val_splits,
-                                                         train=False, verbose=verbose)
+            global_iter, loss = self.run_epoch(epoch, global_iter, self.val_splits, train=False,
+                                               verbose=verbose)
             if verbose:
                 try:
-                    print('Epoch %d: Valid losses:' % epoch, self.loss_str(loss, acc_loss))
+                    print('Epoch %d: Valid losses:' % epoch, self.loss_str(loss))
                 except:
                     pass
-            if self.best_val_loss(loss, acc_loss):
+            if self.best_val_loss(loss):
                 if verbose:
                     print('Found new best validation loss!')
                 if self.config.early_stop:
@@ -76,7 +76,7 @@ class Runner(object):
                     self.save_model(self.config.best_save_file)
             self.finish_epoch(epoch)
             if epoch == self.config.sanity_epoch:
-                if not self.sanity_check_loss(loss, acc_loss):
+                if not self.sanity_check_loss(loss):
                     if verbose:
                         print('Sanity check failed, quitting.\n')
                     break
@@ -85,45 +85,43 @@ class Runner(object):
                         print('Sanity check passed.')
             epoch += 1
         self.start_epoch(None)
-        global_iter, loss, acc_loss = self.run_epoch(epoch, global_iter, self.test_splits,
-                                                     train=False, verbose=verbose)
+        global_iter, loss = self.run_epoch(epoch, global_iter, self.test_splits, train=False,
+                                           verbose=verbose)
         if verbose:
             try:
-                print('Test losses:', self.loss_str(loss, acc_loss))
+                print('Test losses:', self.loss_str(loss))
             except:
                 pass
         self.finish_epoch(None)
 
     def run_epoch(self, epoch, global_iter, splits, train=True, verbose=True):
-        loss = None  # average these losses
-        acc_loss = None  # accumulated losses, do not average
+        loss = None
         step = 0
         for step, batch in enumerate(self.reader.get(splits)):
             if train:
                 global_iter += 1
             notes, lengths, labels = batch
-            losses, acc_loss, extra = self.run_session(notes, lengths, labels, train=train)
+            losses, extra = self.run_session(notes, lengths, labels, train=train)
             if loss is None:
                 loss = np.array(losses)
             else:
                 loss += np.array(losses)
             if verbose:
-                self.verbose_output(step, losses, acc_loss, extra, train=train)
+                self.verbose_output(step, losses, extra, train=train)
             if step % self.config.print_every == 0:
-                self.output(step, losses, acc_loss, extra, train=train)
+                self.output(step, losses, extra, train=train)
             if train and self.config.save_every > 0 and global_iter % self.config.save_every == 0:
                 self.save_model(self.config.save_file)
         if loss is None:
             loss = np.array([0.0])
-        # problem: loss / steps gives unequal weight to smaller batches
-        return global_iter, loss / (step + 1), acc_loss
+        return global_iter, loss / (step + 1)  # problem: gives unequal weight to smaller batches
 
-    def sanity_check_loss(self, loss, acc_loss):
+    def sanity_check_loss(self, loss):
         '''Check if the loss we care about is within sanity bounds
            [config.sanity_min, config.sanity_max]'''
         return True
 
-    def best_val_loss(self, loss, acc_loss):
+    def best_val_loss(self, loss):
         '''Compare loss with the best validation loss, and return True if a new best is found.
            Take care that loss may be [0.0] when the val split was empty.'''
         return False
@@ -139,13 +137,13 @@ class Runner(object):
     def save_model(self, save_file):
         pass
 
-    def loss_str(self, loss, acc_loss):
-        return str((loss, acc_loss))
+    def loss_str(self, loss):
+        return str(loss)
 
-    def verbose_output(self, step, losses, acc_loss, extra, train=True):
+    def verbose_output(self, step, losses, extra, train=True):
         pass
 
-    def output(self, step, losses, acc_loss, extra, train=True):
+    def output(self, step, losses, extra, train=True):
         pass
 
     def run_session(self, notes, lengths, labels, train=True):
