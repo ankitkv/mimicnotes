@@ -2,6 +2,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+try:
+    import cPickle as pickle
+except:
+    import pickle
+
 import numpy as np
 
 import util
@@ -213,10 +218,17 @@ class Runner(object):
               "AUC(PR): %.4f, AUC(ROC): %.4f, Precision@8: %.4f, WPS: %.2f" %
               (self.global_step, step, self.loss, p, r, f, ap, auc, p8, self.wps))
 
-    def plot(self, epoch, losses, train):
-        loss, micro, macro, perclass = losses
-        p, r, f, ap, auc, p8 = perclass
-        # TODO
+    def plot(self, epoch, losses, train, verbose=True):
+        # save plot info only when testing
+        if epoch is None and self.config.plot_file:
+            plot_name = self.config.plot_name
+            if not plot_name:
+                plot_name = self.config.runner
+            loss, micro, macro, perclass = losses
+            with open(self.config.plot_file, 'wb') as f:
+                pickle.dump((plot_name, perclass), f, -1)
+            if verbose:
+                print('Dumped plot info to', self.config.plot_file)
 
     def run_session(self, notes, lengths, labels, train=True):
         raise NotImplementedError

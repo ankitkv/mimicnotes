@@ -20,6 +20,8 @@ flags.DEFINE_string ("note_type",      "Discharge_summary",   "The type of notes
 flags.DEFINE_string ("data_storage",   "pickle",              "Format to store data "
                                                               "(shelve or pickle)")
 flags.DEFINE_string ("runner",         "",                    "The Runner class to run")
+flags.DEFINE_string ("plot_file",      "",                    "File to dump plot info to")
+flags.DEFINE_string ("plot_name",      "",                    "Name for plot info")
 
 flags.DEFINE_integer("batch_size",     32,        "Batch size")
 flags.DEFINE_float  ("l1_reg",         0.0,       "L1-regularization scale")
