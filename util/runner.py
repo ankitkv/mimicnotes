@@ -223,7 +223,7 @@ class Runner(object):
         if epoch is None and self.config.plot_file:
             plot_name = self.config.plot_name
             if not plot_name:
-                plot_name = self.config.runner
+                plot_name = self.config.plot_file
             loss, micro, macro, perclass = losses
             with open(self.config.plot_file, 'wb') as f:
                 pickle.dump((plot_name, perclass), f, -1)
