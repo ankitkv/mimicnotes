@@ -15,7 +15,8 @@ import numpy as np
 
 
 index = 3  # zero-indexed from: [p, r, f, ap, auc, p8]
-poly_degree = 0  # <= 0 to disable
+poly_degree = 10  # <= 0 to disable
+top = 200  # look at the top these many concepts
 
 
 if __name__ == '__main__':
@@ -26,7 +27,7 @@ if __name__ == '__main__':
             data.append(pickle.load(f))
     colors = cm.rainbow(np.linspace(0, 1, len(data)))
     for i, (label, perclass) in enumerate(data):
-        plot_data = perclass[index]
+        plot_data = perclass[index][:top]
         if poly_degree > 0:
             x = np.arange(len(plot_data))
             coefs = np.polyfit(x, plot_data, poly_degree)
