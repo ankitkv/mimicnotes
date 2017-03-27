@@ -193,15 +193,16 @@ class Runner(object):
     def loss_str(self, losses):
         loss, micro, macro, perclass = losses
         loss_str = "Loss: %.4f" % loss
-        p, r, f, ap, auc, p8 = micro
         micro_str = "Precision (micro): %.4f, Recall (micro): %.4f, F-score (micro): %.4f, " \
                     "AUC(PR) (micro): %.4f, AUC(ROC) (micro): %.4f, Precision@8 (micro): %.4f" % \
-                    (p, r, f, ap, auc, p8)
-        p, r, f, ap, auc, p8 = macro
+                    tuple(micro)
+        pastable = ["%.4f" % n for n in micro]
         macro_str = "Precision (macro): %.4f, Recall (macro): %.4f, F-score (macro): %.4f, " \
                     "AUC(PR) (macro): %.4f, AUC(ROC) (macro): %.4f, Precision@8 (macro): %.4f" % \
-                    (p, r, f, ap, auc, p8)
-        return ' | '.join([loss_str, micro_str, macro_str])
+                    tuple(macro)
+        pastable.extend(["%.4f" % n for n in macro])
+        pastable = 'Pastable: ' + '\t'.join(pastable)
+        return ' | '.join([loss_str, micro_str, macro_str, pastable])
 
     def verbose_output(self, step, train=True):
         pass
