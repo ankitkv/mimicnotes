@@ -15,6 +15,7 @@ import numpy as np
 
 
 index = 3  # zero-indexed from: [p, r, f, ap, auc, p8]
+poly_degree = 0  # <= 0 to disable
 
 
 if __name__ == '__main__':
@@ -25,6 +26,11 @@ if __name__ == '__main__':
             data.append(pickle.load(f))
     colors = cm.rainbow(np.linspace(0, 1, len(data)))
     for i, (label, perclass) in enumerate(data):
-        plt.plot(perclass[index], c=colors[i], label=label)
+        plot_data = perclass[index]
+        if poly_degree > 0:
+            x = np.arange(len(plot_data))
+            coefs = np.polyfit(x, plot_data, poly_degree)
+            plot_data = np.polyval(coefs, x)
+        plt.plot(plot_data, c=colors[i], label=label)
     plt.legend()
     plt.show()
