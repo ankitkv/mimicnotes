@@ -56,12 +56,14 @@ class Runner(object):
             loss = self.losses()
             if verbose:
                 print('Epoch %d: Train losses: ' % epoch, self.loss_str(loss))
+            self.plot(epoch, loss, True)
             self.initialize_losses()
             global_iter = self.run_epoch(epoch, global_iter, self.val_splits, train=False,
                                          verbose=verbose)
             loss = self.losses()
             if verbose:
                 print('Epoch %d: Valid losses: ' % epoch, self.loss_str(loss))
+            self.plot(epoch, loss, False)
             if self.best_val_loss(loss):
                 if verbose:
                     print('Found new best validation loss!')
@@ -90,6 +92,7 @@ class Runner(object):
         loss = self.losses()
         if verbose:
             print('Test losses: ', self.loss_str(loss))
+        self.plot(None, loss, False)
         self.finish_epoch(None)
 
     def run_epoch(self, epoch, global_iter, splits, train=True, verbose=True):
@@ -112,13 +115,13 @@ class Runner(object):
     def sanity_check_loss(self, losses):
         '''Check if the loss we care about is within sanity bounds
            [config.sanity_min, config.sanity_max]'''
-        loss, micro, macro = losses
+        loss, micro, macro, perclass = losses
         p, r, f, ap, auc, p8 = micro
         return ap >= self.config.sanity_min and ap <= self.config.sanity_max
 
     def best_val_loss(self, losses):
         '''Compare loss with the best validation loss, and return True if a new best is found'''
-        loss, micro, macro = losses
+        loss, micro, macro, perclass = losses
         p, r, f, ap, auc, p8 = micro
         if ap >= self.best_score:
             self.best_score = ap
@@ -168,13 +171,22 @@ class Runner(object):
             auc = float('nan')
         p8 = util.precision_at_k(probs, labels, 8, average='macro')
         macro = [p, r, f, ap, auc, p8]
-        return loss, micro, macro
+        # non-avereged stats for plotting
+        p, r, f = util.f1_score(probs, labels, 0.5, average=None)
+        ap = util.auc_pr(probs, labels, average=None)
+        try:
+            auc = util.auc_roc(probs, labels, average=None)
+        except ValueError:
+            auc = float('nan')
+        p8 = util.precision_at_k(probs, labels, 8, average=None)
+        perclass = [p, r, f, ap, auc, p8]
+        return loss, micro, macro, perclass
 
     def save_model(self, save_file):
         pass
 
     def loss_str(self, losses):
-        loss, micro, macro = losses
+        loss, micro, macro, perclass = losses
         loss_str = "Loss: %.4f" % loss
         p, r, f, ap, auc, p8 = micro
         micro_str = "Precision (micro): %.4f, Recall (micro): %.4f, F-score (micro): %.4f, " \
@@ -200,6 +212,11 @@ class Runner(object):
         print("GS:%d, S:%d.  Loss: %.4f, Precision: %.4f, Recall: %.4f, F-score: %.4f, "
               "AUC(PR): %.4f, AUC(ROC): %.4f, Precision@8: %.4f, WPS: %.2f" %
               (self.global_step, step, self.loss, p, r, f, ap, auc, p8, self.wps))
+
+    def plot(self, epoch, losses, train):
+        loss, micro, macro, perclass = losses
+        p, r, f, ap, auc, p8 = perclass
+        # TODO
 
     def run_session(self, notes, lengths, labels, train=True):
         raise NotImplementedError
