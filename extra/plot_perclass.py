@@ -15,12 +15,37 @@ import numpy as np
 
 
 index = 3  # zero-indexed from: [p, r, f, ap, auc, p8]
-poly_degree = 10  # <= 0 to disable
-top = 200  # look at the top these many concepts
+poly_degree = -1  # <= 0 to disable
+top = 1000  # look at the top these many concepts
+conv_window = 25  # <= 1 to disable
 
 
 if __name__ == '__main__':
-    fnames = glob.glob('../saved/*.plot')
+    #fnames = glob.glob('../saved/*.plot')
+    fnames = [
+        '../saved/bow200.plot',
+        '../saved/bow500.plot',
+        '../saved/bow1000.plot',
+        '../saved/attn200_w3.plot',
+        '../saved/attn500_w3.plot',
+        '../saved/attn1000_w3.plot',
+        '../saved/rnn2_f200_h128e192.plot',
+        '../saved/rnn2_f500_h128e192.plot',
+        '../saved/rnn2_f1000_h128e192.plot',
+        '../saved/grnn_f200.plot',
+        '../saved/grnn_f500.plot',
+        '../saved/grnn_f1000.plot',
+        '../saved/grnn_f200_h0.plot',
+        '../saved/grnn_f500_h0.plot',
+        '../saved/grnn_f1000_h0.plot',
+        '../saved/grnnsd_f200_h128.plot',
+        '../saved/grnnsd_f500_h128.plot',
+        '../saved/grnnsd_f1000_h128.plot',
+        '../saved/grnnsd_f1000_h128r1e-2.plot',
+        '../saved/grnnsd_f1000_h128r1e-3.plot',
+        '../saved/grnnsd_f1000_h128r1e-4.plot',
+        '../saved/grnnsd_f1000_h128r1e-5.plot',
+    ]
     data = []
     for fname in fnames:
         with open(fname, 'rb') as f:
@@ -32,6 +57,13 @@ if __name__ == '__main__':
             x = np.arange(len(plot_data))
             coefs = np.polyfit(x, plot_data, poly_degree)
             plot_data = np.polyval(coefs, x)
+        if conv_window > 1:
+            conv_side = conv_window // 2
+            window = 1 + (conv_side * 2)
+            start_pad = np.flip(plot_data[:conv_side], 0)
+            end_pad = np.flip(plot_data[-conv_side:], 0)
+            padded = np.concatenate([start_pad, plot_data, end_pad])
+            plot_data = np.convolve(padded, np.ones([window]) / window, mode='valid')
         plt.plot(plot_data, c=colors[i], label=label)
     plt.legend()
     plt.show()
