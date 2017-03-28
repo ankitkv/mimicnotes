@@ -31,6 +31,8 @@ flags.DEFINE_bool   ("length_sort",    True,      "Ensure similar note lengths i
 flags.DEFINE_integer("word_emb_size",  192,       "Word embedding size")
 flags.DEFINE_string ("rnn_type",       "gru",     "gru/lstm/entnet")
 flags.DEFINE_bool   ("bidirectional",  False,     "Bidirectional RNN")
+flags.DEFINE_bool   ("positive_diag",  True,      "Ensure positive diagonal in semidiagonal GRNN")
+flags.DEFINE_bool   ("biased_sigmoid", True,      "Biased re-sigmoid for GRNN output")
 flags.DEFINE_string ("lstm_hidden",    "ch",      "c, h, ch")
 flags.DEFINE_bool   ("normlstm_mem",   False,     "One dim per concept for normlstm")
 flags.DEFINE_bool   ("diagonal_cell",  True,      "Diagonal weights in GRNN cells")

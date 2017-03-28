@@ -19,10 +19,12 @@ except NameError:
 class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
     """Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078) with diagonal weights."""
 
-    def __init__(self, label_space_size, control_size, activation=tf.tanh, reuse=None):
+    def __init__(self, label_space_size, control_size, activation=tf.tanh, positive_diag=True,
+                 reuse=None):
         self._label_space_size = label_space_size
         self._control_size = control_size
         self._activation = activation
+        self._positive_diag = positive_diag
         self._reuse = reuse
 
     @property
@@ -47,7 +49,7 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
             with tf.variable_scope("candidate"):
                 c = self._activation(util.diagonal_linear(tf.concat([r * state, inputs], 1),
                                                           self._label_space_size, self.state_size,
-                                                          True))
+                                                          True, positive_diag=self._positive_diag))
             new_h = u * state + (1 - u) * c
         return new_h, new_h
 
@@ -91,7 +93,8 @@ class GroundedRNNModel(model.TFModel):
 
         with tf.variable_scope('gru', initializer=tf.contrib.layers.xavier_initializer()):
             if config.diagonal_cell:
-                cell = DiagonalGRUCell(label_space_size, config.hidden_size)
+                cell = DiagonalGRUCell(label_space_size, config.hidden_size,
+                                       positive_diag=config.positive_diag)
             else:
                 cell = tf.contrib.rnn.GRUCell(label_space_size + config.hidden_size)
             # forward recurrence
@@ -101,6 +104,7 @@ class GroundedRNNModel(model.TFModel):
         if config.grnn_loss == 'ce':
             self.step_probs = ((out[:, :, :label_space_size] * (1 - 2*1e-6)) + 1) / 2
             self.probs = ((last_state[:, :label_space_size] * (1 - 2*1e-6)) + 1) / 2
+            # TODO use config.biased_sigmoid
             loss = self.labels * -tf.log(self.probs) + (1. - self.labels) * -tf.log(1. - self.probs)
         elif config.grnn_loss == 'l1':
             self.step_probs = (out[:, :, :label_space_size] + 1) / 2
@@ -116,8 +120,8 @@ class GroundedRNNModel(model.TFModel):
         # optional language modeling objective for controller dims
         if config.lm_weight > 0.0:
             flat_out = tf.reshape(out[:, :-1,
-                                      label_space_size:label_space_size + config.word_emb_size],
-                                  [-1, config.word_emb_size])
+                                      label_space_size:label_space_size + config.latent_size],
+                                  [-1, config.latent_size])
             flat_targets = tf.reshape(self.notes[:, 1:], [-1])
             flat_mask = tf.to_float(flat_targets > 0)
             lm_logits = util.linear(flat_out, len(vocab.vocab))

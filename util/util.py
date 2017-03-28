@@ -242,8 +242,8 @@ def linear(args, output_size, bias=True, bias_start=0.0, scope=None, initializer
     return res + bias_term
 
 
-def diagonal_linear(inputs, diagonal_size, output_size, bias=True, bias_start=0.0, scope=None,
-                    initializer=None):
+def diagonal_linear(inputs, diagonal_size, output_size, bias=True, bias_start=0.0, diag_start=0.0,
+                    positive_diag=False, scope=None, initializer=None):
     """Similar to linear, but with the weight matrix restricted to be partially diagonal."""
     nondiag_size = inputs.get_shape()[1].value - diagonal_size
     dtype = inputs.dtype
@@ -252,7 +252,9 @@ def diagonal_linear(inputs, diagonal_size, output_size, bias=True, bias_start=0.
 
     with tf.variable_scope(scope or "DiagonalLinear"):
         diagonal = tf.get_variable("Diagonal", [diagonal_size], dtype=dtype,
-                                   initializer=initializer)
+                                   initializer=tf.constant_initializer(diag_start, dtype=dtype))
+        if positive_diag:
+            diagonal = tf.nn.elu(diagonal) + 1
         diag_res = inputs[:, :diagonal_size] * tf.expand_dims(diagonal, 0)
         if nondiag_size > 0:
             right_matrix = tf.get_variable("RightMatrix", [nondiag_size, output_size],
