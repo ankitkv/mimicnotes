@@ -14,10 +14,11 @@ import matplotlib.cm as cm
 import numpy as np
 
 
-index = 3  # zero-indexed from: [p, r, f, ap, auc, p8]
+index = 4  # zero-indexed from: [p, r, f, ap, auc, p8]
 poly_degree = -1  # <= 0 to disable
 top = 1000  # look at the top these many concepts
-conv_window = 25  # <= 1 to disable
+conv_window = -1  # <= 1 to disable
+batch_size = 50  # <= 0 to disable
 
 
 if __name__ == '__main__':
@@ -31,7 +32,6 @@ if __name__ == '__main__':
         '../saved/attn1000_w3.plot',
         '../saved/rnn2_f200_h128e192.plot',
         '../saved/rnn2_f500_h128e192.plot',
-        '../saved/rnn2_f1000_h128e192.plot',
         '../saved/grnn_f200.plot',
         '../saved/grnn_f500.plot',
         '../saved/grnn_f1000.plot',
@@ -64,6 +64,11 @@ if __name__ == '__main__':
             end_pad = np.flip(plot_data[-conv_side:], 0)
             padded = np.concatenate([start_pad, plot_data, end_pad])
             plot_data = np.convolve(padded, np.ones([window]) / window, mode='valid')
+        if batch_size > 0:
+            new_plot = []
+            for j in range(0, len(plot_data), batch_size):
+                new_plot.append(plot_data[j: j + batch_size].mean())
+            plot_data = np.array(new_plot)
         plt.plot(plot_data, c=colors[i], label=label)
     plt.legend()
     plt.show()
