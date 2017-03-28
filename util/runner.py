@@ -126,6 +126,8 @@ class Runner(object):
 
     def best_val_loss(self, losses):
         '''Compare loss with the best validation loss, and return True if a new best is found'''
+        if losses is None:
+            return False
         loss, micro, macro, perclass = losses
         p, r, f, ap, auc, p8 = micro
         if ap >= self.best_score:
@@ -155,6 +157,8 @@ class Runner(object):
 
     def losses(self):
         '''Return the accumulated losses'''
+        if not self.all_losses:
+            return None
         loss = np.mean(self.all_losses)
         probs = np.concatenate(self.all_probs)
         labels = np.concatenate(self.all_labels)
@@ -191,6 +195,8 @@ class Runner(object):
         pass
 
     def loss_str(self, losses):
+        if losses is None:
+            return "N/A"
         loss, micro, macro, perclass = losses
         loss_str = "Loss: %.4f" % loss
         micro_str = "Precision (micro): %.4f, Recall (micro): %.4f, F-score (micro): %.4f, " \
