@@ -101,14 +101,24 @@ class GroundedRNNModel(model.TFModel):
             out, last_state = tf.nn.dynamic_rnn(cell, inputs, sequence_length=self.lengths,
                                                 swap_memory=True, dtype=tf.float32)
 
+        self.probs = (last_state[:, :label_space_size] + 1) / 2
+        self.step_probs = (out[:, :, :label_space_size] + 1) / 2
+        if config.biased_sigmoid:
+            label_bias = tf.get_variable('label_bias', [label_space_size],
+                                         initializer=tf.constant_initializer(0.0))
+            # y = sigmoid(inverse_sigmoid(y) + b)
+            exp_bias = tf.expand_dims(tf.exp(-label_bias), 0)
+            self.probs = self.probs / (self.probs + ((1 - self.probs) * exp_bias))
+            exp_bias = tf.expand_dims(exp_bias, 0)
+            self.step_probs = self.step_probs / (self.step_probs +
+                                                 ((1 - self.step_probs) * exp_bias))
+
         if config.grnn_loss == 'ce':
-            self.step_probs = ((out[:, :, :label_space_size] * (1 - 2*1e-6)) + 1) / 2
-            self.probs = ((last_state[:, :label_space_size] * (1 - 2*1e-6)) + 1) / 2
-            # TODO use config.biased_sigmoid
+            # fix potential numerical instability
+            self.probs = self.probs * (1 - 2*1e-6) + 1e-6
+            self.step_probs = self.step_probs * (1 - 2*1e-6) + 1e-6
             loss = self.labels * -tf.log(self.probs) + (1. - self.labels) * -tf.log(1. - self.probs)
         elif config.grnn_loss == 'l1':
-            self.step_probs = (out[:, :, :label_space_size] + 1) / 2
-            self.probs = (last_state[:, :label_space_size] + 1) / 2
             loss = tf.abs(self.labels - self.probs)
         self.loss = tf.reduce_mean(loss)
         if self.config.l1_reg > 0.0 or self.config.l2_reg > 0.0:
