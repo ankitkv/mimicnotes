@@ -29,7 +29,7 @@ class Runner(object):
         self.train_splits = train_splits
         self.val_splits = val_splits
         self.test_splits = test_splits
-        self.best_score = 0.0
+        self.best_score = config.best_score
 
     def run(self, verbose=True):
         if self.config.visualize:
