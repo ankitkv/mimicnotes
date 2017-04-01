@@ -199,16 +199,18 @@ class Runner(object):
             return "N/A"
         loss, micro, macro, perclass = losses
         loss_str = "Loss: %.4f" % loss
+        p, r, f, ap, auc, micro_p8 = micro
         micro_str = "Precision (micro): %.4f, Recall (micro): %.4f, F-score (micro): %.4f, " \
-                    "AUC(PR) (micro): %.4f, AUC(ROC) (micro): %.4f, Precision@8 (micro): %.4f" % \
-                    tuple(micro)
-        pastable = ["%.4f" % n for n in micro]
+                    "AUC(PR) (micro): %.4f, AUC(ROC) (micro): %.4f" % (p, r, f, ap, auc)
+        pastable = ["%.4f" % n for n in (p, r, f, ap, auc)]
+        p, r, f, ap, auc, _ = macro
         macro_str = "Precision (macro): %.4f, Recall (macro): %.4f, F-score (macro): %.4f, " \
-                    "AUC(PR) (macro): %.4f, AUC(ROC) (macro): %.4f, Precision@8 (macro): %.4f" % \
-                    tuple(macro)
-        pastable.extend(["%.4f" % n for n in macro])
+                    "AUC(PR) (macro): %.4f, AUC(ROC) (macro): %.4f" % (p, r, f, ap, auc)
+        pastable.extend(["%.4f" % n for n in (p, r, f, ap, auc)])
+        p8_str = "Precision@8 (micro): %.4f" % micro_p8
+        pastable.append("%.4f" % micro_p8)
         pastable = 'Pastable: ' + '\t'.join(pastable)
-        return ' | '.join([loss_str, micro_str, macro_str, pastable])
+        return ' | '.join([loss_str, micro_str, macro_str, p8_str, pastable])
 
     def verbose_output(self, step, train=True):
         pass
