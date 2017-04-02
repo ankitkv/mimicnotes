@@ -242,40 +242,6 @@ def linear(args, output_size, bias=True, bias_start=0.0, scope=None, initializer
     return res + bias_term
 
 
-def diagonal_linear(inputs, diagonal_size, output_size, bias=True, bias_start=0.0, diag_start=0.0,
-                    positive_diag=False, scope=None, initializer=None):
-    """Similar to linear, but with the weight matrix restricted to be partially diagonal."""
-    nondiag_size = inputs.get_shape()[1].value - diagonal_size
-    dtype = inputs.dtype
-    if initializer is None:
-        initializer = tf.contrib.layers.xavier_initializer()
-
-    with tf.variable_scope(scope or "DiagonalLinear"):
-        diagonal = tf.get_variable("Diagonal", [diagonal_size], dtype=dtype,
-                                   initializer=tf.constant_initializer(diag_start, dtype=dtype))
-        if positive_diag:
-            diagonal = tf.nn.elu(diagonal) + 1
-        diag_res = inputs[:, :diagonal_size] * tf.expand_dims(diagonal, 0)
-        if nondiag_size > 0:
-            right_matrix = tf.get_variable("RightMatrix", [nondiag_size, output_size],
-                                           dtype=dtype, initializer=initializer)
-            # it's a good idea to regularize the following matrix:
-            bottom_matrix = tf.get_variable("BottomMatrix", [diagonal_size,
-                                                             output_size - diagonal_size],
-                                            dtype=dtype, initializer=initializer)
-            res = tf.matmul(inputs[:, diagonal_size:], right_matrix)
-            res += tf.concat([diag_res, tf.matmul(inputs[:, :diagonal_size], bottom_matrix)], 1)
-        else:
-            res = diag_res
-
-        if not bias:
-            return res
-        bias_term = tf.get_variable("Bias", [output_size], dtype=dtype,
-                                    initializer=tf.constant_initializer(bias_start,
-                                                                        dtype=dtype))
-    return tf.nn.bias_add(res, bias_term)
-
-
 def conv1d(inputs, output_dims, kernel_width, stride=1, padding='SAME', scope=None):
     '''Convolve one-dimensional data such as text.'''
     with tf.variable_scope(scope or "Convolution"):

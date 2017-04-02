@@ -17,7 +17,7 @@ except NameError:
 
 
 class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
-    """Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078) with diagonal weights."""
+    """Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078) with semidiagonal weights."""
 
     def __init__(self, label_space_size, control_size, activation=tf.tanh, positive_diag=True,
                  reuse=None):
@@ -35,20 +35,52 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
     def output_size(self):
         return self._label_space_size + self._control_size
 
+    def diagonal_linear(self, inputs, bias=True, bias_start=0.0, diag_start=0.0,
+                        positive_diag=False, scope=None, initializer=None):
+        """Similar to linear, but with the weight matrix restricted to be partially diagonal."""
+        nondiag_size = inputs.get_shape()[1].value - self._label_space_size
+        dtype = inputs.dtype
+        if initializer is None:
+            initializer = tf.contrib.layers.xavier_initializer()
+
+        with tf.variable_scope(scope or "DiagonalLinear"):
+            diagonal = tf.get_variable("Diagonal", [self._label_space_size], dtype=dtype,
+                                       initializer=tf.constant_initializer(diag_start, dtype=dtype))
+            if positive_diag:
+                diagonal = tf.nn.elu(diagonal) + 1
+            diag_res = inputs[:, :self._label_space_size] * tf.expand_dims(diagonal, 0)
+            if nondiag_size > 0:
+                right_matrix = tf.get_variable("RightMatrix", [nondiag_size, self.state_size],
+                                               dtype=dtype, initializer=initializer)
+                # it's a good idea to regularize the following matrix:
+                bottom_matrix = tf.get_variable("BottomMatrix",
+                                                [self._label_space_size,
+                                                 self.state_size - self._label_space_size],
+                                                dtype=dtype, initializer=initializer)
+                res = tf.matmul(inputs[:, self._label_space_size:], right_matrix)
+                res += tf.concat([diag_res, tf.matmul(inputs[:, :self._label_space_size],
+                                                      bottom_matrix)], 1)
+            else:
+                res = diag_res
+
+            if not bias:
+                return res
+            bias_term = tf.get_variable("Bias", [self.state_size], dtype=dtype,
+                                        initializer=tf.constant_initializer(bias_start,
+                                                                            dtype=dtype))
+        return tf.nn.bias_add(res, bias_term)
+
     def __call__(self, inputs, state, scope=None):
         """Gated recurrent unit (GRU) with nunits cells."""
         with tf.variable_scope(scope or "diagonal_gru_cell", reuse=self._reuse):
             with tf.variable_scope("r_gate"):
-                r = tf.sigmoid(util.diagonal_linear(tf.concat([state, inputs], 1),
-                                                    self._label_space_size, self.state_size,
+                r = tf.sigmoid(self.diagonal_linear(tf.concat([state, inputs], 1),
                                                     True, 1.0))
             with tf.variable_scope("u_gate"):
-                u = tf.sigmoid(util.diagonal_linear(tf.concat([state, inputs], 1),
-                                                    self._label_space_size, self.state_size,
+                u = tf.sigmoid(self.diagonal_linear(tf.concat([state, inputs], 1),
                                                     True, 1.0))
             with tf.variable_scope("candidate"):
-                c = self._activation(util.diagonal_linear(tf.concat([r * state, inputs], 1),
-                                                          self._label_space_size, self.state_size,
+                c = self._activation(self.diagonal_linear(tf.concat([r * state, inputs], 1),
                                                           True, positive_diag=self._positive_diag))
             new_h = u * state + (1 - u) * c
         return new_h, new_h
