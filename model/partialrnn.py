@@ -11,7 +11,7 @@ import model
 
 
 class PartialRNNModel(model.TFModel):
-    '''The grounded RNN model.'''
+    '''The grounded RNN model where k dims of hidden state are projected to grounded dims.'''
 
     def __init__(self, config, vocab, label_space_size):
         super(PartialRNNModel, self).__init__(config, vocab, label_space_size)

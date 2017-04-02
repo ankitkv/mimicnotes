@@ -18,4 +18,3 @@ except ImportError:
 else:
     # torch models
     from rnn_torch import *
-    from slicing_grnn import *
