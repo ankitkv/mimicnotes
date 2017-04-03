@@ -249,6 +249,7 @@ class GroundedRNNRunner(util.TFRunner):
             ops.append(self.model.train_op)
         feed_dict = {self.model.notes: notes, self.model.lengths: lengths}
         if self.config.sliced_grnn:
+            # TODO iterate all labels when train=False!
             counts = labels.sum(0)
             pos_indices = np.nonzero(counts)[0]
             pos_labels = self.config.sliced_labels // 2
