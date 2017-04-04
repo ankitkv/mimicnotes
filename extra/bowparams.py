@@ -72,7 +72,7 @@ if __name__ == '__main__':
     bests = np.argmax(f_scores, axis=0)
     final_l1s = l1s[bests]
     print('Best L1s:')
-    print(final_l1s)
+    print(final_l1s.tolist())
     print()
 
     thres_data = []
@@ -102,7 +102,7 @@ if __name__ == '__main__':
     final_thresholds = np.array(final_thresholds) / 10
 
     print('Best thresholds:')
-    print(final_thresholds)
+    print(final_thresholds.tolist())
     print()
 
     if find_best_epoch:
