@@ -287,6 +287,22 @@ class NoteVocab(object):
             print('Loaded from freq dist file.')
         return ret
 
+    def aux_vocab_freqs(self, key):
+        '''Lists the counts of each value for a key in the aux vocabulary'''
+        if self.verbose:
+            print('Loading frequencies for %s...' % key)
+        vocab_fd_file = 'vocab_fd'
+        if self.config.note_type:
+            vocab_fd_file += '.' + self.config.note_type
+        vocab_fd_file += '.pk'
+        fdfile = Path(self.config.data_path) / vocab_fd_file
+        with fdfile.open('rb') as f:
+            _, vocab_aux_fd = pickle.load(f)
+        ret = [vocab_aux_fd[key][(w, self.aux_names[key][w])] for w in self.aux_vocab[key]]
+        if self.verbose:
+            print('Loaded from aux freq dist file.')
+        return ret
+
     def prepare_vocab_from_fd(self, vocab_fd, vocab_aux_fd):
         count = 0
         for k, v in vocab_fd.most_common():

@@ -240,6 +240,7 @@ class GroundedRNNRunner(util.TFRunner):
             saver.restore(session, config.emb_file)
             if verbose:
                 print("Embeddings loaded from", config.emb_file)
+        self.label_freqs = np.array(self.vocab.aux_vocab_freqs('dgn'), dtype=np.float)
 
     def run_session(self, notes, lengths, labels, train=True):
         n_words = lengths.sum()
@@ -261,8 +262,9 @@ class GroundedRNNRunner(util.TFRunner):
             neg_labels = self.config.sliced_labels - pos_indices.shape[0]
             neg_indices = np.arange(counts.shape[0], dtype=np.int)
             neg_indices = np.setdiff1d(neg_indices, pos_indices, assume_unique=True)
-            # TODO draw according to label frequency (instead of uniform):
-            neg_indices = np.random.choice(neg_indices, [neg_labels], replace=False)
+            label_freqs = self.label_freqs[neg_indices]
+            label_probs = label_freqs / label_freqs.sum()
+            neg_indices = np.random.choice(neg_indices, [neg_labels], replace=False, p=label_probs)
             indices = np.concatenate([pos_indices, neg_indices])
             labels = labels[:, indices]
             feed_dict[self.model.slicing_indices] = indices
