@@ -23,14 +23,14 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
        Additionally, allows to be sliced based on the labels requested."""
 
     def __init__(self, label_space_size, control_size, slicing_indices=None, total_label_space=None,
-                 activation=tf.tanh, positive_diag=True, reuse=None):
+                 activation=tf.tanh, positive_diag=True, norm=1.0):
         self._label_space_size = label_space_size
         self._control_size = control_size
         self._slicing_indices = slicing_indices
         self._total_label_space = total_label_space
         self._activation = activation
         self._positive_diag = positive_diag
-        self._reuse = reuse
+        self._norm = norm
 
     @property
     def state_size(self):
@@ -90,7 +90,7 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
 
                 res = tf.matmul(inputs[:, self._label_space_size:], tf.transpose(right_matrix))
                 res += tf.concat([diag_res, tf.matmul(inputs[:, :self._label_space_size],
-                                                      bottom_matrix)], 1)
+                                                      bottom_matrix) * self._norm], 1)
             else:
                 res = diag_res
 
@@ -113,7 +113,7 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
 
     def __call__(self, inputs, state, scope=None):
         """Gated recurrent unit (GRU) with nunits cells."""
-        with tf.variable_scope(scope or "diagonal_gru_cell", reuse=self._reuse):
+        with tf.variable_scope(scope or "diagonal_gru_cell"):
             with tf.variable_scope("r_gate"):
                 r = tf.sigmoid(self.diagonal_linear(tf.concat([state, inputs], 1),
                                                     True, 1.0))
@@ -130,12 +130,14 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
 class GroundedRNNModel(model.TFModel):
     '''The grounded RNN model.'''
 
-    def __init__(self, config, vocab, label_space_size, total_label_space):
+    def __init__(self, config, vocab, label_space_size, total_label_space=None, test=False):
         super(GroundedRNNModel, self).__init__(config, vocab, label_space_size)
+        if total_label_space is None:
+            total_label_space = label_space_size
         self.lengths = tf.placeholder(tf.int32, [config.batch_size], name='lengths')
         self.labels = tf.placeholder(tf.float32, [config.batch_size, label_space_size],
                                      name='labels')
-        if config.sliced_grnn:
+        if config.sliced_grnn and not test:
             self.slicing_indices = tf.placeholder(tf.int32, [label_space_size],
                                                   name='slicing_indices')
         else:
@@ -171,10 +173,15 @@ class GroundedRNNModel(model.TFModel):
 
         with tf.variable_scope('gru', initializer=tf.contrib.layers.xavier_initializer()):
             if config.diagonal_cell:
-                cell = DiagonalGRUCell(label_space_size, config.hidden_size,
-                                       slicing_indices=self.slicing_indices,
-                                       total_label_space=total_label_space,
-                                       positive_diag=config.positive_diag)
+                if config.sliced_grnn and test:
+                    cell = DiagonalGRUCell(total_label_space, config.hidden_size,
+                                           positive_diag=config.positive_diag,
+                                           norm=config.sliced_labels/total_label_space)
+                else:
+                    cell = DiagonalGRUCell(label_space_size, config.hidden_size,
+                                           slicing_indices=self.slicing_indices,
+                                           total_label_space=total_label_space,
+                                           positive_diag=config.positive_diag)
             else:
                 cell = tf.contrib.rnn.GRUCell(label_space_size + config.hidden_size)
             # forward recurrence
@@ -184,8 +191,10 @@ class GroundedRNNModel(model.TFModel):
         self.probs = (last_state[:, :label_space_size] + 1) / 2
         self.step_probs = (out[:, :, :label_space_size] + 1) / 2
         if config.biased_sigmoid:
-            label_bias = tf.get_variable('label_bias', [label_space_size],
+            label_bias = tf.get_variable('label_bias', [total_label_space],
                                          initializer=tf.constant_initializer(0.0))
+            if config.sliced_grnn and not test:
+                label_bias = tf.gather(label_bias, self.slicing_indices)
             # y = sigmoid(inverse_sigmoid(y) + b)
             exp_bias = tf.expand_dims(tf.exp(-label_bias), 0)
             self.probs = self.probs / (self.probs + ((1 - self.probs) * exp_bias))
@@ -219,8 +228,8 @@ class GroundedRNNModel(model.TFModel):
                                                                      logits=lm_logits) * flat_mask
             lm_loss = tf.reduce_sum(lm_loss) / tf.maximum(tf.reduce_sum(flat_mask), 1.0)
             self.loss += config.lm_weight * lm_loss
-
-        self.train_op = self.minimize_loss(self.loss)
+        if not test:
+            self.train_op = self.minimize_loss(self.loss)
 
 
 class GroundedRNNRunner(util.TFRunner):
@@ -232,8 +241,13 @@ class GroundedRNNRunner(util.TFRunner):
             label_space_size = config.sliced_labels
         else:
             label_space_size = self.reader.label_space_size()
-        self.model = GroundedRNNModel(self.config, self.vocab, label_space_size,
-                                      self.reader.label_space_size())
+        with tf.variable_scope("Model") as scope:
+            self.model = GroundedRNNModel(self.config, self.vocab, label_space_size,
+                                          self.reader.label_space_size())
+            if config.sliced_grnn:
+                scope.reuse_variables()
+                self.test_model = GroundedRNNModel(self.config, self.vocab,
+                                                   self.reader.label_space_size(), test=True)
         self.model.initialize(self.session, self.config.load_file)
         if config.emb_file:
             saver = tf.train.Saver([self.model.embeddings])
@@ -245,12 +259,15 @@ class GroundedRNNRunner(util.TFRunner):
     def run_session(self, notes, lengths, labels, train=True):
         n_words = lengths.sum()
         start = time.time()
-        ops = [self.model.loss, self.model.probs, self.model.global_step]
+        if train or not self.config.sliced_grnn:
+            model = self.model
+        else:
+            model = self.test_model
+        ops = [model.loss, model.probs, model.global_step]
         if train:
-            ops.append(self.model.train_op)
-        feed_dict = {self.model.notes: notes, self.model.lengths: lengths}
-        if self.config.sliced_grnn:
-            # TODO iterate all labels when train=False!
+            ops.append(model.train_op)
+        feed_dict = {model.notes: notes, model.lengths: lengths}
+        if self.config.sliced_grnn and train:
             counts = labels.sum(0)
             pos_indices = np.nonzero(counts)[0]
             pos_labels = self.config.sliced_labels // 2
@@ -267,8 +284,8 @@ class GroundedRNNRunner(util.TFRunner):
             neg_indices = np.random.choice(neg_indices, [neg_labels], replace=False, p=label_probs)
             indices = np.concatenate([pos_indices, neg_indices])
             labels = labels[:, indices]
-            feed_dict[self.model.slicing_indices] = indices
-        feed_dict[self.model.labels] = labels
+            feed_dict[model.slicing_indices] = indices
+        feed_dict[model.labels] = labels
         ret = self.session.run(ops, feed_dict=feed_dict)
         self.loss, self.probs, self.global_step = ret[:3]
         self.labels = labels
