@@ -23,7 +23,7 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
        Additionally, allows to be sliced based on the labels requested."""
 
     def __init__(self, label_space_size, control_size, slicing_indices=None, total_label_space=None,
-                 activation=tf.tanh, positive_diag=True, norm=1.0):
+                 activation=tf.tanh, positive_diag=True, norm=1.0, keep_prob=1.0):
         self._label_space_size = label_space_size
         self._control_size = control_size
         self._slicing_indices = slicing_indices
@@ -31,6 +31,7 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
         self._activation = activation
         self._positive_diag = positive_diag
         self._norm = norm
+        self._keep_prob = keep_prob
 
     @property
     def state_size(self):
@@ -88,9 +89,10 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
                                                                      self._control_size],
                                                     dtype=dtype, initializer=initializer)
 
+                labels_dropped = tf.nn.dropout(inputs[:, :self._label_space_size], self._keep_prob)
                 res = tf.matmul(inputs[:, self._label_space_size:], tf.transpose(right_matrix))
-                res += tf.concat([diag_res, tf.matmul(inputs[:, :self._label_space_size],
-                                                      bottom_matrix) * self._norm], 1)
+                res += tf.concat([diag_res, tf.matmul(labels_dropped, bottom_matrix) * self._norm],
+                                 1)
             else:
                 res = diag_res
 
@@ -137,6 +139,7 @@ class GroundedRNNModel(model.TFModel):
         self.lengths = tf.placeholder(tf.int32, [config.batch_size], name='lengths')
         self.labels = tf.placeholder(tf.float32, [config.batch_size, label_space_size],
                                      name='labels')
+        self.keep_prob = tf.placeholder(tf.float32)
         if config.sliced_grnn and not test:
             self.slicing_indices = tf.placeholder(tf.int32, [label_space_size],
                                                   name='slicing_indices')
@@ -181,7 +184,8 @@ class GroundedRNNModel(model.TFModel):
                     cell = DiagonalGRUCell(label_space_size, config.hidden_size,
                                            slicing_indices=self.slicing_indices,
                                            total_label_space=total_label_space,
-                                           positive_diag=config.positive_diag)
+                                           positive_diag=config.positive_diag,
+                                           keep_prob=self.keep_prob)
             else:
                 cell = tf.contrib.rnn.GRUCell(label_space_size + config.hidden_size)
             # forward recurrence
@@ -279,13 +283,20 @@ class GroundedRNNRunner(util.TFRunner):
             neg_labels = self.config.sliced_labels - pos_indices.shape[0]
             neg_indices = np.arange(counts.shape[0], dtype=np.int)
             neg_indices = np.setdiff1d(neg_indices, pos_indices, assume_unique=True)
-            label_freqs = self.label_freqs[neg_indices]
-            label_probs = label_freqs / label_freqs.sum()
+            if self.config.sample_uniform:
+                label_probs = None
+            else:
+                label_freqs = self.label_freqs[neg_indices]
+                label_probs = label_freqs / label_freqs.sum()
             neg_indices = np.random.choice(neg_indices, [neg_labels], replace=False, p=label_probs)
             indices = np.concatenate([pos_indices, neg_indices])
             labels = labels[:, indices]
             feed_dict[model.slicing_indices] = indices
         feed_dict[model.labels] = labels
+        if train:
+            feed_dict[model.keep_prob] = 1.0 - self.config.dropout
+        else:
+            feed_dict[model.keep_prob] = 1.0
         ret = self.session.run(ops, feed_dict=feed_dict)
         self.loss, self.probs, self.global_step = ret[:3]
         self.labels = labels

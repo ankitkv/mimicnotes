@@ -35,6 +35,9 @@ flags.DEFINE_bool   ("positive_diag",  False,     "Ensure positive diagonal in s
 flags.DEFINE_bool   ("biased_sigmoid", True,      "Biased re-sigmoid for GRNN output")
 flags.DEFINE_bool   ("sliced_grnn",    False,     "Sliced GRNN")
 flags.DEFINE_integer("sliced_labels",  256,       "Number of sliced labels")
+flags.DEFINE_bool   ("sample_uniform", False,     "Sample negative labels uniformly for "
+                                                  "sliced GRNN")
+flags.DEFINE_float  ("dropout",        0.0,       "GRNN dropout from concepts to control")
 flags.DEFINE_string ("lstm_hidden",    "ch",      "c, h, ch")
 flags.DEFINE_bool   ("normlstm_mem",   False,     "One dim per concept for normlstm")
 flags.DEFINE_bool   ("diagonal_cell",  True,      "Diagonal weights in GRNN cells")
