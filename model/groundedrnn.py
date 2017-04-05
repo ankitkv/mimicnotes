@@ -95,7 +95,9 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
                                                                      self._control_size],
                                                     dtype=dtype, initializer=initializer)
 
-                labels_dropped = tf.nn.dropout(inputs[:, :self._label_space_size], self._keep_prob)
+                if self._keep_prob < 1.0 - 1e-6:
+                    labels_dropped = tf.nn.dropout(inputs[:, :self._label_space_size],
+                                                   self._keep_prob)
                 res = tf.matmul(inputs[:, self._label_space_size:], tf.transpose(right_matrix))
                 res += tf.concat([diag_res, tf.matmul(labels_dropped, bottom_matrix) * self._norm],
                                  1)
@@ -186,6 +188,7 @@ class GroundedRNNModel(model.TFModel):
                 if config.sliced_grnn and test:
                     cell = DiagonalGRUCell(total_label_space, config.hidden_size,
                                            positive_diag=config.positive_diag,
+                                           total_label_space=total_label_space,
                                            norm=config.sliced_labels/total_label_space,
                                            sliced_grnn=True)
                 else:
