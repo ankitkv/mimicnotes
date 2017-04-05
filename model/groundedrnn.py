@@ -95,9 +95,7 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
                                                                      self._control_size],
                                                     dtype=dtype, initializer=initializer)
 
-                if self._keep_prob < 1.0 - 1e-6:
-                    labels_dropped = tf.nn.dropout(inputs[:, :self._label_space_size],
-                                                   self._keep_prob)
+                labels_dropped = tf.nn.dropout(inputs[:, :self._label_space_size], self._keep_prob)
                 res = tf.matmul(inputs[:, self._label_space_size:], tf.transpose(right_matrix))
                 res += tf.concat([diag_res, tf.matmul(labels_dropped, bottom_matrix) * self._norm],
                                  1)
