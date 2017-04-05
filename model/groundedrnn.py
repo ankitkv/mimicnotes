@@ -245,13 +245,12 @@ class GroundedRNNRunner(util.TFRunner):
             label_space_size = config.sliced_labels
         else:
             label_space_size = self.reader.label_space_size()
-        with tf.variable_scope("Model") as scope:
-            self.model = GroundedRNNModel(self.config, self.vocab, label_space_size,
-                                          self.reader.label_space_size())
-            if config.sliced_grnn:
-                scope.reuse_variables()
-                self.test_model = GroundedRNNModel(self.config, self.vocab,
-                                                   self.reader.label_space_size(), test=True)
+        self.model = GroundedRNNModel(self.config, self.vocab, label_space_size,
+                                      self.reader.label_space_size())
+        if config.sliced_grnn:
+            tf.get_variable_scope().reuse_variables()
+            self.test_model = GroundedRNNModel(self.config, self.vocab,
+                                               self.reader.label_space_size(), test=True)
         self.model.initialize(self.session, self.config.load_file)
         if config.emb_file:
             saver = tf.train.Saver([self.model.embeddings])
