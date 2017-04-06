@@ -325,7 +325,8 @@ class GroundedRNNRunner(util.TFRunner):
             ops = [model.probs, model.step_probs]
             probs, step_probs = self.session.run(ops, feed_dict={model.notes: batch[0],
                                                                  model.lengths: batch[1],
-                                                                 model.labels: batch[2]})
+                                                                 model.labels: batch[2],
+                                                                 model.keep_prob: 1.0})
             for i in xrange(probs.shape[0]):
                 print()
                 print('=== NEW NOTE ===')
