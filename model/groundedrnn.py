@@ -70,16 +70,16 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
                 if self._sliced_grnn:
                     with tf.device('/cpu:0'):
                         right_matrix = tf.get_variable("RightMatrix",
-                                                       [self._total_label_space +
-                                                        self._control_size, nondiag_size],
+                                                       [nondiag_size, self._total_label_space +
+                                                                      self._control_size],
                                                        dtype=dtype, initializer=initializer)
                         if self._slicing_indices is not None:
-                            right_matrix = tf.concat([tf.gather(
-                                                             right_matrix[:self._total_label_space],
-                                                             self._slicing_indices),
-                                                      right_matrix[self._total_label_space:]], 0)
+                            right_matrix = tf.concat([util.gather_last(
+                                                          right_matrix[:, :self._total_label_space],
+                                                          self._slicing_indices),
+                                                      right_matrix[:, self._total_label_space:]], 1)
                 else:
-                    right_matrix = tf.get_variable("RightMatrix", [self.state_size, nondiag_size],
+                    right_matrix = tf.get_variable("RightMatrix", [nondiag_size, self.state_size],
                                                    dtype=dtype, initializer=initializer)
 
                 # it's a good idea to regularize the following matrix:
@@ -96,7 +96,7 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
                                                     dtype=dtype, initializer=initializer)
 
                 labels_dropped = tf.nn.dropout(inputs[:, :self._label_space_size], self._keep_prob)
-                res = tf.matmul(inputs[:, self._label_space_size:], tf.transpose(right_matrix))
+                res = tf.matmul(inputs[:, self._label_space_size:], right_matrix)
                 res += tf.concat([diag_res, tf.matmul(labels_dropped, bottom_matrix) * self._norm],
                                  1)
             else:

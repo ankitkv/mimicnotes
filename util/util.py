@@ -194,6 +194,13 @@ def prelu(features, initializer=None, scope=None):
         return pos + neg
 
 
+def gather_last(x, idx):
+    idx = tf.expand_dims(tf.range(0, x.shape[0]) * x.shape[1], 1) + tf.expand_dims(idx, 0)
+    idx_flat = tf.reshape(idx, [-1])
+    y = tf.gather(tf.reshape(x, [-1]), idx_flat)
+    return tf.reshape(y, [x.shape[0].value, -1])
+
+
 def linear(args, output_size, bias=True, bias_start=0.0, scope=None, initializer=None):
     """Linear map: sum_i(args[i] * W[i]), where W[i] is a variable.
     Args:
