@@ -317,11 +317,15 @@ class GroundedRNNRunner(util.TFRunner):
             split = self.config.query
         else:
             split = 'test'
+        if self.config.sliced_grnn:
+            model = self.test_model
+        else:
+            model = self.model
         for batch in self.reader.get([split], force_curriculum=False):
-            ops = [self.model.probs, self.model.step_probs]
-            probs, step_probs = self.session.run(ops, feed_dict={self.model.notes: batch[0],
-                                                                 self.model.lengths: batch[1],
-                                                                 self.model.labels: batch[2]})
+            ops = [model.probs, model.step_probs]
+            probs, step_probs = self.session.run(ops, feed_dict={model.notes: batch[0],
+                                                                 model.lengths: batch[1],
+                                                                 model.labels: batch[2]})
             for i in xrange(probs.shape[0]):
                 print()
                 print('=== NEW NOTE ===')
