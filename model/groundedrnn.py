@@ -22,18 +22,15 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
     """Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078) with semidiagonal weights.
        Additionally, allows to be sliced based on the labels requested."""
 
-    def __init__(self, label_space_size, control_size, slicing_indices=None, total_label_space=None,
-                 activation=tf.tanh, positive_diag=True, norm=1.0, keep_prob=1.0,
-                 sliced_grnn=False):
+    def __init__(self, label_space_size, control_size, total_label_space=None,
+                 activation=tf.tanh, norm=1.0, keep_prob=1.0, variables={}):
         self._label_space_size = label_space_size
         self._control_size = control_size
-        self._slicing_indices = slicing_indices
         self._total_label_space = total_label_space
         self._activation = activation
-        self._positive_diag = positive_diag
         self._norm = norm
         self._keep_prob = keep_prob
-        self._sliced_grnn = sliced_grnn
+        self._variables = variables
 
     @property
     def state_size(self):
@@ -43,95 +40,28 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
     def output_size(self):
         return self._label_space_size + self._control_size
 
-    def diagonal_linear(self, inputs, bias=True, bias_start=0.0, diag_start=0.0,
-                        positive_diag=False, scope=None, initializer=None):
+    def diagonal_linear(self, inputs, var_scope):
         """Similar to linear, but with the weight matrix restricted to be partially diagonal."""
-        nondiag_size = inputs.get_shape()[1].value - self._label_space_size
-        dtype = inputs.dtype
-        if initializer is None:
-            initializer = tf.contrib.layers.xavier_initializer()
-
-        with tf.variable_scope(scope or "DiagonalLinear"):
-            if self._sliced_grnn:
-                with tf.device('/cpu:0'):
-                    diagonal = tf.get_variable("Diagonal", [self._total_label_space], dtype=dtype,
-                                               initializer=tf.constant_initializer(diag_start,
-                                                                                   dtype=dtype))
-                    if self._slicing_indices is not None:
-                        diagonal = tf.gather(diagonal, self._slicing_indices)
-            else:
-                diagonal = tf.get_variable("Diagonal", [self._label_space_size], dtype=dtype,
-                                           initializer=tf.constant_initializer(diag_start,
-                                                                               dtype=dtype))
-            if positive_diag:
-                diagonal = tf.nn.elu(diagonal) + 1
-            diag_res = inputs[:, :self._label_space_size] * tf.expand_dims(diagonal, 0)
-            if nondiag_size > 0:
-                if self._sliced_grnn:
-                    with tf.device('/cpu:0'):
-                        right_matrix = tf.get_variable("RightMatrix",
-                                                       [nondiag_size, self._total_label_space +
-                                                                      self._control_size],
-                                                       dtype=dtype, initializer=initializer)
-                        if self._slicing_indices is not None:
-                            right_matrix = tf.concat([util.gather_last(
-                                                          right_matrix[:, :self._total_label_space],
-                                                          self._slicing_indices),
-                                                      right_matrix[:, self._total_label_space:]], 1)
-                else:
-                    right_matrix = tf.get_variable("RightMatrix", [nondiag_size, self.state_size],
-                                                   dtype=dtype, initializer=initializer)
-
-                # it's a good idea to regularize the following matrix:
-                if self._sliced_grnn:
-                    with tf.device('/cpu:0'):
-                        bottom_matrix = tf.get_variable("BottomMatrix", [self._total_label_space,
-                                                                         self._control_size],
-                                                        dtype=dtype, initializer=initializer)
-                        if self._slicing_indices is not None:
-                            bottom_matrix = tf.gather(bottom_matrix, self._slicing_indices)
-                else:
-                    bottom_matrix = tf.get_variable("BottomMatrix", [self._label_space_size,
-                                                                     self._control_size],
-                                                    dtype=dtype, initializer=initializer)
-
-                labels_dropped = tf.nn.dropout(inputs[:, :self._label_space_size], self._keep_prob)
-                res = tf.matmul(inputs[:, self._label_space_size:], right_matrix)
-                res += tf.concat([diag_res, tf.matmul(labels_dropped, bottom_matrix) * self._norm],
-                                 1)
-            else:
-                res = diag_res
-
-            if not bias:
-                return res
-            if self._sliced_grnn:
-                with tf.device('/cpu:0'):
-                    bias_term = tf.get_variable("Bias", [self._total_label_space +
-                                                         self._control_size], dtype=dtype,
-                                                initializer=tf.constant_initializer(bias_start,
-                                                                                    dtype=dtype))
-                    if self._slicing_indices is not None:
-                        bias_term = tf.concat([tf.gather(bias_term[:self._total_label_space],
-                                                         self._slicing_indices),
-                                               bias_term[self._total_label_space:]], 0)
-            else:
-                bias_term = tf.get_variable("Bias", [self.state_size], dtype=dtype,
-                                            initializer=tf.constant_initializer(bias_start,
-                                                                                dtype=dtype))
-        return tf.nn.bias_add(res, bias_term)
+        diagonal = self._variables[var_scope]['Diagonal']
+        right_matrix = self._variables[var_scope]['RightMatrix']
+        bottom_matrix = self._variables[var_scope]['BottomMatrix']
+        bias = self._variables[var_scope]['Bias']
+        diag_res = inputs[:, :self._label_space_size] * tf.expand_dims(diagonal, 0)
+        labels_dropped = tf.nn.dropout(inputs[:, :self._label_space_size], self._keep_prob)
+        res = tf.matmul(inputs[:, self._label_space_size:], right_matrix)
+        res += tf.concat([diag_res, tf.matmul(labels_dropped, bottom_matrix) * self._norm], 1)
+        return tf.nn.bias_add(res, bias)
 
     def __call__(self, inputs, state, scope=None):
         """Gated recurrent unit (GRU) with nunits cells."""
         with tf.variable_scope(scope or "diagonal_gru_cell"):
             with tf.variable_scope("r_gate"):
-                r = tf.sigmoid(self.diagonal_linear(tf.concat([state, inputs], 1),
-                                                    True, 1.0))
+                r = tf.sigmoid(self.diagonal_linear(tf.concat([state, inputs], 1), 'r_gate'))
             with tf.variable_scope("u_gate"):
-                u = tf.sigmoid(self.diagonal_linear(tf.concat([state, inputs], 1),
-                                                    True, 1.0))
+                u = tf.sigmoid(self.diagonal_linear(tf.concat([state, inputs], 1), 'u_gate'))
             with tf.variable_scope("candidate"):
                 c = self._activation(self.diagonal_linear(tf.concat([r * state, inputs], 1),
-                                                          True, positive_diag=self._positive_diag))
+                                                          'candidate'))
             new_h = u * state + (1 - u) * c
         return new_h, new_h
 
@@ -183,18 +113,92 @@ class GroundedRNNModel(model.TFModel):
 
         with tf.variable_scope('gru', initializer=tf.contrib.layers.xavier_initializer()):
             if config.diagonal_cell:
+                initializer = tf.contrib.layers.xavier_initializer()
+                variables = collections.defaultdict(dict)
+                # define the variables here so that slicing happens only once per batch
+                for sc_name, bias_start in [('r_gate', 1.0), ('u_gate', 1.0), ('candidate', 0.0)]:
+                    with tf.variable_scope('rnn/diagonal_gru_cell/' + sc_name):
+                        if config.sliced_grnn:
+                            with tf.device('/cpu:0'):
+                                diagonal = tf.get_variable("Diagonal", [total_label_space],
+                                                           dtype=tf.float32,
+                                                           initializer=tf.zeros_initializer())
+                                if self.slicing_indices is not None:
+                                    diagonal = tf.gather(diagonal, self.slicing_indices)
+                        else:
+                            diagonal = tf.get_variable("Diagonal", [total_label_space],
+                                                       dtype=tf.float32,
+                                                       initializer=tf.zeros_initializer())
+                        if sc_name == 'candidate' and config.positive_diag:
+                            diagonal = tf.nn.elu(diagonal) + 1
+
+                        nondiag_size = config.hidden_size + inputs.get_shape()[2].value
+                        if config.sliced_grnn:
+                            with tf.device('/cpu:0'):
+                                right_matrix = tf.get_variable("RightMatrixT",
+                                                               [total_label_space +
+                                                                config.hidden_size, nondiag_size],
+                                                               dtype=tf.float32,
+                                                               initializer=initializer)
+                                if self.slicing_indices is not None:
+                                    right_matrix = tf.concat([tf.gather(
+                                                                       right_matrix[:total_label_space],
+                                                                       self.slicing_indices),
+                                                              right_matrix[total_label_space:]], 0)
+                                right_matrix = tf.transpose(right_matrix)
+                        else:
+                            right_matrix = tf.get_variable("RightMatrix", [nondiag_size,
+                                                                           total_label_space +
+                                                                           config.hidden_size],
+                                                           dtype=tf.float32,
+                                                           initializer=initializer)
+
+                        # it's probably a good idea to regularize the following matrix:
+                        if config.sliced_grnn:
+                            with tf.device('/cpu:0'):
+                                bottom_matrix = tf.get_variable("BottomMatrix",
+                                                                [total_label_space,
+                                                                 config.hidden_size],
+                                                                dtype=tf.float32,
+                                                                initializer=initializer)
+                                if self.slicing_indices is not None:
+                                    bottom_matrix = tf.gather(bottom_matrix, self.slicing_indices)
+                        else:
+                            bottom_matrix = tf.get_variable("BottomMatrix", [total_label_space,
+                                                                             config.hidden_size],
+                                                            dtype=tf.float32,
+                                                            initializer=initializer)
+
+                        if config.sliced_grnn:
+                            with tf.device('/cpu:0'):
+                                bias_term = tf.get_variable("Bias",
+                                                    [total_label_space + config.hidden_size],
+                                                    dtype=tf.float32,
+                                                    initializer=tf.constant_initializer(bias_start))
+                                if self.slicing_indices is not None:
+                                    bias_term = tf.concat([tf.gather(bias_term[:total_label_space],
+                                                                     self.slicing_indices),
+                                                           bias_term[total_label_space:]], 0)
+                        else:
+                            bias_term = tf.get_variable("Bias",
+                                                    [total_label_space + config.hidden_size],
+                                                    dtype=tf.float32,
+                                                    initializer=tf.constant_initializer(bias_start))
+
+                    variables[sc_name]['Diagonal'] = diagonal
+                    variables[sc_name]['RightMatrix'] = right_matrix
+                    variables[sc_name]['BottomMatrix'] = bottom_matrix
+                    variables[sc_name]['Bias'] = bias_term
+
                 if config.sliced_grnn and test:
                     cell = DiagonalGRUCell(total_label_space, config.hidden_size,
-                                           positive_diag=config.positive_diag,
                                            total_label_space=total_label_space,
                                            norm=config.sliced_labels/total_label_space,
-                                           sliced_grnn=True)
+                                           variables=variables)
                 else:
                     cell = DiagonalGRUCell(label_space_size, config.hidden_size,
-                                           slicing_indices=self.slicing_indices,
                                            total_label_space=total_label_space,
-                                           positive_diag=config.positive_diag,
-                                           keep_prob=self.keep_prob, sliced_grnn=config.sliced_grnn)
+                                           keep_prob=self.keep_prob, variables=variables)
             else:
                 cell = tf.contrib.rnn.GRUCell(label_space_size + config.hidden_size)
             # forward recurrence
