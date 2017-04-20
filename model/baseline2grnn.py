@@ -23,6 +23,7 @@ class Baseline2GRNNRunner(util.TFRunner):
         self.model = model.GroundedRNNModel(self.config, self.vocab, config.sliced_labels,
                                             self.reader.label_space_size(),
                                             common_scope='GRNNCommon')
+        # TODO test model loading with and without base loading
         self.model.initialize(self.session, self.config.load_file)
         if verbose:
             print('Initializing base model')
@@ -32,6 +33,7 @@ class Baseline2GRNNRunner(util.TFRunner):
         base_config.save_every = -1
         # FIXME fix loading of saved base file
         self.base_runner = model.BagOfWordsRunner(base_config, session, parent_runner=self)
+        # TODO test emb loading
         if config.emb_file:
             saver = tf.train.Saver([self.model.embeddings])
             saver.restore(session, config.emb_file)
