@@ -10,9 +10,9 @@ import model
 class TFModel(model.Model):
     '''Base class for all TensorFlow models.'''
 
-    def __init__(self, config, vocab, label_space_size):
+    def __init__(self, config, vocab, label_space_size, common_scope='Common'):
         super(TFModel, self).__init__(config, vocab, label_space_size)
-        with tf.variable_scope("Common"):
+        with tf.variable_scope(common_scope):
             self.global_step = tf.get_variable('global_step', shape=[],
                                                initializer=tf.zeros_initializer(dtype=tf.int32),
                                                trainable=False, dtype=tf.int32)

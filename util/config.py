@@ -15,6 +15,8 @@ flags.DEFINE_string ("save_file",      "saved/recent.dat",    "Save file")
 flags.DEFINE_string ("best_save_file", "",                    "Save file for best validation "
                                                               "losses (empty for save_file)")
 flags.DEFINE_string ("load_file",      "",                    "File to load model from")
+flags.DEFINE_string ("base_file",      "",                    "File to load base BOW model from "
+                                                              "for baseline2grnn")
 flags.DEFINE_string ("emb_file",       "",                    "File to load embeddings from")
 flags.DEFINE_string ("note_type",      "Discharge_summary",   "The type of notes to consider")
 flags.DEFINE_string ("data_storage",   "pickle",              "Format to store data "
@@ -30,6 +32,7 @@ flags.DEFINE_string ("grnn_loss",      "ce",      "ce/l1")
 flags.DEFINE_bool   ("length_sort",    True,      "Ensure similar note lengths in a batch")
 flags.DEFINE_integer("word_emb_size",  192,       "Word embedding size")
 flags.DEFINE_string ("rnn_type",       "gru",     "gru/lstm/entnet")
+flags.DEFINE_bool   ("train_base",     True,      "Train the base model for baseline2grnn")
 flags.DEFINE_bool   ("bidirectional",  False,     "Bidirectional RNN")
 flags.DEFINE_bool   ("positive_diag",  False,     "Ensure positive diagonal in semidiagonal GRNN")
 flags.DEFINE_bool   ("biased_sigmoid", True,      "Biased re-sigmoid for GRNN output")
