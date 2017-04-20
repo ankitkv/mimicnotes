@@ -59,8 +59,8 @@ class BagOfWordsModel(model.TFModel):
 class BagOfWordsRunner(util.TFRunner):
     '''Runner for the bag of words model.'''
 
-    def __init__(self, config, session, model_init=True, verbose=True):
-        super(BagOfWordsRunner, self).__init__(config, session)
+    def __init__(self, config, session, model_init=True, verbose=True, parent_runner=None):
+        super(BagOfWordsRunner, self).__init__(config, session, parent_runner=parent_runner)
         l1_regs = None
         if config.bow_search:
             self.all_stats = []

@@ -17,15 +17,19 @@ class Runner(object):
        to change behavior.'''
 
     def __init__(self, config, train_splits=['train'], val_splits=['val'], test_splits=['test'],
-                 session=None):
+                 session=None, parent_runner=None):
         self.config = config
         self.session = session
-        if config.data_storage == 'shelve':
-            data = util.NoteShelveData(config)
-        elif config.data_storage == 'pickle':
-            data = util.NotePickleData(config)
-        self.vocab = util.NoteVocab(config, data)
-        self.reader = util.NoteICD9Reader(config, data, self.vocab)
+        if parent_runner is not None:
+            self.vocab = parent_runner.vocab
+            self.reader = parent_runner.reader
+        else:
+            if config.data_storage == 'shelve':
+                data = util.NoteShelveData(config)
+            elif config.data_storage == 'pickle':
+                data = util.NotePickleData(config)
+            self.vocab = util.NoteVocab(config, data)
+            self.reader = util.NoteICD9Reader(config, data, self.vocab)
         self.train_splits = train_splits
         self.val_splits = val_splits
         self.test_splits = test_splits

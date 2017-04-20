@@ -13,9 +13,11 @@ class TFRunner(util.Runner):
     '''Base class for all TensorFlow runners.'''
 
     def __init__(self, config, session, ModelClass=None, args=None, load_embeddings=True,
-                 verbose=True, train_splits=['train'], val_splits=['val'], test_splits=['test']):
+                 verbose=True, train_splits=['train'], val_splits=['val'], test_splits=['test'],
+                 parent_runner=None):
         super(TFRunner, self).__init__(config, train_splits=train_splits, val_splits=val_splits,
-                                       test_splits=test_splits, session=session)
+                                       test_splits=test_splits, session=session,
+                                       parent_runner=parent_runner)
         if ModelClass is not None:
             if args is None:
                 args = [self.config, self.vocab, self.reader.label_space_size()]
