@@ -317,7 +317,7 @@ class GroundedRNNRunner(util.TFRunner):
         self.wps = n_words / (end - start)
         self.accumulate()
 
-    def visualize(self, verbose=True):
+    def visualize(self, verbose=True, color_changes=True):
         if self.config.query:
             split = self.config.query
         else:
@@ -342,6 +342,7 @@ class GroundedRNNRunner(util.TFRunner):
                 for j in xrange(len(batch[2][i])):
                     if batch[2][i, j] and j not in labels:
                         labels[j] = False
+                prev_prob = None
                 for label, predicted in labels.items():
                     label_prob = doc_probs[:, label]  # seq_len
                     if predicted:
@@ -357,18 +358,36 @@ class GroundedRNNRunner(util.TFRunner):
                     print('-----')
                     for k, word in enumerate(batch[0][i, :batch[1][i]]):
                         prob = label_prob[k]
-                        if prob > 0.8:
-                            color = util.c.OKGREEN
-                        elif prob > 0.6:
-                            color = util.c.WARNING
-                        elif prob > 0.5:
-                            color = util.c.ENDC
-                        elif prob <= 0.2:
-                            color = util.c.FAIL
-                        elif prob <= 0.4:
-                            color = util.c.HEADER
-                        elif prob <= 0.5:
-                            color = util.c.OKBLUE
+                        if prev_prob is None:
+                            prev_prob = prob
+                        diff = (prob + prev_prob) * (prob - prev_prob)
+                        prev_prob = prob
+                        if color_changes:
+                            if diff > 0.05:
+                                color = util.c.OKGREEN
+                            elif diff > 0.01:
+                                color = util.c.WARNING
+                            elif diff > 0.0:
+                                color = util.c.ENDC
+                            elif diff <= -0.05:
+                                color = util.c.FAIL
+                            elif diff <= -0.01:
+                                color = util.c.HEADER
+                            elif diff <= -0.0:
+                                color = util.c.OKBLUE
+                        else:
+                            if prob > 0.8:
+                                color = util.c.OKGREEN
+                            elif prob > 0.6:
+                                color = util.c.WARNING
+                            elif prob > 0.5:
+                                color = util.c.ENDC
+                            elif prob <= 0.2:
+                                color = util.c.FAIL
+                            elif prob <= 0.4:
+                                color = util.c.HEADER
+                            elif prob <= 0.5:
+                                color = util.c.OKBLUE
                         print(color + self.vocab.vocab[word] + util.c.ENDC, end=' ')
                     print()
                 input('\n\nPress enter to continue ...\n')
