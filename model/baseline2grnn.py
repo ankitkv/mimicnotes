@@ -66,17 +66,46 @@ class Baseline2GRNNRunner(util.TFRunner):
         self.loss, probs, self.global_step = ret[:3]
         self.probs = np.zeros_like(labels, dtype=np.float32)
         self.probs[:, indices] = probs
+        self.pre_preds = np.zeros_like(labels)
+        self.pre_preds[:, indices] = 1
         self.labels = labels
         end = time.time()
         self.wps = n_words / (end - start)
         self.accumulate()
+
+    def pre_losses(self):
+        if not self.all_pre_preds:
+            return None
+        pre_preds = np.concatenate(self.all_pre_preds)
+        labels = np.concatenate(self.all_labels)
+        micro = util.f1_score(pre_preds, labels, 0.5)
+        macro = util.f1_score(pre_preds, labels, 0.5, average='macro')
+        return micro, macro
+
+    def pre_loss_str(self, losses):
+        if losses is None:
+            return "N/A"
+        micro, macro = losses
+        micro_str = "Precision (micro): %.4f, Recall (micro): %.4f, F-score (micro): %.4f" % micro
+        macro_str = "Precision (macro): %.4f, Recall (macro): %.4f, F-score (macro): %.4f" % macro
+        return ' | '.join([micro_str, macro_str])
+
+    def pre_output(self, step, train=True):
+        p, r, f = util.f1_score(self.pre_preds, self.labels, 0.5)
+        print("GS:%d, S:%d.  Precision: %.4f, Recall: %.4f, F-score: %.4f" % (self.global_step,
+                                                                              step, p, r, f))
 
 
     # WRAPPERS AROUND COMMON RUNNER FUNCTIONS:
 
     def initialize_losses(self):
         super(Baseline2GRNNRunner, self).initialize_losses()
+        self.all_pre_preds = []
         self.base_runner.initialize_losses()
+
+    def accumulate(self):
+        super(Baseline2GRNNRunner, self).accumulate()
+        self.all_pre_preds.append(self.pre_preds)
 
     def save_model(self, save_file):
         super(Baseline2GRNNRunner, self).save_model(save_file)
@@ -92,7 +121,8 @@ class Baseline2GRNNRunner(util.TFRunner):
         self.base_runner.finish_epoch(epoch)
 
     def losses(self):
-        return super(Baseline2GRNNRunner, self).losses(), self.base_runner.losses()
+        return (super(Baseline2GRNNRunner, self).losses(), self.pre_losses(),
+                self.base_runner.losses())
 
     def sanity_check_loss(self, losses):
         return super(Baseline2GRNNRunner, self).sanity_check_loss(losses[0])
@@ -103,12 +133,15 @@ class Baseline2GRNNRunner(util.TFRunner):
     def loss_str(self, all_losses):
         if all_losses is None:
             return "N/A"
-        losses, base_losses = all_losses
+        losses, pre_losses, base_losses = all_losses
         return 'MAIN: ' + super(Baseline2GRNNRunner, self).loss_str(losses) + \
-               ' ||  BASE: ' + self.base_runner.loss_str(base_losses)
+               ' ||  PRE: ' + self.pre_loss_str(pre_losses) + \
+               ' ||  BASE: ' + self.base_runner.loss_str(base_losses, pastable=False)
 
     def output(self, step, train=True):
         print('[Base]', end=' ')
         self.base_runner.output(step, train)
+        print('[Pre]', end=' ')
+        self.pre_output(step, train)
         print('[Main]', end=' ')
         super(Baseline2GRNNRunner, self).output(step, train)

@@ -198,7 +198,7 @@ class Runner(object):
     def save_model(self, save_file):
         pass
 
-    def loss_str(self, losses):
+    def loss_str(self, losses, pastable=True):
         if losses is None:
             return "N/A"
         loss, micro, macro, perclass = losses
@@ -206,15 +206,17 @@ class Runner(object):
         p, r, f, ap, auc, micro_p8 = micro
         micro_str = "Precision (micro): %.4f, Recall (micro): %.4f, F-score (micro): %.4f, " \
                     "AUC(PR) (micro): %.4f, AUC(ROC) (micro): %.4f" % (p, r, f, ap, auc)
-        pastable = ["%.4f" % n for n in (p, r, f, ap, auc)]
+        pastables = ["%.4f" % n for n in (p, r, f, ap, auc)]
         p, r, f, ap, auc, _ = macro
         macro_str = "Precision (macro): %.4f, Recall (macro): %.4f, F-score (macro): %.4f, " \
                     "AUC(PR) (macro): %.4f, AUC(ROC) (macro): %.4f" % (p, r, f, ap, auc)
-        pastable.extend(["%.4f" % n for n in (p, r, f, ap, auc)])
+        pastables.extend(["%.4f" % n for n in (p, r, f, ap, auc)])
         p8_str = "Precision@8 (micro): %.4f" % micro_p8
-        pastable.append("%.4f" % micro_p8)
-        pastable = 'Pastable: ' + '\t'.join(pastable)
-        return ' | '.join([loss_str, micro_str, macro_str, p8_str, pastable])
+        pastables.append("%.4f" % micro_p8)
+        out_list = [loss_str, micro_str, macro_str, p8_str]
+        if pastable:
+            out_list.append('Pastable: ' + '\t'.join(pastables))
+        return ' | '.join(out_list)
 
     def verbose_output(self, step, train=True):
         pass
