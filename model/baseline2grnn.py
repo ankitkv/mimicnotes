@@ -34,9 +34,8 @@ class Baseline2GRNNRunner(util.TFRunner):
         with tf.variable_scope('Base'):
             # FIXME fix loading of saved base file
             self.base_runner = model.BagOfWordsRunner(base_config, session, parent_runner=self)
-        # TODO test emb loading
         if config.emb_file:
-            saver = tf.train.Saver([self.model.embeddings])
+            saver = tf.train.Saver({'embeddings': self.model.embeddings})
             saver.restore(session, config.emb_file)
             if verbose:
                 print("Embeddings loaded from", config.emb_file)
