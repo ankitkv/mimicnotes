@@ -78,7 +78,8 @@ class Baseline2GRNNRunner(util.TFRunner):
 
     def save_model(self, save_file):
         super(Baseline2GRNNRunner, self).save_model(save_file)
-        self.base_runner.save_model(save_file + '.base')
+        if self.config.train_base:
+            self.base_runner.save_model(save_file + '.base')
 
     def start_epoch(self, epoch):
         super(Baseline2GRNNRunner, self).start_epoch(epoch)
