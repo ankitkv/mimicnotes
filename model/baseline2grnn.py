@@ -51,8 +51,6 @@ class Baseline2GRNNRunner(util.TFRunner):
         ops = [self.model.loss, self.model.probs, self.model.global_step]
         if train:
             ops.append(self.model.train_op)
-        probs = -np.log(probs)
-        probs /= np.max(probs)
         counts = probs.sum(0)
         indices = np.argpartition(-counts, self.config.sliced_labels-1)[:self.config.sliced_labels]
         sliced_labels = labels[:, indices]
