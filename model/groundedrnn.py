@@ -69,8 +69,9 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
 class GroundedRNNModel(model.TFModel):
     '''The grounded RNN model.'''
 
-    def __init__(self, config, vocab, label_space_size, total_label_space=None, test=False):
-        super(GroundedRNNModel, self).__init__(config, vocab, label_space_size)
+    def __init__(self, config, vocab, label_space_size, total_label_space=None, test=False,
+                 scope=None):
+        super(GroundedRNNModel, self).__init__(config, vocab, label_space_size, scope=scope)
         if total_label_space is None:
             total_label_space = label_space_size
         self.lengths = tf.placeholder(tf.int32, [config.batch_size], name='lengths')

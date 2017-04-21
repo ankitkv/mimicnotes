@@ -12,6 +12,7 @@ class TFModel(model.Model):
 
     def __init__(self, config, vocab, label_space_size, scope=None):
         super(TFModel, self).__init__(config, vocab, label_space_size)
+        # all saving and loading is done within this scope, ignoring the scope's prefix in the keys
         self.scope = scope
         with tf.variable_scope("Common"):
             self.global_step = tf.get_variable('global_step', shape=[],
@@ -39,8 +40,21 @@ class TFModel(model.Model):
 
     def initialize(self, session, load_file, verbose=True):
         '''Load a model from a saved file or initialize it if no valid load file given'''
-        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
-        self.saver = tf.train.Saver(variables, max_to_keep=None)
+        if self.scope is not None:
+            scope_name = self.scope.name + '/.*'
+        else:
+            scope_name = None
+        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=scope_name)
+        if self.scope is not None:
+            save_dict = {}
+            for var in variables:
+                key = var.op.name
+                while key.startswith(self.scope.name + '/'):
+                    key = key[len(self.scope.name)+1:]
+                save_dict[key] = var
+            self.saver = tf.train.Saver(save_dict, max_to_keep=None)
+        else:
+            self.saver = tf.train.Saver(variables, max_to_keep=None)
         if load_file:
             # try to restore a saved model file
             self.saver.restore(session, load_file)

@@ -20,10 +20,9 @@ class Baseline2GRNNRunner(util.TFRunner):
         config.sliced_grnn = True  # this is a bit hacky..
         if verbose:
             print('Initializing main model')
-        with tf.variable_scope('Main'):
+        with tf.variable_scope('Main') as scope:
             self.model = model.GroundedRNNModel(self.config, self.vocab, config.sliced_labels,
-                                                self.reader.label_space_size())
-            # TODO test model loading with and without base loading
+                                                self.reader.label_space_size(), scope=scope)
             self.model.initialize(self.session, self.config.load_file)
         if verbose:
             print('Initializing base model')
@@ -31,9 +30,9 @@ class Baseline2GRNNRunner(util.TFRunner):
         base_config.load_file = config.base_file
         base_config.sanity_epoch = -1
         base_config.save_every = -1
-        with tf.variable_scope('Base'):
-            # FIXME fix loading of saved base file
-            self.base_runner = model.BagOfWordsRunner(base_config, session, parent_runner=self)
+        with tf.variable_scope('Base') as scope:
+            self.base_runner = model.BagOfWordsRunner(base_config, session, parent_runner=self,
+                                                      scope=scope)
         if config.emb_file:
             saver = tf.train.Saver({'embeddings': self.model.embeddings})
             saver.restore(session, config.emb_file)

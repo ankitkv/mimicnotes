@@ -21,8 +21,8 @@ import util
 class BagOfWordsModel(model.TFModel):
     '''A baseline bag of words model.'''
 
-    def __init__(self, config, vocab, label_space_size, l1_regs=None):
-        super(BagOfWordsModel, self).__init__(config, vocab, label_space_size)
+    def __init__(self, config, vocab, label_space_size, l1_regs=None, scope=None):
+        super(BagOfWordsModel, self).__init__(config, vocab, label_space_size, scope=scope)
         self.l1_regs = l1_regs
         if config.bow_stopwords:
             stop_words = None
@@ -59,7 +59,8 @@ class BagOfWordsModel(model.TFModel):
 class BagOfWordsRunner(util.TFRunner):
     '''Runner for the bag of words model.'''
 
-    def __init__(self, config, session, model_init=True, verbose=True, parent_runner=None):
+    def __init__(self, config, session, model_init=True, verbose=True, parent_runner=None,
+                 scope=None):
         super(BagOfWordsRunner, self).__init__(config, session, parent_runner=parent_runner)
         l1_regs = None
         if config.bow_search:
@@ -73,7 +74,7 @@ class BagOfWordsRunner(util.TFRunner):
                 print('Loaded custom hyperparameters')
         if model_init:  # False when __init__ is called by subclasses like neural BOW
             self.model = BagOfWordsModel(self.config, self.vocab, self.reader.label_space_size(),
-                                         l1_regs)
+                                         l1_regs, scope=scope)
             self.model.initialize(self.session, self.config.load_file)
 
     def start_epoch(self, epoch):
