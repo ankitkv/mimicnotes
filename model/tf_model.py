@@ -10,9 +10,10 @@ import model
 class TFModel(model.Model):
     '''Base class for all TensorFlow models.'''
 
-    def __init__(self, config, vocab, label_space_size, common_scope='Common'):
+    def __init__(self, config, vocab, label_space_size, scope=None):
         super(TFModel, self).__init__(config, vocab, label_space_size)
-        with tf.variable_scope(common_scope):
+        self.scope = scope
+        with tf.variable_scope("Common"):
             self.global_step = tf.get_variable('global_step', shape=[],
                                                initializer=tf.zeros_initializer(dtype=tf.int32),
                                                trainable=False, dtype=tf.int32)
@@ -38,7 +39,8 @@ class TFModel(model.Model):
 
     def initialize(self, session, load_file, verbose=True):
         '''Load a model from a saved file or initialize it if no valid load file given'''
-        self.saver = tf.train.Saver(max_to_keep=None)
+        variables = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=self.scope)
+        self.saver = tf.train.Saver(variables, max_to_keep=None)
         if load_file:
             # try to restore a saved model file
             self.saver.restore(session, load_file)
@@ -48,7 +50,7 @@ class TFModel(model.Model):
             # something nicer once we have learning rate decay
             session.run(tf.assign(self.lr, self.config.learning_rate))
         else:
-            session.run(tf.global_variables_initializer())
+            session.run(tf.variables_initializer(variables))
             if verbose:
                 print("No model file to load, new model initialized.")
 
