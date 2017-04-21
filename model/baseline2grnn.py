@@ -55,15 +55,17 @@ class Baseline2GRNNRunner(util.TFRunner):
         probs /= np.max(probs)
         counts = probs.sum(0)
         indices = np.argpartition(-counts, self.config.sliced_labels-1)[:self.config.sliced_labels]
-        labels = labels[:, indices]
+        sliced_labels = labels[:, indices]
         feed_dict = {self.model.notes: notes, self.model.lengths: lengths,
-                     self.model.slicing_indices: indices, self.model.labels: labels}
+                     self.model.slicing_indices: indices, self.model.labels: sliced_labels}
         if train:
             feed_dict[self.model.keep_prob] = 1.0 - self.config.dropout
         else:
             feed_dict[self.model.keep_prob] = 1.0
         ret = self.session.run(ops, feed_dict=feed_dict)
-        self.loss, self.probs, self.global_step = ret[:3]
+        self.loss, probs, self.global_step = ret[:3]
+        self.probs = np.zeros_like(labels, dtype=np.float32)
+        self.probs[:, indices] = probs
         self.labels = labels
         end = time.time()
         self.wps = n_words / (end - start)
