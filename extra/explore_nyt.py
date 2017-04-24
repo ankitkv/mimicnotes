@@ -46,7 +46,6 @@ if __name__ == '__main__':
         reader = csv.DictReader(f)
         rows = []
         for i, r in enumerate(reader):
-            if i == 100: break
             rows.append(r)
     print('Keys:', rows[0].keys())
     print('Total:', len(rows))
@@ -75,7 +74,13 @@ if __name__ == '__main__':
 
     vocab = nltk.FreqDist()
     words = 0
-    for row in rows:
+    prev_perc = -1
+    print('Processing text...')
+    for i, row in enumerate(rows):
+        perc = int(100 * (i / len(rows)))
+        if perc != prev_perc:
+            print(perc, i)
+            prev_perc = perc
         filename = row['Filename'][len('data/'):].replace('.xml', '.fulltext.txt')
         text_file = data_dir + 'text/data/' + filename
         with open(text_file, 'r') as f:
