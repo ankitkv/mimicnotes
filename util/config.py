@@ -10,7 +10,7 @@ flags = tf.flags
 
 
 # command-line config
-flags.DEFINE_string ("data_path",      "data",                "Data path")
+flags.DEFINE_string ("data_path",      "data/mimic",          "Data path")
 flags.DEFINE_string ("save_file",      "saved/recent.dat",    "Save file")
 flags.DEFINE_string ("best_save_file", "",                    "Save file for best validation "
                                                               "losses (empty for save_file)")
