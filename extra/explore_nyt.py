@@ -5,6 +5,8 @@ from __future__ import print_function
 import collections
 import csv
 import matplotlib.pyplot as plt
+import multiprocessing
+from multiprocessing import Pool
 import nltk
 import numpy as np
 import re
@@ -20,6 +22,8 @@ data_dir = '../data/nyt/'
 fix_re = re.compile(r"[^a-z0-9/?.,-:]+")
 num_re = re.compile(r'[0-9]{2,}')
 dash_re = re.compile(r'-+')
+
+cpus = 8
 
 
 def fix_word(word):
@@ -38,6 +42,26 @@ def tokenize(text):
         words = [word for word in words if word]
         ret.append(words)
     return ret
+
+
+def process_text(rows):
+    vocab = nltk.FreqDist()
+    prev_perc = -1
+    print('Processing text...')
+    for i, row in enumerate(rows):
+        perc = int(100 * (i / len(rows)))
+        if perc != prev_perc:
+            if perc % 10 == 0:
+                print(perc, i)
+            prev_perc = perc
+        filename = row['Filename'][len('data/'):].replace('.xml', '.fulltext.txt')
+        text_file = data_dir + 'text/data/' + filename
+        with open(text_file, 'r') as f:
+            text = tokenize(f.read().decode('ascii', errors='ignore').lower())
+        for sent in text:
+            for word in sent:
+                vocab[word] += 1
+    return vocab
 
 
 if __name__ == '__main__':
@@ -73,24 +97,14 @@ if __name__ == '__main__':
     #plt.show()
 
     vocab = nltk.FreqDist()
-    words = 0
-    prev_perc = -1
     print('Processing text...')
-    for i, row in enumerate(rows):
-        perc = int(100 * (i / len(rows)))
-        if perc != prev_perc:
-            print(perc, i)
-            prev_perc = perc
-        filename = row['Filename'][len('data/'):].replace('.xml', '.fulltext.txt')
-        text_file = data_dir + 'text/data/' + filename
-        with open(text_file, 'r') as f:
-            text = tokenize(f.read().decode('ascii', errors='ignore').lower())
-        for sent in text:
-            for word in sent:
-                vocab[word] += 1
-                words += 1
+    group_size = int(0.5 + (len(rows) / cpus))
+    grouped_rows = [rows[i:i+group_size] for i in range(0, len(rows), group_size)]
+    p = Pool(cpus)
+    for part_vocab in p.map(process_text, grouped_rows):
+        vocab.update(part_vocab)
 
-    print('#words:', words)
+    print('#words:', vocab.N())
     print('Vocab size:', vocab.B())
     i = 0
     cumsum = 0
@@ -99,7 +113,7 @@ if __name__ == '__main__':
     for w, c in vocab.most_common():
         i += 1
         cumsum += c
-        perc = int((cumsum / words) * 100)
+        perc = int((cumsum / vocab.N()) * 100)
         if perc != prev_perc:
             print(perc, i)
             prev_perc = perc
