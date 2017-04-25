@@ -104,7 +104,7 @@ if __name__ == '__main__':
     for part_vocab in p.map(process_text, grouped_rows):
         vocab.update(part_vocab)
 
-    print('#words:', vocab.N())
+    print('Words:', vocab.N())
     print('Vocab size:', vocab.B())
     i = 0
     cumsum = 0
@@ -117,3 +117,96 @@ if __name__ == '__main__':
         if perc != prev_perc:
             print(perc, i)
             prev_perc = perc
+
+
+#Keys: ['Byline', 'Headline', 'Dateline', 'Online Titles', 'Filename', 'Taxonomic Classifiers', 'General Online Descriptors', 'Online Organizations', 'Word Count', 'Body', 'News Desk', 'Online Section', 'Publication Day Of Month', 'Online Headline', 'Descriptors', 'Day Of Week', 'Publication Year', 'Correction Date', 'Alternate URL', 'Kicker', 'Banner', 'Section', 'Online Descriptors', 'Organizations', 'Column Number', 'Feature Page', 'Url', 'Publication Date', 'Online People', 'Article Abstract', 'Credit', 'Types Of Material', 'Page', 'Lead Paragraph', 'Series Name', 'Biographical Categories', 'Correction Text', 'Online Locations', 'Publication Month', 'People', 'Locations', 'Slug', 'Normalized Byline', 'Online Lead Paragraph', 'Titles', 'Column Name', 'Names', 'Guid', 'Author Biography']
+#Total: 402606
+#Labels: 2518
+#Zeros: 2194
+#Minimum: 0
+#Maximum: 84
+#Average: 5.01711350551
+
+#Words: 265076207
+#Vocab size: 836510
+#PercentCoverage Words:
+#6 1
+#11 2
+#15 3
+#18 4
+#20 5
+#22 6
+#24 7
+#26 8
+#27 9
+#28 10
+#29 11
+#30 12
+#31 13
+#32 15
+#33 16
+#34 18
+#35 19
+#36 21
+#37 23
+#38 26
+#39 28
+#40 31
+#41 34
+#42 37
+#43 41
+#44 45
+#45 50
+#46 55
+#47 62
+#48 69
+#49 76
+#50 85
+#51 95
+#52 108
+#53 121
+#54 138
+#55 156
+#56 177
+#57 201
+#58 226
+#59 255
+#60 286
+#61 321
+#62 359
+#63 402
+#64 450
+#65 503
+#66 560
+#67 623
+#68 691
+#69 767
+#70 850
+#71 941
+#72 1041
+#73 1151
+#74 1271
+#75 1404
+#76 1552
+#77 1718
+#78 1903
+#79 2110
+#80 2340
+#81 2598
+#82 2886
+#83 3212
+#84 3585
+#85 4013
+#86 4506
+#87 5081
+#88 5760
+#89 6570
+#90 7543
+#91 8738
+#92 10240
+#93 12158
+#94 14667
+#95 18096
+#96 23059
+#97 30964
+
