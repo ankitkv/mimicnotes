@@ -61,10 +61,16 @@ class NoteShelveData(NoteData):
     def prepare_shelf(self, chunk_size=1024):
         if self.verbose:
             print('Preparing tokenized notes shelve from data...')
-        pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
-        plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
-        with plist_file.open('rb') as f:
-            patients_list = pickle.load(f)
+        if 'mimic' in self.config.data_path:
+            pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
+            plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
+            with plist_file.open('rb') as f:
+                patients_list = pickle.load(f)
+        elif 'nyt' in self.config.data_path:
+            with (Path(self.config.data_path) / 'meta.csv').open('rb') as f:
+                reader = csv.DictReader(f)
+                pairs = [(r['Taxonomic Classifiers'], r['Filename']) for r in reader]
+            patients_list = [str(i) for i in xrange(len(pairs))]
         nshelf = shelve.open(str(self.nshelf_file), 'c', protocol=-1, writeback=True)
         patients_set = set()
         for i in xrange(0, len(patients_list), chunk_size):
@@ -72,10 +78,17 @@ class NoteShelveData(NoteData):
             if self.verbose:
                 print('Chunk', i)
             group_size = int(0.5 + (len(plist) / self.config.threads))
-            lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
-            data = util.mt_map(self.config.threads, util.partial_tokenize_mimic,  # TODO NYT
-                               zip(lists, [(str(pshelf_file),
-                                            self.config.note_type)] * len(lists)))
+            if 'mimic' in self.config.data_path:
+                lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
+                data = util.mt_map(self.config.threads, util.partial_tokenize_mimic,
+                                   zip(lists, [(str(pshelf_file),
+                                                self.config.note_type)] * len(lists)))
+            elif 'nyt' in self.config.data_path:
+                rows = pairs[i:i+chunk_size]
+                lists = [(plist[j:j+group_size], rows[j:j+group_size])
+                         for j in xrange(0, len(plist), group_size)]
+                data = util.mt_map(self.config.threads, util.partial_tokenize_nyt,
+                                   zip(lists, [self.config.data_path] * len(lists)))
             for thread_data in data:
                 for pid, (_, adm_map) in thread_data.items():
                     patients_set.add(pid)
@@ -162,7 +175,7 @@ class NotePickleData(NoteData):
             with (Path(self.config.data_path) / 'meta.csv').open('rb') as f:
                 reader = csv.DictReader(f)
                 pairs = [(r['Taxonomic Classifiers'], r['Filename']) for r in reader]
-            patients_list = range(len(pairs))
+            patients_list = [str(i) for i in xrange(len(pairs))]
         patients_set = set()
         patients_dict = {}
         self.bucket_map = {}
