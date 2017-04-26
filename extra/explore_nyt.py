@@ -9,6 +9,7 @@ import multiprocessing
 from multiprocessing import Pool
 import nltk
 import numpy as np
+from pathlib import Path
 import re
 
 try:
@@ -46,6 +47,7 @@ def tokenize(text):
 
 def process_text(rows):
     vocab = nltk.FreqDist()
+    lens = []
     prev_perc = -1
     print('Processing text...')
     for i, row in enumerate(rows):
@@ -56,12 +58,15 @@ def process_text(rows):
             prev_perc = perc
         filename = row['Filename'][len('data/'):].replace('.xml', '.fulltext.txt')
         text_file = data_dir + 'text/data/' + filename
-        with open(text_file, 'r') as f:
-            text = tokenize(f.read().decode('ascii', errors='ignore').lower())
+        with Path(text_file).open('r') as f:
+            text = tokenize(f.read().encode('ascii', errors='ignore').lower())
+        note_len = 0
         for sent in text:
+            note_len += len(sent)
             for word in sent:
                 vocab[word] += 1
-    return vocab
+        lens.append(min(note_len, 4500))
+    return vocab, lens
 
 
 if __name__ == '__main__':
@@ -97,12 +102,16 @@ if __name__ == '__main__':
     #plt.show()
 
     vocab = nltk.FreqDist()
+    lens = []
     print('Processing text...')
     group_size = int(0.5 + (len(rows) / cpus))
     grouped_rows = [rows[i:i+group_size] for i in range(0, len(rows), group_size)]
     p = Pool(cpus)
-    for part_vocab in p.map(process_text, grouped_rows):
+    for part_vocab, part_lens in p.map(process_text, grouped_rows):
         vocab.update(part_vocab)
+        lens.extend(part_lens)
+    plt.hist(lens, 50, facecolor='green', alpha=0.75)
+    plt.show()
 
     print('Words:', vocab.N())
     print('Vocab size:', vocab.B())
@@ -117,6 +126,9 @@ if __name__ == '__main__':
         if perc != prev_perc:
             print(perc, i)
             prev_perc = perc
+
+
+# max length: 2000 or 1500
 
 
 #Keys: ['Byline', 'Headline', 'Dateline', 'Online Titles', 'Filename', 'Taxonomic Classifiers', 'General Online Descriptors', 'Online Organizations', 'Word Count', 'Body', 'News Desk', 'Online Section', 'Publication Day Of Month', 'Online Headline', 'Descriptors', 'Day Of Week', 'Publication Year', 'Correction Date', 'Alternate URL', 'Kicker', 'Banner', 'Section', 'Online Descriptors', 'Organizations', 'Column Number', 'Feature Page', 'Url', 'Publication Date', 'Online People', 'Article Abstract', 'Credit', 'Types Of Material', 'Page', 'Lead Paragraph', 'Series Name', 'Biographical Categories', 'Correction Text', 'Online Locations', 'Publication Month', 'People', 'Locations', 'Slug', 'Normalized Byline', 'Online Lead Paragraph', 'Titles', 'Column Name', 'Names', 'Guid', 'Author Biography']
