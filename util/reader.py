@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+import csv
 from pathlib import Path
 import random
 import shelve
@@ -57,7 +58,7 @@ class NoteShelveData(NoteData):
         if load_from_pickle:
             self.load_from_pickle()
 
-    def prepare_shelf_mimic(self, chunk_size=1024):
+    def prepare_shelf(self, chunk_size=1024):
         if self.verbose:
             print('Preparing tokenized notes shelve from data...')
         pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
@@ -72,7 +73,7 @@ class NoteShelveData(NoteData):
                 print('Chunk', i)
             group_size = int(0.5 + (len(plist) / self.config.threads))
             lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
-            data = util.mt_map(self.config.threads, util.partial_tokenize,
+            data = util.mt_map(self.config.threads, util.partial_tokenize_mimic,  # TODO NYT
                                zip(lists, [(str(pshelf_file),
                                             self.config.note_type)] * len(lists)))
             for thread_data in data:
@@ -102,10 +103,7 @@ class NoteShelveData(NoteData):
                 self.patients_list = pickle.load(f)
             self.setup_splits()
         except IOError:
-            if 'mimic' in self.config.data_path:
-                self.prepare_shelf_mimic()
-            else:
-                raise NotImplementedError, 'This dataset is not supported.'
+            self.prepare_shelf()
             with pat_list_file.open('wb') as f:
                 pickle.dump(self.patients_list, f, -1)
         if self.verbose:
@@ -152,13 +150,19 @@ class NotePickleData(NoteData):
         if load_from_pickle:
             self.load_from_pickle()
 
-    def prepare_pickles_mimic(self, chunk_size=1024, bucket_size=4096):
+    def prepare_pickles(self, chunk_size=1024, bucket_size=4096):
         if self.verbose:
             print('Preparing tokenized notes pickle from data...')
-        pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
-        plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
-        with plist_file.open('rb') as f:
-            patients_list = pickle.load(f)
+        if 'mimic' in self.config.data_path:
+            pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
+            plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
+            with plist_file.open('rb') as f:
+                patients_list = pickle.load(f)
+        elif 'nyt' in self.config.data_path:
+            with (Path(self.config.data_path) / 'meta.csv').open('rb') as f:
+                reader = csv.DictReader(f)
+                pairs = [(r['Taxonomic Classifiers'], r['Filename']) for r in reader]
+            patients_list = range(len(pairs))
         patients_set = set()
         patients_dict = {}
         self.bucket_map = {}
@@ -174,10 +178,17 @@ class NotePickleData(NoteData):
             if self.verbose:
                 print('Bucket', bucket, ' chunk', count)
             group_size = int(0.5 + (len(plist) / self.config.threads))
-            lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
-            data = util.mt_map(self.config.threads, util.partial_tokenize,
-                               zip(lists, [(str(pshelf_file),
-                                            self.config.note_type)] * len(lists)))
+            if 'mimic' in self.config.data_path:
+                lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
+                data = util.mt_map(self.config.threads, util.partial_tokenize_mimic,
+                                   zip(lists, [(str(pshelf_file),
+                                                self.config.note_type)] * len(lists)))
+            elif 'nyt' in self.config.data_path:
+                rows = pairs[i:i+chunk_size]
+                lists = [(plist[j:j+group_size], rows[j:j+group_size])
+                         for j in xrange(0, len(plist), group_size)]
+                data = util.mt_map(self.config.threads, util.partial_tokenize_nyt,
+                                   zip(lists, [self.config.data_path] * len(lists)))
             for thread_data in data:
                 for pid, (patient, adm_map) in thread_data.items():
                     patients_set.add(pid)
@@ -224,10 +235,7 @@ class NotePickleData(NoteData):
                 self.patients_list = pickle.load(f)
             self.setup_splits()
         except IOError:
-            if 'mimic' in self.config.data_path:
-                self.prepare_pickles_mimic()
-            else:
-                raise NotImplementedError, 'This dataset is not supported.'
+            self.prepare_pickles()
             with bucket_file.open('wb') as f:
                 pickle.dump(self.bucket_map, f, -1)
             with pat_list_file.open('wb') as f:

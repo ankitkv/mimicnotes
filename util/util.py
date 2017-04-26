@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import collections
 from multiprocessing import Pool
+from pathlib import Path
 import re
 import six
 import shelve
@@ -24,28 +25,30 @@ class c:
 
 
 re_anon = re.compile(r'\[\*\*.*?\*\*\]')
-fix_re = re.compile(r"[^a-z0-9/'?.,-:]+")
+fix_re = re.compile(r"[^a-z0-9/?.,-:]+")
 num_re = re.compile(r'[0-9]{2,}')
 dash_re = re.compile(r'-+')
 
 
-def fix_word(word):
+def fix_word(word, fix_anon=True):
     word = word.lower()
     word = fix_re.sub('-', word)
-    word = word.replace('-anon-', '<anon>')
+    if fix_anon:
+        word = word.replace('-anon-', '<anon>')
     word = num_re.sub('#', word)
     word = dash_re.sub('-', word)
     return word.strip('-')
 
 
-def mimic_tokenize(text):
+def mimic_tokenize(text, fix_anon=True):
     '''Takes in a raw string and returns a list of sentences, each sentence being a list of
        cleaned words.'''
     ret = []
     for sent in nltk.sent_tokenize(text):
-        sent = re_anon.sub('-anon-', sent)
+        if fix_anon:
+            sent = re_anon.sub('-anon-', sent)
         words = nltk.word_tokenize(sent)
-        words = [fix_word(word) for word in words]
+        words = [fix_word(word, fix_anon) for word in words]
         words = [word for word in words if word]
         ret.append(words)
     return ret
@@ -83,7 +86,7 @@ class SimpleAdmission(object):
         self.notes = tokenized_notes
 
 
-def partial_tokenize(args):
+def partial_tokenize_mimic(args):
     patients_list, (shlf_file, note_type) = args
     if note_type:
         note_type = note_type.replace('_', ' ')
@@ -125,6 +128,33 @@ def partial_read(args):
     for pid in patients_list:
         ret.extend(nshelf[pid].values())
     nshelf.close()
+    return ret
+
+
+NYTPatient = collections.namedtuple('NYTPatient', ['patient_id', 'gender'])
+NYTAdmission = collections.namedtuple('NYTAdmission', ['admission_id', 'patient_id', 'adm_type',
+                                                       'psc_events', 'pcd_events', 'dgn_events'])
+NYTLabel = collections.namedtuple('NYTLabel', ['code', 'name'])
+
+
+def partial_tokenize_nyt(args):
+    (patients_list, rows), data_path = args
+    ret = {}
+    for pid, row in zip(patients_list, rows):
+        patient = NYTPatient(patient_id=pid, gender='')
+        adm_map = {}
+        dgn_events = [NYTLabel(code=l, name=l) for l in row[0].split('|') if l.startswith('Top')]
+        adm = NYTAdmission(admission_id=pid, patient_id=pid, adm_type='', psc_events=[],
+                           pcd_events=[], dgn_events=dgn_events)
+        filename = row[1][len('data/'):].replace('.xml', '.fulltext.txt')
+        filename = Path(data_path) / ('text/data/' + filename)
+        with filename.open('r') as f:
+            note = f.read().encode('ascii', errors='ignore')
+        note_text = []
+        for sent in mimic_tokenize(note, fix_anon=False):
+            note_text.append(sent)
+        adm_map[adm.admission_id] = SimpleAdmission(adm, [note_text])
+        ret[pid] = (SimplePatient(patient), adm_map)
     return ret
 
 
