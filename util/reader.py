@@ -57,7 +57,7 @@ class NoteShelveData(NoteData):
         if load_from_pickle:
             self.load_from_pickle()
 
-    def prepare_shelf(self, chunk_size=1024):
+    def prepare_shelf_mimic(self, chunk_size=1024):
         if self.verbose:
             print('Preparing tokenized notes shelve from data...')
         pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
@@ -102,7 +102,10 @@ class NoteShelveData(NoteData):
                 self.patients_list = pickle.load(f)
             self.setup_splits()
         except IOError:
-            self.prepare_shelf()
+            if 'mimic' in self.config.data_path:
+                self.prepare_shelf_mimic()
+            else:
+                raise NotImplementedError, 'This dataset is not supported.'
             with pat_list_file.open('wb') as f:
                 pickle.dump(self.patients_list, f, -1)
         if self.verbose:
@@ -149,7 +152,7 @@ class NotePickleData(NoteData):
         if load_from_pickle:
             self.load_from_pickle()
 
-    def prepare_pickles(self, chunk_size=1024, bucket_size=4096):
+    def prepare_pickles_mimic(self, chunk_size=1024, bucket_size=4096):
         if self.verbose:
             print('Preparing tokenized notes pickle from data...')
         pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
@@ -221,7 +224,10 @@ class NotePickleData(NoteData):
                 self.patients_list = pickle.load(f)
             self.setup_splits()
         except IOError:
-            self.prepare_pickles()
+            if 'mimic' in self.config.data_path:
+                self.prepare_pickles_mimic()
+            else:
+                raise NotImplementedError, 'This dataset is not supported.'
             with bucket_file.open('wb') as f:
                 pickle.dump(self.bucket_map, f, -1)
             with pat_list_file.open('wb') as f:
