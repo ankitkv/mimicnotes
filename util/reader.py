@@ -62,7 +62,15 @@ class NoteShelveData(NoteData):
         if self.verbose:
             print('Preparing tokenized notes shelve from data...')
         if 'mimic2' in self.config.data_path:
-            pass  # TODO
+            with (Path(self.config.data_path) / 'data/MIMIC_FILTERED_DSUMS').open('r') as f:
+                note_data = [l.strip() for l in f]
+            with (Path(self.config.data_path) / 'data/MIMIC_ICD9_codes').open('r') as f:
+                labels = [l.strip() for l in f]
+            with (Path(self.config.data_path) / 'data/MIMIC_ICD9_mapping').open('r') as f:
+                icd9s = [l.strip().split('\t', 2) for l in f]
+            assert len(note_data) == len(labels)
+            icd9s = {index: (code, desc) for (code, index, desc) in icd9s}
+            patients_list = [label.split('|', 1)[0] for label in labels]
         elif 'mimic' in self.config.data_path:
             pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
             plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
@@ -81,7 +89,12 @@ class NoteShelveData(NoteData):
                 print('Chunk', i)
             group_size = int(0.5 + (len(plist) / self.config.threads))
             if 'mimic2' in self.config.data_path:
-                pass  # TODO
+                partial_data = note_data[i:i+chunk_size]
+                partial_labels = labels[i:i+chunk_size]
+                lists = [(plist[j:j+group_size], partial_data[j:j+group_size],
+                          partial_labels[j:j+group_size], icd9s)
+                         for j in xrange(0, len(plist), group_size)]
+                data = util.mt_map(self.config.threads, util.partial_tokenize_mimic2, lists)
             elif 'mimic' in self.config.data_path:
                 lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
                 data = util.mt_map(self.config.threads, util.partial_tokenize_mimic,
@@ -96,7 +109,7 @@ class NoteShelveData(NoteData):
             for thread_data in data:
                 for pid, (_, adm_map) in thread_data.items():
                     patients_set.add(pid)
-                    nshelf[pid] = adm_map
+                    nshelf[str(pid)] = adm_map
             nshelf.sync()
         nshelf.close()
         self.patients_list = []
@@ -171,7 +184,15 @@ class NotePickleData(NoteData):
         if self.verbose:
             print('Preparing tokenized notes pickle from data...')
         if 'mimic2' in self.config.data_path:
-            pass  # TODO
+            with (Path(self.config.data_path) / 'data/MIMIC_FILTERED_DSUMS').open('r') as f:
+                note_data = [l.strip() for l in f]
+            with (Path(self.config.data_path) / 'data/MIMIC_ICD9_codes').open('r') as f:
+                labels = [l.strip() for l in f]
+            with (Path(self.config.data_path) / 'data/MIMIC_ICD9_mapping').open('r') as f:
+                icd9s = [l.strip().split('\t', 2) for l in f]
+            assert len(note_data) == len(labels)
+            icd9s = {index: (code, desc) for (code, index, desc) in icd9s}
+            patients_list = [label.split('|', 1)[0] for label in labels]
         elif 'mimic' in self.config.data_path:
             pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
             plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
@@ -198,7 +219,12 @@ class NotePickleData(NoteData):
                 print('Bucket', bucket, ' chunk', count)
             group_size = int(0.5 + (len(plist) / self.config.threads))
             if 'mimic2' in self.config.data_path:
-                pass  # TODO
+                partial_data = note_data[i:i+chunk_size]
+                partial_labels = labels[i:i+chunk_size]
+                lists = [(plist[j:j+group_size], partial_data[j:j+group_size],
+                          partial_labels[j:j+group_size], icd9s)
+                         for j in xrange(0, len(plist), group_size)]
+                data = util.mt_map(self.config.threads, util.partial_tokenize_mimic2, lists)
             elif 'mimic' in self.config.data_path:
                 lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
                 data = util.mt_map(self.config.threads, util.partial_tokenize_mimic,

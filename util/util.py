@@ -126,7 +126,7 @@ def partial_read(args):
     nshelf = shelve.open(nshlf_file, 'r')
     ret = []
     for pid in patients_list:
-        ret.extend(nshelf[pid].values())
+        ret.extend(nshelf[str(pid)].values())
     nshelf.close()
     return ret
 
@@ -151,6 +151,27 @@ def partial_tokenize_nyt(args):
         filename = Path(data_path) / ('text/data/' + filename)
         with filename.open('r') as f:
             note = f.read().encode('ascii', errors='ignore')
+        note_text = []
+        for sent in mimic_tokenize(note, fix_anon=False):
+            note_text.append(sent)
+        adm_map[adm.admission_id] = SimpleAdmission(adm, [note_text])
+        ret[pid] = (SimplePatient(patient), adm_map)
+    return ret
+
+
+def partial_tokenize_mimic2(args):
+    patients_list, data, labels, icd9s = args
+    assert len(patients_list) == len(data)
+    assert len(data) == len(labels)
+    ret = {}
+    for pid, note, label in zip(patients_list, data, labels):
+        note = note.split('|')[6].replace('[NEWLINE]', '').strip()
+        label = label.split('|')[1:]
+        patient = DummyPatient(patient_id=pid, gender='')
+        adm_map = {}
+        dgn_events = [DummyLabel(code=icd9s[l][0], name=icd9s[l][1]) for l in label]
+        adm = DummyAdmission(admission_id=pid, patient_id=pid, adm_type='', psc_events=[],
+                             pcd_events=[], dgn_events=dgn_events)
         note_text = []
         for sent in mimic_tokenize(note, fix_anon=False):
             note_text.append(sent)
