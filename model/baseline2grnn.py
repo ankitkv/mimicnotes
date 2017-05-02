@@ -48,11 +48,19 @@ class Baseline2GRNNRunner(util.TFRunner):
             base_train = False
         self.base_runner.run_session(notes, lengths, labels, train=base_train)
         probs = self.base_runner.probs
+        if train:
+            # try to include the true labels during training
+            probs = np.maximum(probs, labels)
         ops = [self.model.loss, self.model.probs, self.model.global_step]
         if train:
             ops.append(self.model.train_op)
-        counts = probs.sum(0)
-        indices = np.argpartition(-counts, self.config.sliced_labels-1)[:self.config.sliced_labels]
+        counts = probs.max(0)
+        meta_indices = np.arange(counts.shape[0])
+        np.random.shuffle(meta_indices)  # to introduce stochasticity in np.argpartition
+        tmp_counts = counts[meta_indices]
+        indices = np.argpartition(-tmp_counts,
+                                  self.config.sliced_labels-1)[:self.config.sliced_labels]
+        indices = meta_indices[indices]
         sliced_labels = labels[:, indices]
         feed_dict = {self.model.notes: notes, self.model.lengths: lengths,
                      self.model.slicing_indices: indices, self.model.labels: sliced_labels}
