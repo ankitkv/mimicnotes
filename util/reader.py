@@ -61,7 +61,9 @@ class NoteShelveData(NoteData):
     def prepare_shelf(self, chunk_size=1024):
         if self.verbose:
             print('Preparing tokenized notes shelve from data...')
-        if 'mimic' in self.config.data_path:
+        if 'mimic2' in self.config.data_path:
+            pass  # TODO
+        elif 'mimic' in self.config.data_path:
             pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
             plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
             with plist_file.open('rb') as f:
@@ -78,7 +80,9 @@ class NoteShelveData(NoteData):
             if self.verbose:
                 print('Chunk', i)
             group_size = int(0.5 + (len(plist) / self.config.threads))
-            if 'mimic' in self.config.data_path:
+            if 'mimic2' in self.config.data_path:
+                pass  # TODO
+            elif 'mimic' in self.config.data_path:
                 lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
                 data = util.mt_map(self.config.threads, util.partial_tokenize_mimic,
                                    zip(lists, [(str(pshelf_file),
@@ -166,7 +170,9 @@ class NotePickleData(NoteData):
     def prepare_pickles(self, chunk_size=1024, bucket_size=4096):
         if self.verbose:
             print('Preparing tokenized notes pickle from data...')
-        if 'mimic' in self.config.data_path:
+        if 'mimic2' in self.config.data_path:
+            pass  # TODO
+        elif 'mimic' in self.config.data_path:
             pshelf_file = Path(self.config.data_path) / 'processed/patients.shlf'
             plist_file = Path(self.config.data_path) / 'processed/patients_list.pk'
             with plist_file.open('rb') as f:
@@ -191,7 +197,9 @@ class NotePickleData(NoteData):
             if self.verbose:
                 print('Bucket', bucket, ' chunk', count)
             group_size = int(0.5 + (len(plist) / self.config.threads))
-            if 'mimic' in self.config.data_path:
+            if 'mimic2' in self.config.data_path:
+                pass  # TODO
+            elif 'mimic' in self.config.data_path:
                 lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
                 data = util.mt_map(self.config.threads, util.partial_tokenize_mimic,
                                    zip(lists, [(str(pshelf_file),

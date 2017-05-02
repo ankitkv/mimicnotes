@@ -131,21 +131,22 @@ def partial_read(args):
     return ret
 
 
-NYTPatient = collections.namedtuple('NYTPatient', ['patient_id', 'gender'])
-NYTAdmission = collections.namedtuple('NYTAdmission', ['admission_id', 'patient_id', 'adm_type',
-                                                       'psc_events', 'pcd_events', 'dgn_events'])
-NYTLabel = collections.namedtuple('NYTLabel', ['code', 'name'])
+DummyPatient = collections.namedtuple('DummyPatient', ['patient_id', 'gender'])
+DummyAdmission = collections.namedtuple('DummyAdmission', ['admission_id', 'patient_id', 'adm_type',
+                                                           'psc_events', 'pcd_events',
+                                                           'dgn_events'])
+DummyLabel = collections.namedtuple('DummyLabel', ['code', 'name'])
 
 
 def partial_tokenize_nyt(args):
     (patients_list, rows), data_path = args
     ret = {}
     for pid, row in zip(patients_list, rows):
-        patient = NYTPatient(patient_id=pid, gender='')
+        patient = DummyPatient(patient_id=pid, gender='')
         adm_map = {}
-        dgn_events = [NYTLabel(code=l, name=l) for l in row[0].split('|') if l.startswith('Top')]
-        adm = NYTAdmission(admission_id=pid, patient_id=pid, adm_type='', psc_events=[],
-                           pcd_events=[], dgn_events=dgn_events)
+        dgn_events = [DummyLabel(code=l, name=l) for l in row[0].split('|') if l.startswith('Top')]
+        adm = DummyAdmission(admission_id=pid, patient_id=pid, adm_type='', psc_events=[],
+                             pcd_events=[], dgn_events=dgn_events)
         filename = row[1][len('data/'):].replace('.xml', '.fulltext.txt')
         filename = Path(data_path) / ('text/data/' + filename)
         with filename.open('r') as f:
