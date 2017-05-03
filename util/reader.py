@@ -490,8 +490,8 @@ class NoteReader(object):
                 note_text = sum(note, [])
                 vocab_note = [self.vocab.sos_index] + self.vocab.words2idxs(note_text) + \
                              [self.vocab.eos_index]
-                if self.max_note_len > 0:
-                    vocab_note = vocab_note[:int(self.max_note_len)]
+                if self.current_max_len > 0:
+                    vocab_note = vocab_note[:self.current_max_len]
                 yield (vocab_note, label_info)
 
     def buffered_read_sorted_notes(self, splits, batches=32):
@@ -543,13 +543,15 @@ class NoteReader(object):
             lengths[i] = len(b[0])
         return (ret_batch, lengths, self.label_pack([b[1] for b in batch]))
 
-    def get(self, splits, force_curriculum=None, verbose=True):
+    def get(self, splits, update_curriculum=None, curriculum=None, verbose=True):
         '''Read batches from data'''
         if verbose:
             print('Getting data from', '+'.join(splits), 'split')
-        if force_curriculum is None:
-            force_curriculum = 'train' in splits
-        if self.config.curriculum and force_curriculum:
+        if update_curriculum is None:
+            update_curriculum = 'train' in splits
+        if curriculum is None:
+            curriculum = self.config.curriculum and 'train' in splits
+        if self.config.curriculum and update_curriculum:
             old = int(self.max_note_len)
             self.max_note_len += self.max_note_len * self.config.len_multiply
             if self.max_note_len > self.config.max_note_len:
@@ -558,8 +560,13 @@ class NoteReader(object):
             new = int(self.max_note_len)
             if verbose and old != new:
                 print('(reader) Increasing max note len to', new)
+        if curriculum:
+            self.current_max_len = int(self.max_note_len)
+        else:
+            self.current_max_len = self.config.max_note_len
         for batch in self.buffered_read(splits):
             yield batch
+        self.current_max_len = None
 
 
 class NoteICD9Reader(NoteReader):

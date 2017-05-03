@@ -326,7 +326,7 @@ class GroundedRNNRunner(util.TFRunner):
             model = self.test_model
         else:
             model = self.model
-        for batch in self.reader.get([split], force_curriculum=False):
+        for batch in self.reader.get([split], curriculum=False):
             ops = [model.probs, model.step_probs]
             probs, step_probs = self.session.run(ops, feed_dict={model.notes: batch[0],
                                                                  model.lengths: batch[1],

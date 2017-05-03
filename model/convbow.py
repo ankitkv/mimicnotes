@@ -50,7 +50,7 @@ class ConvolutionalBagOfWordsRunner(neuralbow.NeuralBagOfWordsRunner):
             split = self.config.query
         else:
             split = 'test'
-        for batch in self.reader.get([split], force_curriculum=False):
+        for batch in self.reader.get([split], curriculum=False):
             ops = [self.model.dynamic_embs, self.model.probs]
             ops.extend(self.visualize_extra_ops())
             ret = self.session.run(ops, feed_dict={self.model.notes: batch[0],
