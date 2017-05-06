@@ -103,14 +103,23 @@ class GroundedRNNModel(model.TFModel):
                 rev_embed = tf.nn.embedding_lookup(self.embeddings, rev_notes)
 
         inputs = embed
-        if config.bidirectional:
+        if config.multilayer:
             with tf.variable_scope('gru_rev', initializer=tf.contrib.layers.xavier_initializer()):
                 rev_cell = tf.contrib.rnn.GRUCell(config.hidden_size)
-                # backward recurrence
-                rev_out, _ = tf.nn.dynamic_rnn(rev_cell, rev_embed, sequence_length=self.lengths,
+                if config.bidirectional:
+                    embed_ = rev_embed
+                else:
+                    embed_ = embed
+                rev_out, _ = tf.nn.dynamic_rnn(rev_cell, embed_, sequence_length=self.lengths,
                                                swap_memory=True, dtype=tf.float32)
-                rev_out = tf.reverse_sequence(rev_out, self.lengths, seq_axis=1, batch_axis=0)
-            inputs = tf.concat([inputs, rev_out], 2)
+                if config.bidirectional:
+                    rev_out = tf.reverse_sequence(rev_out, self.lengths, seq_axis=1, batch_axis=0)
+            if config.reconcat_input:
+                inputs = tf.concat([inputs, rev_out], 2)
+            else:
+                inputs = rev_out
+        else:
+            assert not config.bidirectional
 
         with tf.variable_scope('gru', initializer=tf.contrib.layers.xavier_initializer()):
             if config.diagonal_cell:
