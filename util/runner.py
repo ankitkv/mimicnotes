@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from pathlib import Path
 try:
     import cPickle as pickle
 except:
@@ -34,6 +35,10 @@ class Runner(object):
         self.val_splits = val_splits
         self.test_splits = test_splits
         self.best_score = config.best_score
+        if config.save_file and Path(config.save_file).is_file():
+            raise ValueError('save_file already exists.')
+        if config.best_save_file and Path(config.best_save_file).is_file():
+            raise ValueError('best_save_file already exists.')
 
     def run(self, verbose=True):
         if self.config.visualize:
