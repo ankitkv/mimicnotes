@@ -174,13 +174,18 @@ def parse_xml(filename, csvwriter, textdir = ''):
             if s == '':
                 s = EMPTY_VALUE
         if f[0].lower() == 'body':
-            export_text(filename, textdir, s)
+            body_text = s
+            s = ''
         if f[0].lower() == 'byline':
             s = reform_byline(s)
         if f[0].lower() == 'people':
             s = reform_people(s)
         row.append(s)
-    return row
+    if any(c == 'Top/News/U.S.' for c in row[-5].split('|')) and body_text.strip() and len(row[14].split('|')) >= 3:
+        export_text(filename, textdir, body_text)
+        return row
+    else:
+        return None
     
 def main(options, args):
     """ Main Entry Point
@@ -209,8 +214,9 @@ def main(options, args):
       for filename in fnmatch.filter(filenames, '*.xml'):
           fname = os.path.join(root, filename)
           row = parse_xml(fname, csvwriter, options.outdir)
-          row.append(fname)
-          csvwriter.writerow(row)
+          if row:
+              row.append(fname)
+              csvwriter.writerow(row)
     csvfile.close()
     return 0
     
