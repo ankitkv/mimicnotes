@@ -79,7 +79,7 @@ class NoteShelveData(NoteData):
         elif 'nyt' in self.config.data_path:
             with (Path(self.config.data_path) / 'meta.csv').open('rb') as f:
                 reader = csv.DictReader(f)
-                pairs = [(r['Descriptors'], r['Filename']) for r in reader]
+                pairs = [(r['Descriptors'].lower(), r['Filename']) for r in reader]
             patients_list = [str(i) for i in xrange(len(pairs))]
         nshelf = shelve.open(str(self.nshelf_file), 'c', protocol=-1, writeback=True)
         patients_set = set()
@@ -201,7 +201,7 @@ class NotePickleData(NoteData):
         elif 'nyt' in self.config.data_path:
             with (Path(self.config.data_path) / 'meta.csv').open('rb') as f:
                 reader = csv.DictReader(f)
-                pairs = [(r['Descriptors'], r['Filename']) for r in reader]
+                pairs = [(r['Descriptors'].lower(), r['Filename']) for r in reader]
             patients_list = [str(i) for i in xrange(len(pairs))]
         patients_set = set()
         patients_dict = {}

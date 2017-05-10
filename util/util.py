@@ -144,7 +144,7 @@ def partial_tokenize_nyt(args):
     for pid, row in zip(patients_list, rows):
         patient = DummyPatient(patient_id=pid, gender='')
         adm_map = {}
-        dgn_events = [DummyLabel(code=l, name=l) for l in row[0].split('|') if l.startswith('Top')]
+        dgn_events = [DummyLabel(code=l, name=l) for l in row[0].split('|')]
         adm = DummyAdmission(admission_id=pid, patient_id=pid, adm_type='', psc_events=[],
                              pcd_events=[], dgn_events=dgn_events)
         filename = row[1][len('data/'):].replace('.xml', '.fulltext.txt')
