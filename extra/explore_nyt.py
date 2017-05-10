@@ -70,7 +70,7 @@ def process_text(rows):
 
 
 if __name__ == '__main__':
-    labels = set()
+    labels = nltk.FreqDist()
     with open(data_dir + 'meta.csv') as f:
         reader = csv.DictReader(f)
         rows = []
@@ -89,6 +89,7 @@ if __name__ == '__main__':
         all_lens.append(len(labs))
         labels.update(labs)
     print('Labels:', len(labels))
+    print('Hapaxes:', len(labels.hapaxes()))
     print('Zeros:', zeros)
     print('Minimum:', min_labels)
     print('Maximum:', max_labels)
@@ -126,3 +127,89 @@ if __name__ == '__main__':
         if perc != prev_perc:
             print(perc, i)
             prev_perc = perc
+
+
+#Max note len 2000 or 2500
+
+#Words: 80778822
+#Vocab size: 252942
+#PercentCoverage Words:
+#5 1
+#11 2
+#15 3
+#17 4
+#20 5
+#22 6
+#24 7
+#26 8
+#27 9
+#28 10
+#29 11
+#30 12
+#31 13
+#32 14
+#33 16
+#34 17
+#35 19
+#36 21
+#37 23
+#38 25
+#39 27
+#40 30
+#41 32
+#42 35
+#43 38
+#44 42
+#45 47
+#46 52
+#47 58
+#48 65
+#49 72
+#50 79
+#51 88
+#52 97
+#53 107
+#54 118
+#55 131
+#56 146
+#57 163
+#58 180
+#59 200
+#60 222
+#61 246
+#62 273
+#63 302
+#64 335
+#65 370
+#66 409
+#67 452
+#68 498
+#69 550
+#70 606
+#71 667
+#72 733
+#73 805
+#74 885
+#75 973
+#76 1071
+#77 1177
+#78 1295
+#79 1424
+#80 1568
+#81 1729
+#82 1908
+#83 2105
+#84 2328
+#85 2583
+#86 2873
+#87 3207
+#88 3595
+#89 4048
+#90 4577
+#91 5216
+#92 6005
+#93 7014
+#94 8326
+#95 10105
+#96 12639
+#97 16553
