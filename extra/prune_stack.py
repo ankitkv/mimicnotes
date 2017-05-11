@@ -37,6 +37,15 @@ def process_text(rows):
     return ret
 
 
+def clean(s):
+    '''Crazy hack to normalize data'''
+    news = []
+    for c in s:
+        if ord(c) < 128:
+            news.append(c)
+    return ''.join(news)
+
+
 if __name__ == '__main__':
     print('Reading questions ...')
     with (Path(data_dir) / 'Questions.csv').open('rb') as f:
@@ -55,4 +64,5 @@ if __name__ == '__main__':
     print('Writing ...')
     with (Path(out_dir) / 'PrunedQuestions.csv').open('wb') as f:
         writer = csv.writer(f)
-        writer.writerows([title] + rows)
+        for row in [title] + rows:
+            writer.writerow([clean(s) for s in row])
