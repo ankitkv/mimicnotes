@@ -25,7 +25,7 @@ class c:
 
 
 re_anon = re.compile(r'\[\*\*.*?\*\*\]')
-fix_re = re.compile(r"[^a-z0-9/?.,-:]+")
+fix_re = re.compile(r"[^a-z0-9/?.,-:+#]+")
 num_re = re.compile(r'[0-9]{2,}')
 dash_re = re.compile(r'-+')
 
@@ -174,6 +174,28 @@ def partial_tokenize_mimic2(args):
                              pcd_events=[], dgn_events=dgn_events)
         note_text = []
         for sent in mimic_tokenize(note, fix_anon=False):
+            note_text.append(sent)
+        adm_map[adm.admission_id] = SimpleAdmission(adm, [note_text])
+        ret[pid] = (SimplePatient(patient), adm_map)
+    return ret
+
+
+def partial_tokenize_stack(args):
+    (patients_list, rows), tagset = args
+    ret = {}
+    for pid, row in zip(patients_list, rows):
+        assert pid == row[0]
+        title = row[-2]
+        body = row[-1]
+        tags = tagset[int(pid)]
+        text = title + ' : ' + body
+        patient = DummyPatient(patient_id=pid, gender='')
+        adm_map = {}
+        dgn_events = [DummyLabel(code=t.lower(), name=t.lower()) for t in tags]
+        adm = DummyAdmission(admission_id=pid, patient_id=pid, adm_type='', psc_events=[],
+                             pcd_events=[], dgn_events=dgn_events)
+        note_text = []
+        for sent in mimic_tokenize(text, fix_anon=False):
             note_text.append(sent)
         adm_map[adm.admission_id] = SimpleAdmission(adm, [note_text])
         ret[pid] = (SimplePatient(patient), adm_map)

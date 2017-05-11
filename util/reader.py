@@ -81,13 +81,25 @@ class NoteShelveData(NoteData):
                 reader = csv.DictReader(f)
                 pairs = [(r['Descriptors'].lower(), r['Filename']) for r in reader]
             patients_list = [str(i) for i in xrange(len(pairs))]
+        elif 'stack' in self.config.data_path:
+            tagset = collections.defaultdict(set)
+            with (Path(self.config.data_path) / 'data/Tags.csv').open('rb') as f:
+                reader = csv.reader(f)
+                reader.next()  # Id,Tag
+                for row in reader:
+                    tagset[int(row[0])].add(row[1])
+            with (Path(self.config.data_path) / 'PrunedQuestions.csv').open('rb') as f:
+                reader = csv.reader(f)
+                reader.next()  # Id,OwnerUserId,CreationDate,ClosedDate,Score,Title,Body
+                rows = [r for r in reader]
+            patients_list = [r[0] for r in rows]
         nshelf = shelve.open(str(self.nshelf_file), 'c', protocol=-1, writeback=True)
         patients_set = set()
         for i in xrange(0, len(patients_list), chunk_size):
             plist = patients_list[i:i+chunk_size]
             if self.verbose:
                 print('Chunk', i)
-            group_size = int(0.5 + (len(plist) / self.config.threads))
+            group_size = int(0.999 + (len(plist) / self.config.threads))
             if 'mimic2' in self.config.data_path:
                 partial_data = note_data[i:i+chunk_size]
                 partial_labels = labels[i:i+chunk_size]
@@ -106,6 +118,12 @@ class NoteShelveData(NoteData):
                          for j in xrange(0, len(plist), group_size)]
                 data = util.mt_map(self.config.threads, util.partial_tokenize_nyt,
                                    zip(lists, [self.config.data_path] * len(lists)))
+            elif 'stack' in self.config.data_path:
+                cur_rows = rows[i:i+chunk_size]
+                lists = [(plist[j:j+group_size], cur_rows[j:j+group_size])
+                         for j in xrange(0, len(plist), group_size)]
+                data = util.mt_map(self.config.threads, util.partial_tokenize_stack,
+                                   zip(lists, [tagset] * len(lists)))
             for thread_data in data:
                 for pid, (_, adm_map) in thread_data.items():
                     patients_set.add(pid)
@@ -203,6 +221,18 @@ class NotePickleData(NoteData):
                 reader = csv.DictReader(f)
                 pairs = [(r['Descriptors'].lower(), r['Filename']) for r in reader]
             patients_list = [str(i) for i in xrange(len(pairs))]
+        elif 'stack' in self.config.data_path:
+            tagset = collections.defaultdict(set)
+            with (Path(self.config.data_path) / 'data/Tags.csv').open('rb') as f:
+                reader = csv.reader(f)
+                reader.next()  # Id,Tag
+                for row in reader:
+                    tagset[int(row[0])].add(row[1])
+            with (Path(self.config.data_path) / 'PrunedQuestions.csv').open('rb') as f:
+                reader = csv.reader(f)
+                reader.next()  # Id,OwnerUserId,CreationDate,ClosedDate,Score,Title,Body
+                rows = [r for r in reader]
+            patients_list = [r[0] for r in rows]
         patients_set = set()
         patients_dict = {}
         self.bucket_map = {}
@@ -217,7 +247,7 @@ class NotePickleData(NoteData):
             plist = patients_list[i:i+chunk_size]
             if self.verbose:
                 print('Bucket', bucket, ' chunk', count)
-            group_size = int(0.5 + (len(plist) / self.config.threads))
+            group_size = int(0.999 + (len(plist) / self.config.threads))
             if 'mimic2' in self.config.data_path:
                 partial_data = note_data[i:i+chunk_size]
                 partial_labels = labels[i:i+chunk_size]
@@ -236,6 +266,12 @@ class NotePickleData(NoteData):
                          for j in xrange(0, len(plist), group_size)]
                 data = util.mt_map(self.config.threads, util.partial_tokenize_nyt,
                                    zip(lists, [self.config.data_path] * len(lists)))
+            elif 'stack' in self.config.data_path:
+                cur_rows = rows[i:i+chunk_size]
+                lists = [(plist[j:j+group_size], cur_rows[j:j+group_size])
+                         for j in xrange(0, len(plist), group_size)]
+                data = util.mt_map(self.config.threads, util.partial_tokenize_stack,
+                                   zip(lists, [tagset] * len(lists)))
             for thread_data in data:
                 for pid, (patient, adm_map) in thread_data.items():
                     patients_set.add(pid)
