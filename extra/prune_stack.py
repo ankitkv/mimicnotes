@@ -32,7 +32,7 @@ def process_text(rows):
         if i % 5000 == 0:
             print(i, i*100 / len(rows))
         length = len(text.split())
-        if length < 100:  # skip questions shorter than 100 words
+        if length < 200:  # skip questions shorter than 200 words
             continue
         row['Body'] = text
         ret.append(row)
