@@ -104,7 +104,7 @@ class Runner(object):
         self.initialize_losses()
         global_iter = self.run_epoch(epoch, global_iter, self.test_splits, train=False,
                                      verbose=verbose)
-        loss = self.losses()
+        loss = self.losses(perclass=True)
         if verbose:
             print('Test losses: ', self.loss_str(loss))
         self.plot(None, loss, False)
@@ -165,7 +165,7 @@ class Runner(object):
         self.all_probs.append(self.probs)
         self.all_labels.append(self.labels)
 
-    def losses(self, max_samples_in_chunk=50000):
+    def losses(self, perclass=False, max_samples_in_chunk=50000):
         '''Return the accumulated losses'''
         if not self.all_losses:
             return None
@@ -200,14 +200,17 @@ class Runner(object):
             p8 = util.precision_at_k(probs, labels, 8, average='macro')
             macro = [p, r, f, ap, auc, p8]
             # non-avereged stats for plotting
-            p, r, f = util.f1_score(probs, labels, 0.5, average=None)
-            ap = util.auc_pr(probs, labels, average=None)
-            try:
-                auc = util.auc_roc(probs, labels, average=None)
-            except ValueError:
-                auc = float('nan')
-            p8 = util.precision_at_k(probs, labels, 8, average=None)
-            perclass = [p, r, f, ap, auc, p8]
+            if perclass:
+                p, r, f = util.f1_score(probs, labels, 0.5, average=None)
+                ap = util.auc_pr(probs, labels, average=None)
+                try:
+                    auc = util.auc_roc(probs, labels, average=None)
+                except ValueError:
+                    auc = float('nan')
+                p8 = util.precision_at_k(probs, labels, 8, average=None)
+                perclass = [p, r, f, ap, auc, p8]
+            else:
+                perclass = float('nan')
             ret_micro.append(micro)
             ret_macro.append(macro)
             ret_perclass.append(perclass)

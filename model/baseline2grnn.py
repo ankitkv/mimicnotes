@@ -126,8 +126,8 @@ class Baseline2GRNNRunner(util.TFRunner):
         super(Baseline2GRNNRunner, self).finish_epoch(epoch)
         self.base_runner.finish_epoch(epoch)
 
-    def losses(self):
-        return (super(Baseline2GRNNRunner, self).losses(), self.pre_losses(),
+    def losses(self, perclass=False):
+        return (super(Baseline2GRNNRunner, self).losses(perclass=perclass), self.pre_losses(),
                 self.base_runner.losses())
 
     def sanity_check_loss(self, losses):
