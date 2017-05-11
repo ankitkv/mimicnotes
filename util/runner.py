@@ -68,7 +68,7 @@ class Runner(object):
             self.start_epoch(epoch)
             self.initialize_losses()
             global_iter = self.run_epoch(epoch, global_iter, self.train_splits, verbose=verbose)
-            loss = self.losses()
+            loss = self.losses(train=True)
             if verbose:
                 print('Epoch %d: Train losses: ' % epoch, self.loss_str(loss))
             self.plot(epoch, loss, True)
@@ -165,10 +165,14 @@ class Runner(object):
         self.all_probs.append(self.probs)
         self.all_labels.append(self.labels)
 
-    def losses(self, perclass=False, max_samples_in_chunk=50000):
+    def losses(self, perclass=False, train=False, max_samples_in_chunk=(30000, 50000)):
         '''Return the accumulated losses'''
         if not self.all_losses:
             return None
+        if train:
+            max_samples_in_chunk = max_samples_in_chunk[0]
+        else:
+            max_samples_in_chunk = max_samples_in_chunk[1]
         max_batches_in_chunk = max_samples_in_chunk / self.config.batch_size
         loss = np.mean(self.all_losses)
         splits = int(0.999 + (len(self.all_probs) / max_batches_in_chunk))
@@ -214,6 +218,8 @@ class Runner(object):
             ret_micro.append(micro)
             ret_macro.append(macro)
             ret_perclass.append(perclass)
+            if train:
+                break
         return (loss, np.mean(ret_micro, 0), np.mean(ret_macro, 0), np.mean(ret_perclass, 0))
 
     def save_model(self, save_file):
