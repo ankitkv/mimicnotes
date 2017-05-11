@@ -169,7 +169,7 @@ class NoteShelveData(NoteData):
                 else:
                     plist.append(pid)
             if plist:
-                group_size = int(0.5 + (len(plist) / self.config.threads))
+                group_size = int(0.999 + (len(plist) / self.config.threads))
                 lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
                 data = util.mt_map(self.config.threads, util.partial_read,
                                    zip(lists, [str(self.nshelf_file)] * len(lists)))
