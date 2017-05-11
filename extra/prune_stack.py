@@ -75,7 +75,7 @@ if __name__ == '__main__':
     out_shelf = shelve.open(str(Path(out_dir) / 'questions.shelve'), 'c', protocol=-1,
                             writeback=True)
     for row in rows:
-        row['Tags'] = list(tagset[row['Id']])
+        row['Tags'] = list(tagset[int(row['Id'])])
         for k in ['Title', 'Body']:
             row[k] = clean(row[k])
         out_shelf[row['Id']] = row
