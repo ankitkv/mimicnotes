@@ -14,7 +14,11 @@ def main(_):
     elif config.data_storage == 'pickle':
         data = util.NotePickleData(config)
     vocab = util.NoteVocab(config, data)
-    util.NoteICD9Reader(config, data, vocab)
+    reader = util.NoteICD9Reader(config, data, vocab)
+#    for batch in reader.get(['train']):
+#        for w in batch[0][0]:
+#            print(vocab.vocab[w], end=' ')
+#        print()
     print('All done!')
 
 
