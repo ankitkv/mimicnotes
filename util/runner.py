@@ -7,6 +7,7 @@ try:
     import cPickle as pickle
 except:
     import pickle
+from six.moves import xrange
 
 import numpy as np
 
@@ -164,41 +165,53 @@ class Runner(object):
         self.all_probs.append(self.probs)
         self.all_labels.append(self.labels)
 
-    def losses(self):
+    def losses(self, max_samples_in_chunk=50000):
         '''Return the accumulated losses'''
         if not self.all_losses:
             return None
+        max_batches_in_chunk = max_samples_in_chunk / self.config.batch_size
         loss = np.mean(self.all_losses)
-        probs = np.concatenate(self.all_probs)
-        labels = np.concatenate(self.all_labels)
-        # micro-averaged stats
-        p, r, f = util.f1_score(probs, labels, 0.5)
-        ap = util.auc_pr(probs, labels)
-        try:
-            auc = util.auc_roc(probs, labels)
-        except ValueError:
-            auc = float('nan')
-        p8 = util.precision_at_k(probs, labels, 8)
-        micro = [p, r, f, ap, auc, p8]
-        # macro-averaged stats
-        p, r, f = util.f1_score(probs, labels, 0.5, average='macro')
-        ap = util.auc_pr(probs, labels, average='macro')
-        try:
-            auc = util.auc_roc(probs, labels, average='macro')
-        except ValueError:
-            auc = float('nan')
-        p8 = util.precision_at_k(probs, labels, 8, average='macro')
-        macro = [p, r, f, ap, auc, p8]
-        # non-avereged stats for plotting
-        p, r, f = util.f1_score(probs, labels, 0.5, average=None)
-        ap = util.auc_pr(probs, labels, average=None)
-        try:
-            auc = util.auc_roc(probs, labels, average=None)
-        except ValueError:
-            auc = float('nan')
-        p8 = util.precision_at_k(probs, labels, 8, average=None)
-        perclass = [p, r, f, ap, auc, p8]
-        return loss, micro, macro, perclass
+        splits = int(0.999 + (len(self.all_probs) / max_batches_in_chunk))
+        chunk_size = int(0.999 + (len(self.all_probs) / splits))
+        ret_micro = []
+        ret_macro = []
+        ret_perclass = []
+        for i in xrange(0, len(self.all_probs), chunk_size):
+            all_probs = self.all_probs[i:i+chunk_size]
+            all_labels = self.all_labels[i:i+chunk_size]
+            probs = np.concatenate(all_probs)
+            labels = np.concatenate(all_labels)
+            # micro-averaged stats
+            p, r, f = util.f1_score(probs, labels, 0.5)
+            ap = util.auc_pr(probs, labels)
+            try:
+                auc = util.auc_roc(probs, labels)
+            except ValueError:
+                auc = float('nan')
+            p8 = util.precision_at_k(probs, labels, 8)
+            micro = [p, r, f, ap, auc, p8]
+            # macro-averaged stats
+            p, r, f = util.f1_score(probs, labels, 0.5, average='macro')
+            ap = util.auc_pr(probs, labels, average='macro')
+            try:
+                auc = util.auc_roc(probs, labels, average='macro')
+            except ValueError:
+                auc = float('nan')
+            p8 = util.precision_at_k(probs, labels, 8, average='macro')
+            macro = [p, r, f, ap, auc, p8]
+            # non-avereged stats for plotting
+            p, r, f = util.f1_score(probs, labels, 0.5, average=None)
+            ap = util.auc_pr(probs, labels, average=None)
+            try:
+                auc = util.auc_roc(probs, labels, average=None)
+            except ValueError:
+                auc = float('nan')
+            p8 = util.precision_at_k(probs, labels, 8, average=None)
+            perclass = [p, r, f, ap, auc, p8]
+            ret_micro.append(micro)
+            ret_macro.append(macro)
+            ret_perclass.append(perclass)
+        return (loss, np.mean(ret_micro, 0), np.mean(ret_macro, 0), np.mean(ret_perclass, 0))
 
     def save_model(self, save_file):
         pass
