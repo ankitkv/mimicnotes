@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import numpy as np
 import tensorflow as tf
 
 import model
@@ -94,7 +95,7 @@ class DynamicMemoryCell(tf.contrib.rnn.RNNCell):
 class RecurrentNetworkModel(model.TFModel):
     '''A recurrent network model.'''
 
-    def __init__(self, config, vocab, label_space_size):
+    def __init__(self, config, vocab, label_space_size, verbose=True):
         super(RecurrentNetworkModel, self).__init__(config, vocab, label_space_size)
         self.notes = tf.placeholder(tf.int32, [config.batch_size, None], name='notes')
         self.lengths = tf.placeholder(tf.int32, [config.batch_size], name='lengths')
@@ -109,6 +110,17 @@ class RecurrentNetworkModel(model.TFModel):
                                               trainable=config.train_embs)
             embed = tf.nn.embedding_lookup(self.embeddings, self.notes)
 
+        if config.rnn_grnn_size:
+            C = config.hidden_size
+            G = label_space_size
+            E = config.word_emb_size
+            n_params = (C*C) + (2*C*G) + (C*E) + (G*E) + G
+            hidden_size = int((np.sqrt((E*E) + (4*n_params)) - E) / 2)
+            if verbose:
+                print('Computed RNN hidden size:', hidden_size)
+        else:
+            hidden_size = config.hidden_size
+
         if config.rnn_type == 'entnet':
             keys = [tf.get_variable('key_{}'.format(j), [config.word_emb_size])
                     for j in range(config.num_blocks)]
@@ -116,9 +128,9 @@ class RecurrentNetworkModel(model.TFModel):
                                      initializer=tf.contrib.layers.xavier_initializer(),
                                      activation=util.prelu)
         elif config.rnn_type == 'gru':
-            cell = tf.contrib.rnn.GRUCell(config.hidden_size)
+            cell = tf.contrib.rnn.GRUCell(hidden_size)
         elif config.rnn_type == 'lstm':
-            cell = tf.contrib.rnn.BasicLSTMCell(config.hidden_size)
+            cell = tf.contrib.rnn.BasicLSTMCell(hidden_size)
 
         # recurrence
         initial_state = cell.zero_state(config.batch_size, tf.float32)
@@ -143,7 +155,7 @@ class RecurrentNetworkModel(model.TFModel):
             # weight matrix from emb_size to label_space_size. this is the weight matrix that acts
             # on the post-attention embeddings from last_state.
             weight = tf.get_variable('weight', [label_space_size, config.word_emb_size],
-                                                initializer=tf.contrib.layers.xavier_initializer())
+                                     initializer=tf.contrib.layers.xavier_initializer())
 
             # tile the weight matrix num_blocks times in the second dimension and multiply the
             # attention to it. this is equivalent to doing attention + sum over all the blocks for
