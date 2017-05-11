@@ -5,10 +5,12 @@ from __future__ import division
 from __future__ import print_function
 
 import bs4
+import collections
 import csv
 from multiprocessing import Pool
 from pathlib import Path
 import re
+import shelve
 
 
 data_dir = '../data/stack/data'
@@ -22,7 +24,7 @@ alpha_re = re.compile(r"^[\sa-z0-9?.,-:]+$")
 def process_text(rows):
     ret = []
     for i, row in enumerate(rows):
-        body = row[-1]
+        body = row['Body']
         soup = bs4.BeautifulSoup(body, 'lxml')
         for code in soup.find_all('code'):
             code.clear()
@@ -32,7 +34,7 @@ def process_text(rows):
         length = len(text.split())
         if length < 100:  # skip questions shorter than 100 words
             continue
-        row[-1] = text
+        row['Body'] = text
         ret.append(row)
     return ret
 
@@ -47,10 +49,18 @@ def clean(s):
 
 
 if __name__ == '__main__':
+    print('Reading tags ...')
+    tagset = collections.defaultdict(set)
+    with (Path(data_dir) / 'Tags.csv').open('rb') as f:
+        reader = csv.reader(f)
+        reader.next()  # Id,Tag
+        for row in reader:
+            tagset[int(row[0])].add(row[1])
+
     print('Reading questions ...')
     with (Path(data_dir) / 'Questions.csv').open('rb') as f:
-        reader = csv.reader(f)
-        title = reader.next()  # Id,OwnerUserId,CreationDate,ClosedDate,Score,Title,Body
+        reader = csv.DictReader(f)
+        # Id,OwnerUserId,CreationDate,ClosedDate,Score,Title,Body
         rows = [r for r in reader]
     print('Pruning ...')
     group_size = int(0.999 + (len(rows) / cpus))
@@ -62,7 +72,10 @@ if __name__ == '__main__':
     rows = sum(ret, [])
 
     print('Writing ...')
-    with (Path(out_dir) / 'PrunedQuestions.csv').open('wb') as f:
-        writer = csv.writer(f)
-        for row in [title] + rows:
-            writer.writerow([clean(s) for s in row])
+    out_shelf = shelve.open(str(Path(out_dir) / 'questions.shelve'), 'c', protocol=-1,
+                            writeback=True)
+    for row in rows:
+        row['Tags'] = list(tagset[row['Id']])
+        for k in ['Title', 'Body']:
+            row[k] = clean(row[k])
+        out_shelf[row['Id']] = row

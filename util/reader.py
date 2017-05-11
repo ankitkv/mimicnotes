@@ -82,17 +82,10 @@ class NoteShelveData(NoteData):
                 pairs = [(r['Descriptors'].lower(), r['Filename']) for r in reader]
             patients_list = [str(i) for i in xrange(len(pairs))]
         elif 'stack' in self.config.data_path:
-            tagset = collections.defaultdict(set)
-            with (Path(self.config.data_path) / 'data/Tags.csv').open('rb') as f:
-                reader = csv.reader(f)
-                reader.next()  # Id,Tag
-                for row in reader:
-                    tagset[int(row[0])].add(row[1])
-            with (Path(self.config.data_path) / 'PrunedQuestions.csv').open('rb') as f:
-                reader = csv.reader(f)
-                reader.next()  # Id,OwnerUserId,CreationDate,ClosedDate,Score,Title,Body
-                rows = [r for r in reader]
-            patients_list = [r[0] for r in rows]
+            shelf_file = Path(self.config.data_path) / 'questions.shelve'
+            shelf = shelve.open(str(shelf_file), 'r')
+            patients_list = map(str, sorted(map(int, shelf.keys())))
+            shelf = None
         nshelf = shelve.open(str(self.nshelf_file), 'c', protocol=-1, writeback=True)
         patients_set = set()
         for i in xrange(0, len(patients_list), chunk_size):
@@ -119,11 +112,9 @@ class NoteShelveData(NoteData):
                 data = util.mt_map(self.config.threads, util.partial_tokenize_nyt,
                                    zip(lists, [self.config.data_path] * len(lists)))
             elif 'stack' in self.config.data_path:
-                cur_rows = rows[i:i+chunk_size]
-                lists = [(plist[j:j+group_size], cur_rows[j:j+group_size])
-                         for j in xrange(0, len(plist), group_size)]
+                lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
                 data = util.mt_map(self.config.threads, util.partial_tokenize_stack,
-                                   zip(lists, [tagset] * len(lists)))
+                                   zip(lists, [str(shelf_file)] * len(lists)))
             for thread_data in data:
                 for pid, (_, adm_map) in thread_data.items():
                     patients_set.add(pid)
@@ -222,17 +213,10 @@ class NotePickleData(NoteData):
                 pairs = [(r['Descriptors'].lower(), r['Filename']) for r in reader]
             patients_list = [str(i) for i in xrange(len(pairs))]
         elif 'stack' in self.config.data_path:
-            tagset = collections.defaultdict(set)
-            with (Path(self.config.data_path) / 'data/Tags.csv').open('rb') as f:
-                reader = csv.reader(f)
-                reader.next()  # Id,Tag
-                for row in reader:
-                    tagset[int(row[0])].add(row[1])
-            with (Path(self.config.data_path) / 'PrunedQuestions.csv').open('rb') as f:
-                reader = csv.reader(f)
-                reader.next()  # Id,OwnerUserId,CreationDate,ClosedDate,Score,Title,Body
-                rows = [r for r in reader]
-            patients_list = [r[0] for r in rows]
+            shelf_file = Path(self.config.data_path) / 'questions.shelve'
+            shelf = shelve.open(str(shelf_file), 'r')
+            patients_list = map(str, sorted(map(int, shelf.keys())))
+            shelf = None
         patients_set = set()
         patients_dict = {}
         self.bucket_map = {}
@@ -267,11 +251,9 @@ class NotePickleData(NoteData):
                 data = util.mt_map(self.config.threads, util.partial_tokenize_nyt,
                                    zip(lists, [self.config.data_path] * len(lists)))
             elif 'stack' in self.config.data_path:
-                cur_rows = rows[i:i+chunk_size]
-                lists = [(plist[j:j+group_size], cur_rows[j:j+group_size])
-                         for j in xrange(0, len(plist), group_size)]
+                lists = [plist[j:j+group_size] for j in xrange(0, len(plist), group_size)]
                 data = util.mt_map(self.config.threads, util.partial_tokenize_stack,
-                                   zip(lists, [tagset] * len(lists)))
+                                   zip(lists, [str(shelf_file)] * len(lists)))
             for thread_data in data:
                 for pid, (patient, adm_map) in thread_data.items():
                     patients_set.add(pid)

@@ -181,13 +181,14 @@ def partial_tokenize_mimic2(args):
 
 
 def partial_tokenize_stack(args):
-    (patients_list, rows), tagset = args
+    patients_list, shlf_file = args
+    shelf = shelve.open(shlf_file, 'r')
     ret = {}
-    for pid, row in zip(patients_list, rows):
-        assert pid == row[0]
-        title = row[-2]
-        body = row[-1]
-        tags = tagset[int(pid)]
+    for pid in patients_list:
+        row = shelf[pid]
+        title = row['Title']
+        body = row['Body']
+        tags = row['Tags']
         text = title + ' : ' + body
         patient = DummyPatient(patient_id=pid, gender='')
         adm_map = {}

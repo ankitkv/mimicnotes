@@ -92,7 +92,7 @@ if __name__ == '__main__':
             prev_perc = perc
 
     print('Reading questions ...')
-    with (Path(data_dir) / 'PrunedQuestions.csv').open('rb') as f:
+    with (Path(data_dir) / 'PrunedQuestions.csv').open('rb') as f:  # FIXME use shelve
         reader = csv.reader(f)
         reader.next()  # Id,OwnerUserId,CreationDate,ClosedDate,Score,Title,Body
         rows = [r for r in reader]
