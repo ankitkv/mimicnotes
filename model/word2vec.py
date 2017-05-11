@@ -126,7 +126,7 @@ class Word2vecRunner(util.TFRunner):
     def accumulate(self):
         self.all_losses.append(self.loss)
 
-    def losses(self):
+    def losses(self, perclass=False, train=False):
         return np.mean(self.all_losses)
 
     def sanity_check_loss(self, loss):

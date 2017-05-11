@@ -28,7 +28,7 @@ class MajorityRunner(util.Runner):
         self.all_probs.append(self.probs)
         self.all_labels.append(self.labels)
 
-    def losses(self):
+    def losses(self, perclass=False, train=False):
         if not self.all_probs:
             return None
         probs = np.concatenate(self.all_probs)
