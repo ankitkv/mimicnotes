@@ -23,6 +23,7 @@ flags.DEFINE_string ("data_storage",   "pickle",              "Format to store d
                                                               "(shelve or pickle)")
 flags.DEFINE_string ("runner",         "",                    "The Runner class to run")
 flags.DEFINE_string ("plot_file",      "",                    "File to dump plot info to")
+flags.DEFINE_string ("vis_file",       "",                    "File to dump visualization info to")
 flags.DEFINE_string ("plot_name",      "",                    "Name for plot info")
 
 flags.DEFINE_integer("batch_size",     32,        "Batch size")

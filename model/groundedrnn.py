@@ -3,8 +3,13 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+from pathlib import Path
 from six.moves import xrange
 import time
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 
 import numpy as np
 import tensorflow as tf
@@ -335,16 +340,31 @@ class GroundedRNNRunner(util.TFRunner):
             model = self.test_model
         else:
             model = self.model
-        for batch in self.reader.get([split], curriculum=False):
+        if self.config.vis_file:
+            print('Preparing visualizations for dump')
+            vis_info = []  # put dumpable visualization here
+        for idx, batch in enumerate(self.reader.get([split], curriculum=False)):
+            if self.config.vis_file and idx % self.config.print_every == 0:
+                print(idx)
             ops = [model.probs, model.step_probs]
             probs, step_probs = self.session.run(ops, feed_dict={model.notes: batch[0],
                                                                  model.lengths: batch[1],
                                                                  model.labels: batch[2],
                                                                  model.keep_prob: 1.0})
             for i in xrange(probs.shape[0]):
+                doc_probs = step_probs[i]  # seq_len x labels
+                if self.config.vis_file:
+                    doc_info = {}
+                    doc_info['preds'] = []
+                    doc_info['golds'] = batch[2][i]
+                    for k, wordidx in enumerate(batch[0][i, :batch[1][i]]):
+                        word = self.vocab.vocab[wordidx]
+                        probs = doc_probs[k]
+                        doc_info['preds'].append((word, probs))
+                    vis_info.append(doc_info)
+                    continue
                 print()
                 print('=== NEW NOTE ===')
-                doc_probs = step_probs[i]  # seq_len x labels
                 prob = [(j, p) for j, p in enumerate(probs[i]) if p > 0.5]
                 prob.sort(key=lambda x: -x[1])
                 labels = collections.OrderedDict((l, True) for l, _ in prob)
@@ -400,3 +420,10 @@ class GroundedRNNRunner(util.TFRunner):
                         print(color + self.vocab.vocab[word] + util.c.ENDC, end=' ')
                     print()
                 input('\n\nPress enter to continue ...\n')
+        if self.config.vis_file:
+            label_info = []
+            for j in xrange(self.reader.label_space_size()):
+                label_info.append(self.vocab.aux_names['dgn'][self.vocab.aux_vocab['dgn'][j]])
+            with Path(self.config.vis_file).open('wb') as f:
+                pickle.dump({'notes': vis_info, 'labels': label_info}, f, -1)
+            print('Dumped visualizations to', self.config.vis_file)
