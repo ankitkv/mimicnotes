@@ -114,9 +114,8 @@ class RecurrentNetworkModel(model.TFModel):
             C = config.hidden_size
             G = label_space_size
             E = config.word_emb_size
-            n_params = (C*C) + (2*C*G) + (C*E) + (G*E) + G
-            E += G / 3
-            hidden_size = int((np.sqrt((E*E) + (4*n_params)) - E) / 2)
+            N = np.square(C) + C + (2*C*G) + (C*E) + (G*E) + (2*G)
+            hidden_size = int((np.sqrt(np.square(E+1+(G/3)) - (4*((G/3) - N))) - (E+1+(G/3))) / 2)
             if verbose:
                 print('Computed RNN hidden size:', hidden_size)
         else:
