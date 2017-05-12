@@ -24,34 +24,35 @@ batch_size = 50  # <= 0 to disable
 if __name__ == '__main__':
     #fnames = glob.glob('../saved/*.plot')
     fnames = [
-        '../saved/bow200.plot',
-        '../saved/bow500.plot',
-        '../saved/bow1000.plot',
-        '../saved/attn200_w3.plot',
-        '../saved/attn500_w3.plot',
-        '../saved/attn1000_w3.plot',
-        '../saved/rnn2_f200_h128e192.plot',
-        '../saved/rnn2_f500_h128e192.plot',
-        '../saved/grnn_f200.plot',
-        '../saved/grnn_f500.plot',
-        '../saved/grnn_f1000.plot',
-        '../saved/grnn_f200_h0.plot',
-        '../saved/grnn_f500_h0.plot',
-        '../saved/grnn_f1000_h0.plot',
-        '../saved/grnnsd_f200_h128.plot',
-        '../saved/grnnsd_f500_h128.plot',
-        '../saved/grnnsd_f1000_h128.plot',
-        '../saved/grnnsd_f1000_h128r1e-2.plot',
-        '../saved/grnnsd_f1000_h128r1e-3.plot',
-        '../saved/grnnsd_f1000_h128r1e-4.plot',
-        '../saved/grnnsd_f1000_h128r1e-5.plot',
+#        '../saved/bow200.plot',
+#        '../saved/bow500.plot',
+        ('../saved/bow1000.plot', 'Bag of words'),
+#        '../saved/attn200_w3.plot',
+#        '../saved/attn500_w3.plot',
+        ('../saved/attn1000_w3.plot', 'Attention bag of words'),
+#        '../saved/rnn2_f200_h128e192.plot',
+#        '../saved/rnn2_f500_h128e192.plot',
+#        '../saved/grnn_f200.plot',
+#        '../saved/grnn_f500.plot',
+#        '../saved/grnn_f1000.plot',
+#        '../saved/grnn_f200_h0.plot',
+#        '../saved/grnn_f500_h0.plot',
+#        '../saved/grnn_f1000_h0.plot',
+#        '../saved/grnnsd_f200_h128.plot',
+#        '../saved/grnnsd_f500_h128.plot',
+        ('../saved/grnnsd_f1000_h128.plot', 'Grounded RNN'),
+#        '../saved/grnnsd_f1000_h128r1e-2.plot',
+#        '../saved/grnnsd_f1000_h128r1e-3.plot',
+#        '../saved/grnnsd_f1000_h128r1e-4.plot',
+#        '../saved/grnnsd_f1000_h128r1e-5.plot',
     ]
     data = []
-    for fname in fnames:
+    for fname, name in fnames:
         with open(fname, 'rb') as f:
-            data.append(pickle.load(f))
+            data.append((name, pickle.load(f)))
     colors = cm.rainbow(np.linspace(0, 1, len(data)))
-    for i, (label, perclass) in enumerate(data):
+    for i, (label, perclass_tuple) in enumerate(data):
+        _, perclass = perclass_tuple
         plot_data = perclass[index][:top]
         if poly_degree > 0:
             x = np.arange(len(plot_data))
@@ -71,4 +72,6 @@ if __name__ == '__main__':
             plot_data = np.array(new_plot)
         plt.plot(plot_data, c=colors[i], label=label)
     plt.legend()
+    plt.xlabel('Group of size 50 of labels in the order of decreasing frequency')
+    plt.ylabel('Area under the ROC curve')
     plt.show()
