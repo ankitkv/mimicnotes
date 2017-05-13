@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import collections
 from pathlib import Path
+import shelve
 from six.moves import xrange
 try:
     import cPickle as pickle
@@ -210,7 +211,8 @@ class RecurrentNetworkRunner(util.TFRunner):
             model = self.model
         if self.config.vis_file:
             print('Preparing visualizations for dump')
-            vis_info = []  # put dumpable visualization here
+            vis_info = shelve.open(self.config.vis_file, 'c', protocol=-1, writeback=True)
+            count = 0
         for idx, batch in enumerate(self.reader.get([split], curriculum=False, deterministic=True)):
             if self.config.vis_file and idx % self.config.print_every == 0:
                 print(idx)
@@ -229,7 +231,8 @@ class RecurrentNetworkRunner(util.TFRunner):
                         word = self.vocab.vocab[wordidx]
                         word_probs = doc_probs[k]
                         doc_info['preds'].append((word, word_probs))
-                    vis_info.append(doc_info)
+                    vis_info[str(count)] = doc_info
+                    count += 1
                     continue
                 print()
                 print('=== NEW NOTE ===')
@@ -292,6 +295,7 @@ class RecurrentNetworkRunner(util.TFRunner):
             label_info = []
             for j in xrange(self.reader.label_space_size()):
                 label_info.append(self.vocab.aux_names['dgn'][self.vocab.aux_vocab['dgn'][j]])
-            with Path(self.config.vis_file).open('wb') as f:
-                pickle.dump({'notes': vis_info, 'labels': label_info}, f, -1)
-            print('Dumped visualizations to', self.config.vis_file)
+            filename = self.config.vis_file + '.labels'
+            with Path(filename).open('wb') as f:
+                pickle.dump(label_info, f, -1)
+            print('Dumped visualization labels to', filename)
