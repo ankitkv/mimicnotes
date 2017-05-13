@@ -253,7 +253,7 @@ class GroundedRNNModel(model.TFModel):
             self.train_op = self.minimize_loss(self.loss)
 
 
-class GroundedRNNRunner(util.RecurrentNetworkRunner):
+class GroundedRNNRunner(model.RecurrentNetworkRunner):
     '''Runner for the grounded RNN model.'''
 
     def __init__(self, config, session, verbose=True):
@@ -325,5 +325,5 @@ class GroundedRNNRunner(util.RecurrentNetworkRunner):
             model = self.test_model
         else:
             model = self.model
-        super(GroundedRNNRunner, self).visualize(self, verbose=verbose, color_changes=color_changes,
+        super(GroundedRNNRunner, self).visualize(verbose=verbose, color_changes=color_changes,
                                                  model=model, dropout=True)
