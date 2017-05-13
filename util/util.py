@@ -269,7 +269,7 @@ def prelu(features, initializer=None, scope=None):
         return pos + neg
 
 
-def linear(args, output_size, bias=True, bias_start=0.0, scope=None, initializer=None):
+def linear(args, output_size, bias=True, bias_start=0.0, scope=None, reuse=None, initializer=None):
     """Linear map: sum_i(args[i] * W[i]), where W[i] is a variable.
     Args:
         args: a 2D Tensor or a list of 2D, batch x n, Tensors.
@@ -302,7 +302,7 @@ def linear(args, output_size, bias=True, bias_start=0.0, scope=None, initializer
     if initializer is None:
         initializer = tf.contrib.layers.xavier_initializer()
     # Now the computation.
-    with tf.variable_scope(scope or "Linear"):
+    with tf.variable_scope(scope or "Linear", reuse=reuse):
         matrix = tf.get_variable("Matrix", [total_arg_size, output_size], dtype=dtype,
                                  initializer=initializer)
         if len(args) == 1:

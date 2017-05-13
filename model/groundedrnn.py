@@ -3,24 +3,13 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
-from pathlib import Path
-from six.moves import xrange
 import time
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
 
 import numpy as np
 import tensorflow as tf
 
 import model
 import util
-
-try:
-    input = raw_input
-except NameError:
-    pass
 
 
 class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
@@ -264,11 +253,11 @@ class GroundedRNNModel(model.TFModel):
             self.train_op = self.minimize_loss(self.loss)
 
 
-class GroundedRNNRunner(util.TFRunner):
+class GroundedRNNRunner(util.RecurrentNetworkRunner):
     '''Runner for the grounded RNN model.'''
 
     def __init__(self, config, session, verbose=True):
-        super(GroundedRNNRunner, self).__init__(config, session)
+        super(GroundedRNNRunner, self).__init__(config, session, ModelClass=None)
         if config.sliced_grnn:
             label_space_size = config.sliced_labels
         else:
@@ -332,98 +321,9 @@ class GroundedRNNRunner(util.TFRunner):
         self.accumulate()
 
     def visualize(self, verbose=True, color_changes=True):
-        if self.config.query:
-            split = self.config.query
-        else:
-            split = 'test'
         if self.config.sliced_grnn:
             model = self.test_model
         else:
             model = self.model
-        if self.config.vis_file:
-            print('Preparing visualizations for dump')
-            vis_info = []  # put dumpable visualization here
-        for idx, batch in enumerate(self.reader.get([split], curriculum=False)):
-            if self.config.vis_file and idx % self.config.print_every == 0:
-                print(idx)
-            ops = [model.probs, model.step_probs]
-            probs, step_probs = self.session.run(ops, feed_dict={model.notes: batch[0],
-                                                                 model.lengths: batch[1],
-                                                                 model.labels: batch[2],
-                                                                 model.keep_prob: 1.0})
-            for i in xrange(probs.shape[0]):
-                doc_probs = step_probs[i]  # seq_len x labels
-                if self.config.vis_file:
-                    doc_info = {}
-                    doc_info['preds'] = []
-                    doc_info['golds'] = batch[2][i]
-                    for k, wordidx in enumerate(batch[0][i, :batch[1][i]]):
-                        word = self.vocab.vocab[wordidx]
-                        probs = doc_probs[k]
-                        doc_info['preds'].append((word, probs))
-                    vis_info.append(doc_info)
-                    continue
-                print()
-                print('=== NEW NOTE ===')
-                prob = [(j, p) for j, p in enumerate(probs[i]) if p > 0.5]
-                prob.sort(key=lambda x: -x[1])
-                labels = collections.OrderedDict((l, True) for l, _ in prob)
-                for j in xrange(len(batch[2][i])):
-                    if batch[2][i, j] and j not in labels:
-                        labels[j] = False
-                prev_prob = None
-                for label, predicted in labels.items():
-                    label_prob = doc_probs[:, label]  # seq_len
-                    if predicted:
-                        if batch[2][i, label]:
-                            verdict = 'correct'
-                        else:
-                            verdict = 'incorrect'
-                    else:
-                        verdict = 'missed'
-                    print()
-                    print('LABEL (%s): #%d' % (verdict, label+1),
-                          self.vocab.aux_names['dgn'][self.vocab.aux_vocab['dgn'][label]])
-                    print('-----')
-                    for k, word in enumerate(batch[0][i, :batch[1][i]]):
-                        prob = label_prob[k]
-                        if prev_prob is None:
-                            prev_prob = prob
-                        diff = (prob + prev_prob) * (prob - prev_prob)
-                        prev_prob = prob
-                        if color_changes:
-                            if diff > 0.05:
-                                color = util.c.OKGREEN
-                            elif diff > 0.01:
-                                color = util.c.WARNING
-                            elif diff > 0.0:
-                                color = util.c.ENDC
-                            elif diff <= -0.05:
-                                color = util.c.FAIL
-                            elif diff <= -0.01:
-                                color = util.c.HEADER
-                            elif diff <= -0.0:
-                                color = util.c.OKBLUE
-                        else:
-                            if prob > 0.8:
-                                color = util.c.OKGREEN
-                            elif prob > 0.6:
-                                color = util.c.WARNING
-                            elif prob > 0.5:
-                                color = util.c.ENDC
-                            elif prob <= 0.2:
-                                color = util.c.FAIL
-                            elif prob <= 0.4:
-                                color = util.c.HEADER
-                            elif prob <= 0.5:
-                                color = util.c.OKBLUE
-                        print(color + self.vocab.vocab[word] + util.c.ENDC, end=' ')
-                    print()
-                input('\n\nPress enter to continue ...\n')
-        if self.config.vis_file:
-            label_info = []
-            for j in xrange(self.reader.label_space_size()):
-                label_info.append(self.vocab.aux_names['dgn'][self.vocab.aux_vocab['dgn'][j]])
-            with Path(self.config.vis_file).open('wb') as f:
-                pickle.dump({'notes': vis_info, 'labels': label_info}, f, -1)
-            print('Dumped visualizations to', self.config.vis_file)
+        super(GroundedRNNRunner, self).visualize(self, verbose=verbose, color_changes=color_changes,
+                                                 model=model, dropout=True)

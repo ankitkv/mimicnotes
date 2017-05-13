@@ -512,7 +512,7 @@ class NoteReader(object):
                     vocab_note = vocab_note[:self.current_max_len]
                 yield (vocab_note, label_info)
 
-    def buffered_read_sorted_notes(self, splits, batches=32):
+    def buffered_read_sorted_notes(self, splits, batches=32, deterministic=False):
         '''Read and return a list of notes (length multiple of batch_size) worth at most $batches
            number of batches sorted in length'''
         buffer_size = self.config.batch_size * batches
@@ -522,14 +522,14 @@ class NoteReader(object):
             if len(notes) == buffer_size:
                 if self.config.length_sort:
                     notes.sort(key=lambda x: len(x[0]))
-                else:
+                elif not deterministic:
                     random.shuffle(notes)
                 yield notes
                 notes = []
         if notes:
             if self.config.length_sort:
                 notes.sort(key=lambda x: len(x[0]))
-            else:
+            elif not deterministic:
                 random.shuffle(notes)
             mod = len(notes) % self.config.batch_size
             if mod != 0:
@@ -537,12 +537,12 @@ class NoteReader(object):
                               for _ in xrange(self.config.batch_size - mod)])
             yield notes
 
-    def buffered_read(self, splits):
+    def buffered_read(self, splits, deterministic=False):
         '''Read packed batches from data with each batch having notes of similar lengths'''
-        for note_collection in self.buffered_read_sorted_notes(splits):
+        for note_collection in self.buffered_read_sorted_notes(splits, deterministic=deterministic):
             batches = [note_collection[i:i+self.config.batch_size]
                        for i in xrange(0, len(note_collection), self.config.batch_size)]
-            if self.config.length_sort:
+            if self.config.length_sort and not deterministic:
                 random.shuffle(batches)
             for batch in batches:
                 yield self.pack(batch)
@@ -561,7 +561,8 @@ class NoteReader(object):
             lengths[i] = len(b[0])
         return (ret_batch, lengths, self.label_pack([b[1] for b in batch]))
 
-    def get(self, splits, update_curriculum=None, curriculum=None, verbose=True):
+    def get(self, splits, update_curriculum=None, curriculum=None, deterministic=False,
+            verbose=True):
         '''Read batches from data'''
         if verbose:
             print('Getting data from', '+'.join(splits), 'split')
@@ -582,7 +583,7 @@ class NoteReader(object):
             self.current_max_len = int(self.max_note_len)
         else:
             self.current_max_len = self.config.max_note_len
-        for batch in self.buffered_read(splits):
+        for batch in self.buffered_read(splits, deterministic=deterministic):
             yield batch
         self.current_max_len = None
 

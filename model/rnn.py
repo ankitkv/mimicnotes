@@ -2,11 +2,24 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
+from pathlib import Path
+from six.moves import xrange
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+
 import numpy as np
 import tensorflow as tf
 
 import model
 import util
+
+try:
+    input = raw_input
+except NameError:
+    pass
 
 
 class DynamicMemoryCell(tf.contrib.rnn.RNNCell):
@@ -134,8 +147,8 @@ class RecurrentNetworkModel(model.TFModel):
 
         # recurrence
         initial_state = cell.zero_state(config.batch_size, tf.float32)
-        _, last_state = tf.nn.dynamic_rnn(cell, embed, sequence_length=self.lengths,
-                                          initial_state=initial_state)
+        outs, last_state = tf.nn.dynamic_rnn(cell, embed, sequence_length=self.lengths,
+                                             initial_state=initial_state)
         if config.rnn_type == 'lstm':
             last_state = tf.concat([s for s in last_state], 1)
 
@@ -169,6 +182,12 @@ class RecurrentNetworkModel(model.TFModel):
             logits = tf.nn.bias_add(tf.matmul(last_state, tf.transpose(attended_weight)), bias)
         else:
             logits = util.linear(last_state, self.label_space_size)
+            if config.rnn_type == 'gru':
+                flat_outs = tf.reshape(outs, [-1, hidden_size])
+                flat_logits = util.linear(flat_outs, self.label_space_size, reuse=True)
+                step_logits = tf.reshape(flat_logits, [config.batch_size, -1,
+                                                       self.label_space_size])
+                self.step_probs = tf.sigmoid(step_logits)
 
         self.probs = tf.sigmoid(logits)
         self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits,
@@ -181,3 +200,98 @@ class RecurrentNetworkRunner(util.TFRunner):
 
     def __init__(self, config, session, ModelClass=RecurrentNetworkModel):
         super(RecurrentNetworkRunner, self).__init__(config, session, ModelClass=ModelClass)
+
+    def visualize(self, verbose=True, color_changes=True, model=None, dropout=False):
+        if self.config.query:
+            split = self.config.query
+        else:
+            split = 'test'
+        if model is None:
+            model = self.model
+        if self.config.vis_file:
+            print('Preparing visualizations for dump')
+            vis_info = []  # put dumpable visualization here
+        for idx, batch in enumerate(self.reader.get([split], curriculum=False, deterministic=True)):
+            if self.config.vis_file and idx % self.config.print_every == 0:
+                print(idx)
+            ops = [model.probs, model.step_probs]
+            fdict = {model.notes: batch[0], model.lengths: batch[1], model.labels: batch[2]}
+            if dropout:
+                fdict[model.keep_prob] = 1.0
+            probs, step_probs = self.session.run(ops, feed_dict=fdict)
+            for i in xrange(probs.shape[0]):
+                doc_probs = step_probs[i]  # seq_len x labels
+                if self.config.vis_file:
+                    doc_info = {}
+                    doc_info['preds'] = []
+                    doc_info['golds'] = batch[2][i]
+                    for k, wordidx in enumerate(batch[0][i, :batch[1][i]]):
+                        word = self.vocab.vocab[wordidx]
+                        word_probs = doc_probs[k]
+                        doc_info['preds'].append((word, word_probs))
+                    vis_info.append(doc_info)
+                    continue
+                print()
+                print('=== NEW NOTE ===')
+                prob = [(j, p) for j, p in enumerate(probs[i]) if p > 0.5]
+                prob.sort(key=lambda x: -x[1])
+                labels = collections.OrderedDict((l, True) for l, _ in prob)
+                for j in xrange(len(batch[2][i])):
+                    if batch[2][i, j] and j not in labels:
+                        labels[j] = False
+                prev_prob = None
+                for label, predicted in labels.items():
+                    label_prob = doc_probs[:, label]  # seq_len
+                    if predicted:
+                        if batch[2][i, label]:
+                            verdict = 'correct'
+                        else:
+                            verdict = 'incorrect'
+                    else:
+                        verdict = 'missed'
+                    print()
+                    print('LABEL (%s): #%d' % (verdict, label+1),
+                          self.vocab.aux_names['dgn'][self.vocab.aux_vocab['dgn'][label]])
+                    print('-----')
+                    for k, word in enumerate(batch[0][i, :batch[1][i]]):
+                        prob = label_prob[k]
+                        if prev_prob is None:
+                            prev_prob = prob
+                        diff = (prob + prev_prob) * (prob - prev_prob)
+                        prev_prob = prob
+                        if color_changes:
+                            if diff > 0.05:
+                                color = util.c.OKGREEN
+                            elif diff > 0.01:
+                                color = util.c.WARNING
+                            elif diff > 0.0:
+                                color = util.c.ENDC
+                            elif diff <= -0.05:
+                                color = util.c.FAIL
+                            elif diff <= -0.01:
+                                color = util.c.HEADER
+                            elif diff <= -0.0:
+                                color = util.c.OKBLUE
+                        else:
+                            if prob > 0.8:
+                                color = util.c.OKGREEN
+                            elif prob > 0.6:
+                                color = util.c.WARNING
+                            elif prob > 0.5:
+                                color = util.c.ENDC
+                            elif prob <= 0.2:
+                                color = util.c.FAIL
+                            elif prob <= 0.4:
+                                color = util.c.HEADER
+                            elif prob <= 0.5:
+                                color = util.c.OKBLUE
+                        print(color + self.vocab.vocab[word] + util.c.ENDC, end=' ')
+                    print()
+                input('\n\nPress enter to continue ...\n')
+        if self.config.vis_file:
+            label_info = []
+            for j in xrange(self.reader.label_space_size()):
+                label_info.append(self.vocab.aux_names['dgn'][self.vocab.aux_vocab['dgn'][j]])
+            with Path(self.config.vis_file).open('wb') as f:
+                pickle.dump({'notes': vis_info, 'labels': label_info}, f, -1)
+            print('Dumped visualizations to', self.config.vis_file)
