@@ -210,8 +210,14 @@ class RecurrentNetworkRunner(util.TFRunner):
         if model is None:
             model = self.model
         if self.config.vis_file:
-            print('Preparing visualizations for dump')
-            vis_info = shelve.open(self.config.vis_file, 'c', protocol=-1, writeback=True)
+            label_info = []
+            for j in xrange(self.reader.label_space_size()):
+                label_info.append(self.vocab.aux_names['dgn'][self.vocab.aux_vocab['dgn'][j]])
+            filename = self.config.vis_file + '.labels'
+            with Path(filename).open('wb') as f:
+                pickle.dump(label_info, f, -1)
+            print('Dumped visualization labels to', filename)
+            vis_info = shelve.open(self.config.vis_file, 'c', protocol=-1)
             count = 0
         for idx, batch in enumerate(self.reader.get([split], curriculum=False, deterministic=True)):
             if self.config.vis_file and idx % self.config.print_every == 0:
@@ -292,10 +298,4 @@ class RecurrentNetworkRunner(util.TFRunner):
                     print()
                 input('\n\nPress enter to continue ...\n')
         if self.config.vis_file:
-            label_info = []
-            for j in xrange(self.reader.label_space_size()):
-                label_info.append(self.vocab.aux_names['dgn'][self.vocab.aux_vocab['dgn'][j]])
-            filename = self.config.vis_file + '.labels'
-            with Path(filename).open('wb') as f:
-                pickle.dump(label_info, f, -1)
-            print('Dumped visualization labels to', filename)
+            vis_info.close()
