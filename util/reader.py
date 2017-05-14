@@ -594,23 +594,32 @@ class NoteICD9Reader(NoteReader):
     def __init__(self, config, data, vocab):
         super(NoteICD9Reader, self).__init__(config, data, vocab)
         self.max_dgn_labels = len(self.vocab.aux_vocab['dgn'])
-        if self.config.max_dgn_labels > 0:
+        self.max_pcd_labels = len(self.vocab.aux_vocab['pcd'])
+        if self.config.max_dgn_labels >= 0:
             self.max_dgn_labels = min(self.max_dgn_labels, self.config.max_dgn_labels)
+        if self.config.max_pcd_labels >= 0:
+            self.max_pcd_labels = min(self.max_pcd_labels, self.config.max_pcd_labels)
 
     def label_info(self, admission):
-        label = np.zeros([self.max_dgn_labels], dtype=np.int)
+        label = np.zeros([self.max_dgn_labels + self.max_pcd_labels], dtype=np.int)
         if admission is None:
             return label
-        vocab_lookup = self.vocab.aux_vocab_lookup['dgn']
+        vocab_lookup_dgn = self.vocab.aux_vocab_lookup['dgn']
+        vocab_lookup_pcd = self.vocab.aux_vocab_lookup['pcd']
         for diag_code, _ in admission.dgn_events:
             try:
-                label[vocab_lookup[diag_code]] = 1
+                label[vocab_lookup_dgn[diag_code]] = 1
+            except IndexError:
+                pass
+        for proc_code, _ in admission.pcd_events:
+            try:
+                label[self.max_dgn_labels + vocab_lookup_pcd[proc_code]] = 1
             except IndexError:
                 pass
         return label
 
     def label_space_size(self):
-        return self.max_dgn_labels
+        return self.max_dgn_labels + self.max_pcd_labels
 
     def label_pack(self, label_info):
         return np.array(label_info)
