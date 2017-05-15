@@ -241,6 +241,13 @@ def precision_at_k(probs, labels, k, average='micro'):
     return sklearn.metrics.precision_score(labels, preds, average=average)
 
 
+def recall_at_k(probs, labels, k, average='micro'):
+    indices = np.argpartition(-probs, k-1, axis=1)[:, :k]
+    preds = np.zeros(probs.shape, dtype=np.int)
+    preds[np.arange(preds.shape[0])[:, np.newaxis], indices] = 1
+    return sklearn.metrics.recall_score(labels, preds, average=average)
+
+
 def torch_optimizer(name, lr, params):
     '''Return an optimizer for Torch that learns params'''
     import torch.optim as optim

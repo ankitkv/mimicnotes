@@ -131,7 +131,7 @@ class Runner(object):
         '''Check if the loss we care about is within sanity bounds
            [config.sanity_min, config.sanity_max]'''
         loss, micro, macro, perclass = losses
-        p, r, f, ap, auc, p8 = micro
+        p, r, f, ap, auc, p8, r8 = micro
         return ap >= self.config.sanity_min and ap <= self.config.sanity_max
 
     def best_val_loss(self, losses):
@@ -139,7 +139,7 @@ class Runner(object):
         if losses is None:
             return False
         loss, micro, macro, perclass = losses
-        p, r, f, ap, auc, p8 = micro
+        p, r, f, ap, auc, p8, r8 = micro
         if ap >= self.best_score:
             self.best_score = ap
             return True
@@ -193,7 +193,8 @@ class Runner(object):
             except ValueError:
                 auc = float('nan')
             p8 = util.precision_at_k(probs, labels, 8)
-            micro = [p, r, f, ap, auc, p8]
+            r8 = util.recall_at_k(probs, labels, 8)
+            micro = [p, r, f, ap, auc, p8, r8]
             # macro-averaged stats
             p, r, f = util.f1_score(probs, labels, 0.5, average='macro')
             ap = util.auc_pr(probs, labels, average='macro')
@@ -202,7 +203,8 @@ class Runner(object):
             except ValueError:
                 auc = float('nan')
             p8 = util.precision_at_k(probs, labels, 8, average='macro')
-            macro = [p, r, f, ap, auc, p8]
+            r8 = util.recall_at_k(probs, labels, 8, average='macro')
+            macro = [p, r, f, ap, auc, p8, r8]
             # non-avereged stats for plotting
             if perclass:
                 p, r, f = util.f1_score(probs, labels, 0.5, average=None)
@@ -212,7 +214,8 @@ class Runner(object):
                 except ValueError:
                     auc = float('nan')
                 p8 = util.precision_at_k(probs, labels, 8, average=None)
-                perclass = [p, r, f, ap, auc, p8]
+                r8 = util.recall_at_k(probs, labels, 8, average=None)
+                perclass = [p, r, f, ap, auc, p8, r8]
             else:
                 perclass = float('nan')
             ret_micro.append(micro)
@@ -230,17 +233,17 @@ class Runner(object):
             return "N/A"
         loss, micro, macro, perclass = losses
         loss_str = "Loss: %.4f" % loss
-        p, r, f, ap, auc, micro_p8 = micro
+        p, r, f, ap, auc, micro_p8, micro_r8 = micro
         micro_str = "Precision (micro): %.4f, Recall (micro): %.4f, F-score (micro): %.4f, " \
                     "AUC(PR) (micro): %.4f, AUC(ROC) (micro): %.4f" % (p, r, f, ap, auc)
         pastables = ["%.4f" % n for n in (p, r, f, ap, auc)]
-        p, r, f, ap, auc, _ = macro
+        p, r, f, ap, auc, _, _ = macro
         macro_str = "Precision (macro): %.4f, Recall (macro): %.4f, F-score (macro): %.4f, " \
                     "AUC(PR) (macro): %.4f, AUC(ROC) (macro): %.4f" % (p, r, f, ap, auc)
         pastables.extend(["%.4f" % n for n in (p, r, f, ap, auc)])
-        p8_str = "Precision@8 (micro): %.4f" % micro_p8
-        pastables.append("%.4f" % micro_p8)
-        out_list = [loss_str, micro_str, macro_str, p8_str]
+        pr8_str = "Precision@8 (micro): %.4f, Recall@8 (micro): %.4f" % (micro_p8, micro_r8)
+        pastables.extend(["%.4f" % n for n in (micro_p8, micro_r8)])
+        out_list = [loss_str, micro_str, macro_str, pr8_str]
         if pastable:
             out_list.append('Pastable: ' + '\t'.join(pastables))
         return ' | '.join(out_list)
@@ -256,9 +259,10 @@ class Runner(object):
         except ValueError:
             auc = float('nan')
         p8 = util.precision_at_k(self.probs, self.labels, 8)
+        r8 = util.recall_at_k(self.probs, self.labels, 8)
         print("GS:%d, S:%d.  Loss: %.4f, Precision: %.4f, Recall: %.4f, F-score: %.4f, "
-              "AUC(PR): %.4f, AUC(ROC): %.4f, Precision@8: %.4f, WPS: %.2f" %
-              (self.global_step, step, self.loss, p, r, f, ap, auc, p8, self.wps))
+              "AUC(PR): %.4f, AUC(ROC): %.4f, Precision@8: %.4f, Recall@8: %.4f, WPS: %.2f" %
+              (self.global_step, step, self.loss, p, r, f, ap, auc, p8, r8, self.wps))
 
     def plot(self, epoch, losses, train, verbose=True):
         # save plot info only when testing
