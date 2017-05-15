@@ -111,11 +111,17 @@ class RecurrentNetworkModel(model.TFModel):
 
     def __init__(self, config, vocab, label_space_size, verbose=True):
         super(RecurrentNetworkModel, self).__init__(config, vocab, label_space_size)
-        self.notes = tf.placeholder(tf.int32, [config.batch_size, None], name='notes')
         self.lengths = tf.placeholder(tf.int32, [config.batch_size], name='lengths')
         self.labels = tf.placeholder(tf.float32, [config.batch_size, label_space_size],
                                      name='labels')
         with tf.device('/cpu:0'):
+            self.notes = tf.placeholder(tf.int32, [config.batch_size, None], name='notes')
+            if config.multilayer and config.bidirectional:
+                rev_notes = tf.reverse_sequence(self.notes[:, 1:], tf.maximum(self.lengths - 1, 0),
+                                                seq_axis=1, batch_axis=0)
+                rev_notes = tf.concat([tf.constant(vocab.eos_index,
+                                       dtype=tf.int32, shape=[config.batch_size, 1]), rev_notes], 1)
+
             init_width = 0.5 / config.word_emb_size
             self.embeddings = tf.get_variable('embeddings', [len(vocab.vocab),
                                                              config.word_emb_size],
@@ -123,6 +129,8 @@ class RecurrentNetworkModel(model.TFModel):
                                                                                         init_width),
                                               trainable=config.train_embs)
             embed = tf.nn.embedding_lookup(self.embeddings, self.notes)
+            if config.multilayer and config.bidirectional:
+                rev_embed = tf.nn.embedding_lookup(self.embeddings, rev_notes)
 
         if config.rnn_grnn_size:
             C = config.hidden_size
@@ -146,12 +154,37 @@ class RecurrentNetworkModel(model.TFModel):
         elif config.rnn_type == 'lstm':
             cell = tf.contrib.rnn.BasicLSTMCell(hidden_size)
 
-        # recurrence
-        initial_state = cell.zero_state(config.batch_size, tf.float32)
-        outs, last_state = tf.nn.dynamic_rnn(cell, embed, sequence_length=self.lengths,
-                                             initial_state=initial_state)
+        if config.multilayer or config.bidirectional:
+            with tf.variable_scope('gru_rev', initializer=tf.contrib.layers.xavier_initializer()):
+                rev_cell = tf.contrib.rnn.GRUCell(hidden_size)
+        inputs = embed
+        if config.multilayer or not config.bidirectional:
+            if config.multilayer:
+                with tf.variable_scope('gru_rev'):
+                    if config.bidirectional:
+                        embed_ = rev_embed
+                    else:
+                        embed_ = embed
+                    rev_out, _ = tf.nn.dynamic_rnn(rev_cell, embed_, sequence_length=self.lengths,
+                                                   swap_memory=True, dtype=tf.float32)
+                    if config.bidirectional:
+                        rev_out = tf.reverse_sequence(rev_out, self.lengths, seq_axis=1,
+                                                      batch_axis=0)
+                    if config.reconcat_input:
+                        inputs = tf.concat([inputs, rev_out], 2)
+                    else:
+                        inputs = rev_out
+            # recurrence
+            outs, last_state = tf.nn.dynamic_rnn(cell, inputs, sequence_length=self.lengths,
+                                                 swap_memory=True, dtype=tf.float32)
+        else:  # not multilayer and bidirectional
+            _, last_state = tf.nn.bidirectional_dynamic_rnn(cell, rev_cell, inputs,
+                                                            sequence_length=self.lengths,
+                                                            swap_memory=True, dtype=tf.float32)
+            last_state = tf.concat(last_state, 1)
+
         if config.rnn_type == 'lstm':
-            last_state = tf.concat([s for s in last_state], 1)
+            last_state = tf.concat(last_state, 1)
 
         if config.rnn_type == 'entnet' and config.use_attention:
             # start with uniform attention
@@ -183,7 +216,7 @@ class RecurrentNetworkModel(model.TFModel):
             logits = tf.nn.bias_add(tf.matmul(last_state, tf.transpose(attended_weight)), bias)
         else:
             logits = util.linear(last_state, self.label_space_size)
-            if config.rnn_type == 'gru':
+            if config.rnn_type == 'gru' and (config.multilayer or not config.bidirectional):
                 flat_outs = tf.reshape(outs, [-1, hidden_size])
                 flat_logits = util.linear(flat_outs, self.label_space_size, reuse=True)
                 step_logits = tf.reshape(flat_logits, [config.batch_size, -1,
