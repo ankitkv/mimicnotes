@@ -91,6 +91,8 @@ flags.DEFINE_float  ("train_split",    0.9,       "Fraction of patients for trai
                                                   "test = 1 - train - val")
 flags.DEFINE_float  ("val_split",      0.033,     "Fraction of patients for validation. "
                                                   "test = 1 - train - val")
+flags.DEFINE_float  ("train_fraction", 1.0,       "Fraction of training data to use for training "
+                                                  "(for debugging)")
 flags.DEFINE_integer("print_every",    50,        "Print every these many steps")
 flags.DEFINE_integer("save_every",     500,       "Save every these many steps (0 to disable)")
 flags.DEFINE_bool   ("save_overwrite", True,      "Overwrite the same save file each time")

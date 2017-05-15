@@ -32,7 +32,8 @@ class NoteData(object):
         self.splits = {}
         trainidx = int(self.config.train_split * len(self.patients_list))
         validx = trainidx + int(self.config.val_split * len(self.patients_list))
-        self.splits['train'] = self.patients_list[:trainidx]
+        actual_trainidx = int(self.config.train_fraction * (0.5 + trainidx))
+        self.splits['train'] = self.patients_list[:actual_trainidx]
         self.splits['val'] = self.patients_list[trainidx:validx]
         self.splits['test'] = self.patients_list[validx:]
 
