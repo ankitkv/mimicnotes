@@ -568,7 +568,7 @@ class NoteReader(object):
                 probs /= probs.sum()
                 chop = np.random.choice(extended_len, p=probs)
                 chop -= int(note_length * (exp_mean / 2))
-                note_length -= max(0, chop)
+                note_length -= min(note_length - 10, max(0, chop))  # keep at least 10 words
                 new_max_size = max(new_max_size, note_length)
             ret_batch[i, :note_length] = b[0][:note_length]
             lengths[i] = note_length
