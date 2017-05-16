@@ -17,7 +17,7 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
        Additionally, allows to be sliced based on the labels requested."""
 
     def __init__(self, label_space_size, control_size, total_label_space=None,
-                 activation=tf.tanh, norm=1.0, keep_prob=1.0, variables={}):
+                 activation=tf.tanh, norm=1.0, keep_prob=1.0, variables={}, g_to_h_block=True):
         self._label_space_size = label_space_size
         self._control_size = control_size
         self._total_label_space = total_label_space
@@ -25,6 +25,7 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
         self._norm = norm
         self._keep_prob = keep_prob
         self._variables = variables
+        self._g_to_h_block = g_to_h_block
 
     @property
     def state_size(self):
@@ -38,12 +39,17 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
         """Similar to linear, but with the weight matrix restricted to be partially diagonal."""
         diagonal = self._variables[var_scope]['Diagonal']
         right_matrix = self._variables[var_scope]['RightMatrix']
-        bottom_matrix = self._variables[var_scope]['BottomMatrix']
+        if self._g_to_h_block:
+            bottom_matrix = self._variables[var_scope]['BottomMatrix']
         bias = self._variables[var_scope]['Bias']
         diag_res = inputs[:, :self._label_space_size] * tf.expand_dims(diagonal, 0)
         labels_dropped = tf.nn.dropout(inputs[:, :self._label_space_size], self._keep_prob)
         res = tf.matmul(inputs[:, self._label_space_size:], right_matrix)
-        res += tf.concat([diag_res, tf.matmul(labels_dropped, bottom_matrix) * self._norm], 1)
+        if self._g_to_h_block:
+            res += tf.concat([diag_res, tf.matmul(labels_dropped, bottom_matrix) * self._norm], 1)
+        else:
+            res += tf.concat([diag_res, tf.zeros([labels_dropped.get_shape()[0].value,
+                                                  self._control_size])], 1)
         return tf.nn.bias_add(res, bias)
 
     def __call__(self, inputs, state, scope=None):
@@ -157,21 +163,24 @@ class GroundedRNNModel(model.TFModel):
                                                            dtype=tf.float32,
                                                            initializer=initializer)
 
-                        # it's probably a good idea to regularize the following matrix:
-                        if config.sliced_grnn:
-                            with tf.device('/cpu:0'):
+                        if config.g_to_h_block:
+                            # it's probably a good idea to regularize the following matrix:
+                            if config.sliced_grnn:
+                                with tf.device('/cpu:0'):
+                                    bottom_matrix = tf.get_variable("BottomMatrix",
+                                                                    [total_label_space,
+                                                                     config.hidden_size],
+                                                                    dtype=tf.float32,
+                                                                    initializer=initializer)
+                                    if self.slicing_indices is not None:
+                                        bottom_matrix = tf.gather(bottom_matrix,
+                                                                  self.slicing_indices)
+                            else:
                                 bottom_matrix = tf.get_variable("BottomMatrix",
                                                                 [total_label_space,
                                                                  config.hidden_size],
                                                                 dtype=tf.float32,
                                                                 initializer=initializer)
-                                if self.slicing_indices is not None:
-                                    bottom_matrix = tf.gather(bottom_matrix, self.slicing_indices)
-                        else:
-                            bottom_matrix = tf.get_variable("BottomMatrix", [total_label_space,
-                                                                             config.hidden_size],
-                                                            dtype=tf.float32,
-                                                            initializer=initializer)
 
                         if config.sliced_grnn:
                             with tf.device('/cpu:0'):
@@ -191,18 +200,20 @@ class GroundedRNNModel(model.TFModel):
 
                     variables[sc_name]['Diagonal'] = diagonal
                     variables[sc_name]['RightMatrix'] = right_matrix
-                    variables[sc_name]['BottomMatrix'] = bottom_matrix
+                    if config.g_to_h_block:
+                        variables[sc_name]['BottomMatrix'] = bottom_matrix
                     variables[sc_name]['Bias'] = bias_term
 
                 if config.sliced_grnn and test:
                     cell = DiagonalGRUCell(total_label_space, config.hidden_size,
                                            total_label_space=total_label_space,
                                            norm=config.sliced_labels/total_label_space,
-                                           variables=variables)
+                                           variables=variables, g_to_h_block=config.g_to_h_block)
                 else:
                     cell = DiagonalGRUCell(label_space_size, config.hidden_size,
                                            total_label_space=total_label_space,
-                                           keep_prob=self.keep_prob, variables=variables)
+                                           keep_prob=self.keep_prob, variables=variables,
+                                           g_to_h_block=config.g_to_h_block)
             else:
                 cell = tf.contrib.rnn.GRUCell(label_space_size + config.hidden_size)
             # forward recurrence
