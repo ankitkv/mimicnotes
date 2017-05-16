@@ -63,6 +63,7 @@ flags.DEFINE_integer("attn_window",    5,         "The span of words to determin
 flags.DEFINE_bool   ("attn_on_dims",   True,      "Apply attention on each dimension individually")
 flags.DEFINE_bool   ("sigmoid_attn",   False,     "Use sigmoid instead of softmax for attention")
 flags.DEFINE_bool   ("curriculum",     False,     "Increase max note length as training progresses")
+flags.DEFINE_bool   ("random_chop",    False,     "Randomly chop off notes during training")
 flags.DEFINE_integer("len_start",      50,        "Starting note length for curriculum")
 flags.DEFINE_float  ("len_multiply",   0.35,      "Fraction of note length to increase by on each "
                                                   "epoch for curriculum")

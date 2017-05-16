@@ -552,14 +552,28 @@ class NoteReader(object):
         '''Pack python-list label batches into numpy batches if needed'''
         return label_info
 
-    def pack(self, batch):
+    def pack(self, batch, exp_mean=0.15):
         '''Pack python-list batches into numpy batches'''
+        if self.config.random_chop:
+            exp_lambda = 1 / exp_mean
         max_size = max(len(b[0]) for b in batch)
         ret_batch = np.zeros([self.config.batch_size, max_size], dtype=np.int32)
         lengths = np.zeros([self.config.batch_size], dtype=np.int32)
+        new_max_size = 0
         for i, b in enumerate(batch):
-            ret_batch[i, :len(b[0])] = b[0]
-            lengths[i] = len(b[0])
+            note_length = len(b[0])
+            if self.config.random_chop:
+                extended_len = int(note_length * (1 + (exp_mean / 2)))
+                probs = exp_lambda * np.exp(-exp_lambda * np.linspace(0.0, 1.0, extended_len))
+                probs /= probs.sum()
+                chop = np.random.choice(extended_len, p=probs)
+                chop -= int(note_length * (exp_mean / 2))
+                note_length -= max(0, chop)
+                new_max_size = max(new_max_size, note_length)
+            ret_batch[i, :note_length] = b[0][:note_length]
+            lengths[i] = note_length
+        if max_size != new_max_size:
+            ret_batch = ret_batch[:, :new_max_size]
         return (ret_batch, lengths, self.label_pack([b[1] for b in batch]))
 
     def get(self, splits, update_curriculum=None, curriculum=None, deterministic=False,
