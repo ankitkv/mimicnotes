@@ -554,12 +554,12 @@ class NoteReader(object):
 
     def pack(self, batch, exp_mean=0.15):
         '''Pack python-list batches into numpy batches'''
+        max_size = max(len(b[0]) for b in batch)
         if self.config.random_chop:
             exp_lambda = 1 / exp_mean
-        max_size = max(len(b[0]) for b in batch)
+            new_max_size = 0
         ret_batch = np.zeros([self.config.batch_size, max_size], dtype=np.int32)
         lengths = np.zeros([self.config.batch_size], dtype=np.int32)
-        new_max_size = 0
         for i, b in enumerate(batch):
             note_length = len(b[0])
             if self.config.random_chop:
@@ -572,7 +572,7 @@ class NoteReader(object):
                 new_max_size = max(new_max_size, note_length)
             ret_batch[i, :note_length] = b[0][:note_length]
             lengths[i] = note_length
-        if max_size != new_max_size:
+        if self.config.random_chop and max_size != new_max_size:
             ret_batch = ret_batch[:, :new_max_size]
         return (ret_batch, lengths, self.label_pack([b[1] for b in batch]))
 
