@@ -42,6 +42,7 @@ flags.DEFINE_bool   ("reconcat_input", False,     "Concatenate the input to the 
 flags.DEFINE_bool   ("positive_diag",  False,     "Ensure positive diagonal in semidiagonal GRNN")
 flags.DEFINE_bool   ("biased_sigmoid", True,      "Biased re-sigmoid for GRNN output")
 flags.DEFINE_bool   ("g_to_h_block",   True,      "Enable grounded to controller projection.")
+flags.DEFINE_bool   ("detach_g_to_h",  False,     "Stop gradients from controller to grounded.")
 flags.DEFINE_bool   ("sliced_grnn",    False,     "Sliced GRNN")
 flags.DEFINE_integer("sliced_labels",  256,       "Number of sliced labels")
 flags.DEFINE_bool   ("sample_uniform", False,     "Sample negative labels uniformly for "

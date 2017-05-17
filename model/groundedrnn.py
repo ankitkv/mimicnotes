@@ -17,7 +17,8 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
        Additionally, allows to be sliced based on the labels requested."""
 
     def __init__(self, label_space_size, control_size, total_label_space=None,
-                 activation=tf.tanh, norm=1.0, keep_prob=1.0, variables={}, g_to_h_block=True):
+                 activation=tf.tanh, norm=1.0, keep_prob=1.0, variables={}, g_to_h_block=True,
+                 detach_g_to_h=False):
         self._label_space_size = label_space_size
         self._control_size = control_size
         self._total_label_space = total_label_space
@@ -26,6 +27,7 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
         self._keep_prob = keep_prob
         self._variables = variables
         self._g_to_h_block = g_to_h_block
+        self._detach_g_to_h = detach_g_to_h
 
     @property
     def state_size(self):
@@ -46,6 +48,8 @@ class DiagonalGRUCell(tf.contrib.rnn.RNNCell):
         labels_dropped = tf.nn.dropout(inputs[:, :self._label_space_size], self._keep_prob)
         res = tf.matmul(inputs[:, self._label_space_size:], right_matrix)
         if self._g_to_h_block:
+            if self._detach_g_to_h:
+                labels_dropped = tf.stop_gradient(labels_dropped)
             res += tf.concat([diag_res, tf.matmul(labels_dropped, bottom_matrix) * self._norm], 1)
         else:
             res += tf.concat([diag_res, tf.zeros([labels_dropped.get_shape()[0].value,
@@ -208,12 +212,14 @@ class GroundedRNNModel(model.TFModel):
                     cell = DiagonalGRUCell(total_label_space, config.hidden_size,
                                            total_label_space=total_label_space,
                                            norm=config.sliced_labels/total_label_space,
-                                           variables=variables, g_to_h_block=config.g_to_h_block)
+                                           variables=variables, g_to_h_block=config.g_to_h_block,
+                                           detach_g_to_h=config.detach_g_to_h)
                 else:
                     cell = DiagonalGRUCell(label_space_size, config.hidden_size,
                                            total_label_space=total_label_space,
                                            keep_prob=self.keep_prob, variables=variables,
-                                           g_to_h_block=config.g_to_h_block)
+                                           g_to_h_block=config.g_to_h_block,
+                                           detach_g_to_h=config.detach_g_to_h)
             else:
                 cell = tf.contrib.rnn.GRUCell(label_space_size + config.hidden_size)
             # forward recurrence
