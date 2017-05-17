@@ -226,11 +226,19 @@ def f1_score(probs, labels, thres, average='micro'):
 
 def auc_pr(probs, labels, average='micro'):
     '''Precision integrated over all thresholds (area under the precision-recall curve)'''
+    if average == 'macro':
+        nz_indices = np.nonzero(labels.sum(0))[0]
+        probs = probs[:, nz_indices]
+        labels = labels[:, nz_indices]
     return sklearn.metrics.average_precision_score(labels, probs, average=average)
 
 
 def auc_roc(probs, labels, average='micro'):
     '''Area under the ROC curve'''
+    if average == 'macro':
+        nz_indices = np.nonzero(labels.sum(0))[0]
+        probs = probs[:, nz_indices]
+        labels = labels[:, nz_indices]
     return sklearn.metrics.roc_auc_score(labels, probs, average=average)
 
 
