@@ -40,9 +40,7 @@ class MajorityRunner(util.Runner):
             auc = util.auc_roc(probs, labels)
         except ValueError:
             auc = float('nan')
-        p8 = util.precision_at_k(probs, labels, 8)
-        r8 = util.recall_at_k(probs, labels, 8)
-        micro = [p, r, f, ap, auc, p8, r8]
+        micro = [p, r, f, ap, auc]
         # macro-averaged stats
         p, r, f = util.f1_score(probs, labels, 0.5, average='macro')
         ap = util.auc_pr(probs, labels, average='macro')
@@ -63,11 +61,10 @@ class MajorityRunner(util.Runner):
         if losses is None:
             return "N/A"
         micro, macro = losses
-        p, r, f, ap, auc, p8, r8 = micro
+        p, r, f, ap, auc = micro
         micro_str = "Precision (micro): %.4f, Recall (micro): %.4f, F-score (micro): %.4f, " \
-                    "AUC(PR) (micro): %.4f, AUC(ROC) (micro): %.4f, Precision@8 (micro): %.4f, " \
-                    "Recall@8 (micro): %.4f" % (p, r, f, ap, auc, p8, r8)
-        p, r, f, ap, auc, p8, r8 = macro
+                    "AUC(PR) (micro): %.4f, AUC(ROC) (micro): %.4f" % (p, r, f, ap, auc)
+        p, r, f, ap, auc = macro
         macro_str = "Precision (macro): %.4f, Recall (macro): %.4f, F-score (macro): %.4f, " \
                     "AUC(PR) (macro): %.4f, AUC(ROC) (macro): %.4f" % (p, r, f, ap, auc)
         return ' | '.join([micro_str, macro_str])
@@ -79,7 +76,5 @@ class MajorityRunner(util.Runner):
             auc = util.auc_roc(self.probs, self.labels)
         except ValueError:
             auc = float('nan')
-        p8 = util.precision_at_k(self.probs, self.labels, 8)
-        r8 = util.recall_at_k(self.probs, self.labels, 8)
         print("S:%d.  Precision: %.4f, Recall: %.4f, F-score: %.4f, AUC(PR): %.4f, AUC(ROC): %.4f, "
-              "Precision@8: %.4f, Recall@8: %.4f" % (step, p, r, f, ap, auc, p8, r8))
+              % (step, p, r, f, ap, auc))

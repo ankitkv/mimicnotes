@@ -30,6 +30,8 @@ flags.DEFINE_integer("batch_size",     32,        "Batch size")
 flags.DEFINE_float  ("l1_reg",         0.0,       "L1-regularization scale")
 flags.DEFINE_float  ("l2_reg",         0.0,       "L2-regularization scale")
 flags.DEFINE_string ("grnn_loss",      "ce",      "ce/l1")
+flags.DEFINE_string ("pr_at_k",        "8,24,40", "Compute precision and recall at these values "
+                                                  "of k")
 flags.DEFINE_bool   ("length_sort",    True,      "Ensure similar note lengths in a batch")
 flags.DEFINE_integer("word_emb_size",  192,       "Word embedding size")
 flags.DEFINE_string ("rnn_type",       "gru",     "gru/lstm/entnet")
@@ -128,6 +130,7 @@ class Config(object):
                     print(k.ljust(maxlen + 2), v)
             if verbose:
                 print()
+            self.pr_at_k = [int(k) for k in self.pr_at_k.split(',')]
             if self.threads == -1:
                 self.threads = multiprocessing.cpu_count() - 1
                 if self.threads < 1:
