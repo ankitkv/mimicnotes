@@ -14,7 +14,7 @@ import matplotlib.cm as cm
 import numpy as np
 
 
-index = 4  # zero-indexed from: [p, r, f, ap, auc, p8, r8]
+index = 4  # zero-indexed from: [p, r, f, ap, auc]
 poly_degree = -1  # <= 0 to disable
 top = 1000  # look at the top these many concepts
 conv_window = -1  # <= 1 to disable

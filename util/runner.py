@@ -131,7 +131,7 @@ class Runner(object):
         '''Check if the loss we care about is within sanity bounds
            [config.sanity_min, config.sanity_max]'''
         loss, micro, macro, perclass = losses
-        p, r, f, ap, auc, p8, r8 = micro
+        p, r, f, ap, auc = micro[:5]
         return ap >= self.config.sanity_min and ap <= self.config.sanity_max
 
     def best_val_loss(self, losses):
@@ -139,7 +139,7 @@ class Runner(object):
         if losses is None:
             return False
         loss, micro, macro, perclass = losses
-        p, r, f, ap, auc, p8, r8 = micro
+        p, r, f, ap, auc = micro[:5]
         if ap >= self.best_score:
             self.best_score = ap
             return True
@@ -213,9 +213,7 @@ class Runner(object):
                     auc = util.auc_roc(probs, labels, average=None)
                 except ValueError:
                     auc = float('nan')
-                p8 = util.precision_at_k(probs, labels, 8, average=None)
-                r8 = util.recall_at_k(probs, labels, 8, average=None)
-                perclass = [p, r, f, ap, auc, p8, r8]
+                perclass = [p, r, f, ap, auc]
             else:
                 perclass = float('nan')
             ret_micro.append(micro)

@@ -50,9 +50,7 @@ class MajorityRunner(util.Runner):
             auc = util.auc_roc(probs, labels, average='macro')
         except ValueError:
             auc = float('nan')
-        p8 = util.precision_at_k(probs, labels, 8, average='macro')
-        r8 = util.recall_at_k(probs, labels, 8, average='macro')
-        macro = [p, r, f, ap, auc, p8, r8]
+        macro = [p, r, f, ap, auc]
         return micro, macro
 
     def sanity_check_loss(self, loss):
@@ -71,8 +69,7 @@ class MajorityRunner(util.Runner):
                     "Recall@8 (micro): %.4f" % (p, r, f, ap, auc, p8, r8)
         p, r, f, ap, auc, p8, r8 = macro
         macro_str = "Precision (macro): %.4f, Recall (macro): %.4f, F-score (macro): %.4f, " \
-                    "AUC(PR) (macro): %.4f, AUC(ROC) (macro): %.4f, Precision@8 (macro): %.4f, " \
-                    "Recall@8 (macro): %.4f" % (p, r, f, ap, auc, p8, r8)
+                    "AUC(PR) (macro): %.4f, AUC(ROC) (macro): %.4f" % (p, r, f, ap, auc)
         return ' | '.join([micro_str, macro_str])
 
     def output(self, step, train=True):
