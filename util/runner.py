@@ -194,8 +194,13 @@ class Runner(object):
                 auc = float('nan')
             micro = [p, r, f, ap, auc]
             for k in self.config.pr_at_k:
-                pk = util.precision_at_k(probs, labels, k)
-                rk = util.recall_at_k(probs, labels, k)
+                if train:
+                    # don't spend time on this for train set
+                    pk = float('nan')
+                    rk = float('nan')
+                else:
+                    pk = util.precision_at_k(probs, labels, k)
+                    rk = util.recall_at_k(probs, labels, k)
                 micro.extend([pk, rk])
             # macro-averaged stats
             p, r, f = util.f1_score(probs, labels, 0.5, average='macro')
