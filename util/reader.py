@@ -622,15 +622,13 @@ class NoteICD9Reader(NoteReader):
         vocab_lookup_dgn = self.vocab.aux_vocab_lookup['dgn']
         vocab_lookup_pcd = self.vocab.aux_vocab_lookup['pcd']
         for diag_code, _ in admission.dgn_events:
-            try:
-                label[vocab_lookup_dgn[diag_code]] = 1
-            except IndexError:
-                pass
+            index = vocab_lookup_dgn[diag_code]
+            if index < self.max_dgn_labels:
+                label[index] = 1
         for proc_code, _ in admission.pcd_events:
-            try:
-                label[self.max_dgn_labels + vocab_lookup_pcd[proc_code]] = 1
-            except IndexError:
-                pass
+            index = vocab_lookup_pcd[proc_code]
+            if index < self.max_pcd_labels:
+                label[self.max_dgn_labels + index] = 1
         return label
 
     def label_space_size(self):
