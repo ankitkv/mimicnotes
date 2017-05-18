@@ -562,7 +562,7 @@ class NoteReader(object):
         lengths = np.zeros([self.config.batch_size], dtype=np.int32)
         for i, b in enumerate(batch):
             note_length = len(b[0])
-            if self.config.random_chop:
+            if self.config.random_chop and note_length > 10:
                 extended_len = int(note_length * (1 + (exp_mean / 2)))
                 probs = exp_lambda * np.exp(-exp_lambda * np.linspace(0.0, 1.0, extended_len))
                 probs /= probs.sum()
