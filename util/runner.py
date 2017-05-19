@@ -185,6 +185,9 @@ class Runner(object):
             all_labels = self.all_labels[i:i+chunk_size]
             probs = np.concatenate(all_probs)
             labels = np.concatenate(all_labels)
+            if self.config.test_labels > 0:
+                probs = probs[:, :self.config.test_labels]
+                labels = labels[:, :self.config.test_labels]
             # micro-averaged stats
             p, r, f = util.f1_score(probs, labels, 0.5)
             ap = util.auc_pr(probs, labels)

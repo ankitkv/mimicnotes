@@ -74,6 +74,8 @@ flags.DEFINE_integer("max_note_len",   4000,      "Maximum note length. -1 to di
 flags.DEFINE_integer("max_dgn_labels", 500,       "Diagnoses vocabulary for labels. -1 for default")
 flags.DEFINE_integer("max_pcd_labels", 0,         "Procedures vocabulary for labels. "
                                                   "-1 for default")
+flags.DEFINE_integer("test_labels",    -1,        "If positive, compute stats on these many top "
+                                                  "labels (for debugging)")
 flags.DEFINE_string ("optimizer",      "adam",    "Optimizer to use (sgd, adam, adagrad, adadelta)")
 flags.DEFINE_float  ("max_grad_norm",  5.0,       "Maximum gradient norm for clipping")
 flags.DEFINE_float  ("learning_rate",  1e-3,      "Optimizer initial learning rate")
