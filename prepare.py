@@ -13,6 +13,9 @@ def main(_):
         data = util.NoteShelveData(config)
     elif config.data_storage == 'pickle':
         data = util.NotePickleData(config)
+    if config.visualize:
+        print('Stats:')
+        data.print_stats()
     vocab = util.NoteVocab(config, data)
     reader = util.NoteICD9Reader(config, data, vocab)
 #    for batch in reader.get(['train']):

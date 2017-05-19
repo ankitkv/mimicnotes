@@ -36,9 +36,35 @@ class NoteData(object):
         self.splits['train'] = self.patients_list[:actual_trainidx]
         self.splits['val'] = self.patients_list[trainidx:validx]
         self.splits['test'] = self.patients_list[validx:]
+        if self.verbose:
+            print('Dataset size:')
+            for k, v in self.splits.items():
+                print(k, len(v))
 
     def get_patients_list(self, splits):
         return sum([self.splits[s] for s in splits], [])
+
+    def iterate(self, splits=['train', 'val', 'test']):
+        raise NotImplementedError
+
+    def print_stats(self):
+        dgn_sizes = []
+        pcd_sizes = []
+        lens = []
+        for i, adm in enumerate(self.iterate()):
+            if self.verbose and i % 1000 == 0:
+                print(i)
+            dgn_size = len(adm.dgn_events)
+            pcd_size = len(adm.pcd_events)
+            for note in adm.notes:
+                note_text = sum(note, [])
+                note_len = len(note_text)
+                lens.append(note_len)
+                dgn_sizes.append(dgn_size)
+                pcd_sizes.append(pcd_size)
+        print('Average sent length:', np.mean(lens))
+        print('Average dgns:', np.mean(dgn_sizes))
+        print('Average pcds:', np.mean(pcd_sizes))
 
 
 class NoteShelveData(NoteData):
