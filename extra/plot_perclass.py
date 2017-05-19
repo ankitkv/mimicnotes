@@ -2,7 +2,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import glob
 try:
     import cPickle as pickle
 except:
@@ -14,46 +13,38 @@ import matplotlib.cm as cm
 import numpy as np
 
 
-index = 4  # zero-indexed from: [p, r, f, ap, auc]
+index = 3  # zero-indexed from: [p, r, f, ap, auc]
 poly_degree = -1  # <= 0 to disable
-top = 1000  # look at the top these many concepts
+top = 10000  # look at the top these many concepts
 conv_window = -1  # <= 1 to disable
-batch_size = 50  # <= 0 to disable
+batch_size = 200  # <= 0 to disable
 
 
 if __name__ == '__main__':
-    #fnames = glob.glob('../saved/*.plot')
     fnames = [
-#        '../saved/bow200.plot',
-#        '../saved/bow500.plot',
-        ('../saved/bow1000.plot', 'Bag of words'),
-#        '../saved/attn200_w3.plot',
-#        '../saved/attn500_w3.plot',
-        ('../saved/attn1000_w3.plot', 'Attention bag of words'),
-#        '../saved/rnn2_f200_h128e192.plot',
-#        '../saved/rnn2_f500_h128e192.plot',
-#        '../saved/grnn_f200.plot',
-#        '../saved/grnn_f500.plot',
-#        '../saved/grnn_f1000.plot',
-#        '../saved/grnn_f200_h0.plot',
-#        '../saved/grnn_f500_h0.plot',
-#        '../saved/grnn_f1000_h0.plot',
-#        '../saved/grnnsd_f200_h128.plot',
-#        '../saved/grnnsd_f500_h128.plot',
-        ('../saved/grnnsd_f1000_h128.plot', 'Grounded RNN'),
-#        '../saved/grnnsd_f1000_h128r1e-2.plot',
-#        '../saved/grnnsd_f1000_h128r1e-3.plot',
-#        '../saved/grnnsd_f1000_h128r1e-4.plot',
-#        '../saved/grnnsd_f1000_h128r1e-5.plot',
+        ('../saved/m2_bow.plot',           'BOW'),
+        ('../saved/m2_attn_w3.plot',       'Attn BOW'),
+        ('../saved/m2_rnn_h128.plot',      'GRU'),
+        ('../saved/m2_rnn_h64_m0b1.plot',  'BiGRU'),
+        ('../saved/m2_rnn_h64_m1b1.plot',  '2layer BiGRU'),
+        ('../saved/m2_grnn_h128.plot',     'GRNN'),
+        ('../saved/m2_grnn_h64_b1r1.plot', 'BiGRNN'),
     ]
     data = []
     for fname, name in fnames:
         with open(fname, 'rb') as f:
             data.append((name, pickle.load(f)))
     colors = cm.rainbow(np.linspace(0, 1, len(data)))
+    datas = []
     for i, (label, perclass_tuple) in enumerate(data):
         _, perclass = perclass_tuple
-        plot_data = perclass[index][:top]
+        datas.append(perclass[3][:top])
+    datas = np.mean(np.array(datas), 0)
+    indices = np.isfinite(datas)
+    plt.figure(figsize=(6, 5))
+    for i, (label, perclass_tuple) in enumerate(data):
+        _, perclass = perclass_tuple
+        plot_data = perclass[index][:top][indices]
         if poly_degree > 0:
             x = np.arange(len(plot_data))
             coefs = np.polyfit(x, plot_data, poly_degree)
@@ -68,10 +59,20 @@ if __name__ == '__main__':
         if batch_size > 0:
             new_plot = []
             for j in range(0, len(plot_data), batch_size):
-                new_plot.append(plot_data[j: j + batch_size].mean())
+                value = np.nanmean(plot_data[j: j + batch_size])
+                new_plot.append(value)
             plot_data = np.array(new_plot)
         plt.plot(plot_data, c=colors[i], label=label)
     plt.legend()
-    plt.xlabel('Group of size 50 of labels in the order of decreasing frequency')
-    plt.ylabel('Area under the ROC curve')
-    plt.show()
+    plt.xlabel('Group of size %d of labels in the order of decreasing frequency' % batch_size)
+    if index == 0:
+        plt.ylabel('Precision')
+    elif index == 1:
+        plt.ylabel('Recall')
+    elif index == 2:
+        plt.ylabel('F1-score')
+    elif index == 3:
+        plt.ylabel('Area under the PR curve')
+    elif index == 4:
+        plt.ylabel('Area under the ROC curve')
+    plt.savefig('perclass_auc.pdf')
