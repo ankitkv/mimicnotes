@@ -51,6 +51,7 @@ class NoteData(object):
         dgn_sizes = []
         pcd_sizes = []
         lens = []
+        extra = []
         for i, adm in enumerate(self.iterate()):
             if self.verbose and i % 1000 == 0:
                 print(i)
@@ -60,9 +61,11 @@ class NoteData(object):
                 note_text = sum(note, [])
                 note_len = len(note_text)
                 lens.append(note_len)
+                extra.append(max(0, note_len - (self.config.max_note_len - 2)))
                 dgn_sizes.append(dgn_size)
                 pcd_sizes.append(pcd_size)
         print('Average sent length:', np.mean(lens))
+        print('Retained fraction:', 1.0 - (np.sum(extra) / np.sum(lens)))
         print('Average dgns:', np.mean(dgn_sizes))
         print('Average pcds:', np.mean(pcd_sizes))
 
