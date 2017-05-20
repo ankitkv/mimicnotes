@@ -5,6 +5,7 @@ convbow.pyc
 entnet.pyc
 groundedrnn.pyc
 __init__.pyc
+lowrank_grnn.pyc
 majority.pyc
 model.pyc
 neuralbow.pyc

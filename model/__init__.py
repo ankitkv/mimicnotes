@@ -9,6 +9,7 @@ from attentionbow import *
 from rnn import *
 from groundedrnn import *
 from baseline2grnn import *
+from lowrank_grnn import *
 from normlstm import *
 from partialrnn import *
 
