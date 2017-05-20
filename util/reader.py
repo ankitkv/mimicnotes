@@ -47,16 +47,26 @@ class NoteData(object):
     def iterate(self, splits=['train', 'val', 'test']):
         raise NotImplementedError
 
-    def print_stats(self):
+    def print_stats(self, vocab):
         dgn_sizes = []
         pcd_sizes = []
         lens = []
         extra = []
+        vocab_lookup_dgn = vocab.aux_vocab_lookup['dgn']
+        vocab_lookup_pcd = vocab.aux_vocab_lookup['pcd']
         for i, adm in enumerate(self.iterate()):
             if self.verbose and i % 1000 == 0:
                 print(i)
-            dgn_size = len(adm.dgn_events)
-            pcd_size = len(adm.pcd_events)
+            dgn_size = 0
+            pcd_size = 0
+            for diag_code, _ in adm.dgn_events:
+                index = vocab_lookup_dgn[diag_code]
+                if index < self.config.max_dgn_labels:
+                    dgn_size += 1
+            for proc_code, _ in adm.pcd_events:
+                index = vocab_lookup_pcd[proc_code]
+                if index < self.config.max_pcd_labels:
+                    pcd_size += 1
             for note in adm.notes:
                 note_text = sum(note, [])
                 note_len = len(note_text)

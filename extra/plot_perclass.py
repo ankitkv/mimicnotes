@@ -22,27 +22,27 @@ batch_size = 200  # <= 0 to disable
 
 if __name__ == '__main__':
     fnames = [
-        ('../saved/m2_bow.plot',           'BOW'),
-        ('../saved/m2_attn_w3.plot',       'Attn BOW'),
-        ('../saved/m2_rnn_h128.plot',      'GRU'),
-        ('../saved/m2_rnn_h64_m0b1.plot',  'BiGRU'),
-        ('../saved/m2_rnn_h64_m1b1.plot',  '2layer BiGRU'),
-        ('../saved/m2_grnn_h128.plot',     'GRNN'),
-        ('../saved/m2_grnn_h64_b1r1.plot', 'BiGRNN'),
+        ('../saved/m2_bow.plot',           'Logistic',      'b--^'),
+        ('../saved/m2_attn_w3.plot',       'Attention BOW', 'b-^'),
+        ('../saved/m2_rnn_h128.plot',      'GRU',           'g--v'),
+        ('../saved/m2_rnn_h64_m0b1.plot',  'BiGRU',         'g-v'),
+        ('../saved/m2_grnn_h128.plot',     'GRNN',          'r--o'),
+        ('../saved/m2_grnn_h64_b1r1.plot', 'BiGRNN',        'r-o'),
     ]
     data = []
-    for fname, name in fnames:
+    for fname, name, style in fnames:
         with open(fname, 'rb') as f:
-            data.append((name, pickle.load(f)))
+            data.append((name, style, pickle.load(f)))
     colors = cm.rainbow(np.linspace(0, 1, len(data)))
     datas = []
-    for i, (label, perclass_tuple) in enumerate(data):
+    for i, (label, _, perclass_tuple) in enumerate(data):
         _, perclass = perclass_tuple
         datas.append(perclass[3][:top])
     datas = np.mean(np.array(datas), 0)
     indices = np.isfinite(datas)
     plt.figure(figsize=(6, 5))
-    for i, (label, perclass_tuple) in enumerate(data):
+    plt.rcParams.update({'font.size': 14})
+    for i, (label, style, perclass_tuple) in enumerate(data):
         _, perclass = perclass_tuple
         plot_data = perclass[index][:top][indices]
         if poly_degree > 0:
@@ -62,9 +62,9 @@ if __name__ == '__main__':
                 value = np.nanmean(plot_data[j: j + batch_size])
                 new_plot.append(value)
             plot_data = np.array(new_plot)
-        plt.plot(plot_data, c=colors[i], label=label)
+        plt.plot(plot_data, style, label=label)
     plt.legend()
-    plt.xlabel('Group of size %d of labels in the order of decreasing frequency' % batch_size)
+    plt.xlabel('Decreasing label frequency')
     if index == 0:
         plt.ylabel('Precision')
     elif index == 1:
@@ -75,4 +75,5 @@ if __name__ == '__main__':
         plt.ylabel('Area under the PR curve')
     elif index == 4:
         plt.ylabel('Area under the ROC curve')
+    #plt.show()
     plt.savefig('perclass_auc.pdf')

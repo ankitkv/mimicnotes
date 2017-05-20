@@ -13,10 +13,10 @@ def main(_):
         data = util.NoteShelveData(config)
     elif config.data_storage == 'pickle':
         data = util.NotePickleData(config)
+    vocab = util.NoteVocab(config, data)
     if config.visualize:
         print('Stats:')
-        data.print_stats()
-    vocab = util.NoteVocab(config, data)
+        data.print_stats(vocab)
     reader = util.NoteICD9Reader(config, data, vocab)
 #    for batch in reader.get(['train']):
 #        for w in batch[0][0]:
