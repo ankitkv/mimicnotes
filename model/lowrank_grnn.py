@@ -7,13 +7,14 @@ import collections
 import tensorflow as tf
 
 import model
+import util
 
 
 class LowRankGRUCell(tf.contrib.rnn.RNNCell):
     """Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078) with low-rank weights."""
 
     def __init__(self, label_space_size, control_size, activation=tf.tanh, norm=1.0, variables={},
-                 use_attention=False, g_to_h_block=True, detach_g_to_h=False):
+                 use_attention=False, sigmoid_attn=False, g_to_h_block=True, detach_g_to_h=False):
         self._label_space_size = label_space_size
         self._control_size = control_size
         self._activation = activation
@@ -22,6 +23,7 @@ class LowRankGRUCell(tf.contrib.rnn.RNNCell):
         self._g_to_h_block = g_to_h_block
         self._detach_g_to_h = detach_g_to_h
         self._use_attention = use_attention
+        self._sigmoid_attn = sigmoid_attn
 
     @property
     def state_size(self):
@@ -55,7 +57,14 @@ class LowRankGRUCell(tf.contrib.rnn.RNNCell):
         """Gated recurrent unit (GRU) with nunits cells."""
         with tf.variable_scope(scope or "lowrank_gru_cell"):
             if self._use_attention:
-                a_state = state  # TODO use attention using inputs and control dimensions
+                attn_input = tf.concat([state[:, self._label_space_size:], inputs], 1)
+                logits = util.linear(attn_input, self._label_space_size)
+                if self._sigmoid_attn:
+                    mask = tf.nn.sigmoid(logits)
+                else:
+                    mask = tf.nn.softmax(logits)
+                a_state = state * tf.concat([mask, tf.ones([mask.get_shape()[0].value,
+                                                            self._control_size])], 1)
             else:
                 a_state = state
             with tf.variable_scope("r_gate"):
@@ -154,6 +163,7 @@ class LowRankGRNNModel(model.TFModel):
 
             cell = LowRankGRUCell(label_space_size, config.hidden_size,
                                   variables=variables, use_attention=config.use_attention,
+                                  sigmoid_attn=config.sigmoid_attn,
                                   g_to_h_block=config.g_to_h_block,
                                   detach_g_to_h=config.detach_g_to_h)
             # forward recurrence

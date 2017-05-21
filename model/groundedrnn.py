@@ -129,7 +129,6 @@ class GroundedRNNModel(model.TFModel):
             if config.diagonal_cell:
                 initializer = tf.contrib.layers.xavier_initializer()
                 variables = collections.defaultdict(dict)
-                # define the variables here so that slicing happens only once per batch
                 for sc_name, bias_start in [('r_gate', 1.0), ('u_gate', 1.0), ('candidate', 0.0)]:
                     with tf.variable_scope('rnn/diagonal_gru_cell/' + sc_name):
                         if config.sliced_grnn:
