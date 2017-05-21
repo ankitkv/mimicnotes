@@ -13,7 +13,7 @@ class LowRankGRUCell(tf.contrib.rnn.RNNCell):
     """Gated Recurrent Unit cell (cf. http://arxiv.org/abs/1406.1078) with low-rank weights."""
 
     def __init__(self, label_space_size, control_size, activation=tf.tanh, norm=1.0, variables={},
-                 g_to_h_block=True, detach_g_to_h=False):
+                 use_attention=False, g_to_h_block=True, detach_g_to_h=False):
         self._label_space_size = label_space_size
         self._control_size = control_size
         self._activation = activation
@@ -21,6 +21,7 @@ class LowRankGRUCell(tf.contrib.rnn.RNNCell):
         self._variables = variables
         self._g_to_h_block = g_to_h_block
         self._detach_g_to_h = detach_g_to_h
+        self._use_attention = use_attention
 
     @property
     def state_size(self):
@@ -30,7 +31,7 @@ class LowRankGRUCell(tf.contrib.rnn.RNNCell):
     def output_size(self):
         return self._label_space_size + self._control_size
 
-    def lowrank_linear(self, inputs, var_scope):  # TODO use config.use_attention
+    def lowrank_linear(self, inputs, var_scope):
         """Similar to linear, but with the label to label block constrained to be low rank."""
         lr_factor1 = self._variables[var_scope]['LRFactor1']
         lr_factor2 = self._variables[var_scope]['LRFactor2']
@@ -53,10 +54,14 @@ class LowRankGRUCell(tf.contrib.rnn.RNNCell):
     def __call__(self, inputs, state, scope=None):
         """Gated recurrent unit (GRU) with nunits cells."""
         with tf.variable_scope(scope or "lowrank_gru_cell"):
+            if self._use_attention:
+                a_state = state  # TODO use attention using inputs and control dimensions
+            else:
+                a_state = state
             with tf.variable_scope("r_gate"):
-                r = tf.sigmoid(self.lowrank_linear(tf.concat([state, inputs], 1), 'r_gate'))
+                r = tf.sigmoid(self.lowrank_linear(tf.concat([a_state, inputs], 1), 'r_gate'))
             with tf.variable_scope("u_gate"):
-                u = tf.sigmoid(self.lowrank_linear(tf.concat([state, inputs], 1), 'u_gate'))
+                u = tf.sigmoid(self.lowrank_linear(tf.concat([a_state, inputs], 1), 'u_gate'))
             with tf.variable_scope("candidate"):
                 c = self._activation(self.lowrank_linear(tf.concat([r * state, inputs], 1),
                                                          'candidate'))
@@ -148,7 +153,8 @@ class LowRankGRNNModel(model.TFModel):
                 variables[sc_name]['Bias'] = bias_term
 
             cell = LowRankGRUCell(label_space_size, config.hidden_size,
-                                  variables=variables, g_to_h_block=config.g_to_h_block,
+                                  variables=variables, use_attention=config.use_attention,
+                                  g_to_h_block=config.g_to_h_block,
                                   detach_g_to_h=config.detach_g_to_h)
             # forward recurrence
             out, last_state = tf.nn.dynamic_rnn(cell, inputs, sequence_length=self.lengths,
