@@ -30,23 +30,24 @@ class LowRankGRUCell(tf.contrib.rnn.RNNCell):
     def output_size(self):
         return self._label_space_size + self._control_size
 
-    def lowrank_linear(self, inputs, var_scope):  # TODO implement, fix doc
-        """Similar to linear, but with the weight matrix restricted to be partially diagonal."""
-        diagonal = self._variables[var_scope]['Diagonal']
+    def lowrank_linear(self, inputs, var_scope):  # TODO use config.use_attention
+        """Similar to linear, but with the label to label block constrained to be low rank."""
+        lr_factor1 = self._variables[var_scope]['LRFactor1']
+        lr_factor2 = self._variables[var_scope]['LRFactor2']
         right_matrix = self._variables[var_scope]['RightMatrix']
         if self._g_to_h_block:
             bottom_matrix = self._variables[var_scope]['BottomMatrix']
         bias = self._variables[var_scope]['Bias']
-        diag_res = inputs[:, :self._label_space_size] * tf.expand_dims(diagonal, 0)
         cur_labels = inputs[:, :self._label_space_size]
+        lr_res = tf.matmul(tf.matmul(cur_labels, lr_factor2), lr_factor1)
         res = tf.matmul(inputs[:, self._label_space_size:], right_matrix)
         if self._g_to_h_block:
             if self._detach_g_to_h:
                 cur_labels = tf.stop_gradient(cur_labels)
-            res += tf.concat([diag_res, tf.matmul(cur_labels, bottom_matrix) * self._norm], 1)
+            res += tf.concat([lr_res, tf.matmul(cur_labels, bottom_matrix) * self._norm], 1)
         else:
-            res += tf.concat([diag_res, tf.zeros([cur_labels.get_shape()[0].value,
-                                                  self._control_size])], 1)
+            res += tf.concat([lr_res, tf.zeros([cur_labels.get_shape()[0].value,
+                                                self._control_size])], 1)
         return tf.nn.bias_add(res, bias)
 
     def __call__(self, inputs, state, scope=None):
@@ -114,10 +115,12 @@ class LowRankGRNNModel(model.TFModel):
             variables = collections.defaultdict(dict)
             for sc_name, bias_start in [('r_gate', 1.0), ('u_gate', 1.0), ('candidate', 0.0)]:
                 with tf.variable_scope('rnn/lowrank_gru_cell/' + sc_name):
-                    # TODO change variables
-                    diagonal = tf.get_variable("Diagonal", [label_space_size],
-                                               dtype=tf.float32,
-                                               initializer=tf.zeros_initializer())
+                    lr_factor1 = tf.get_variable("LRFactor1", [config.label_emb_size,
+                                                               label_space_size],
+                                                 dtype=tf.float32, initializer=initializer)
+                    lr_factor2 = tf.get_variable("LRFactor2", [label_space_size,
+                                                               config.label_emb_size],
+                                                 dtype=tf.float32, initializer=initializer)
 
                     nondiag_size = config.hidden_size + inputs.get_shape()[2].value
                     right_matrix = tf.get_variable("RightMatrix", [nondiag_size,
@@ -137,7 +140,8 @@ class LowRankGRNNModel(model.TFModel):
                                                 dtype=tf.float32,
                                                 initializer=tf.constant_initializer(bias_start))
 
-                variables[sc_name]['Diagonal'] = diagonal
+                variables[sc_name]['LRFactor1'] = lr_factor1
+                variables[sc_name]['LRFactor2'] = lr_factor2
                 variables[sc_name]['RightMatrix'] = right_matrix
                 if config.g_to_h_block:
                     variables[sc_name]['BottomMatrix'] = bottom_matrix
