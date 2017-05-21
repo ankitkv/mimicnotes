@@ -91,6 +91,7 @@ flags.DEFINE_integer("sanity_epoch",   -1,        "Epoch to sanity check loss at
 flags.DEFINE_float  ("sanity_min",     0.33,      "Minimum loss at sanity epoch to not quit")
 flags.DEFINE_float  ("sanity_max",     1.0,       "Maximum loss at sanity epoch to not quit")
 flags.DEFINE_bool   ("early_stop",     True,      "Stop early if validation loss stops improving")
+flags.DEFINE_bool   ("macro_auc",      False,     "Compute macro-averaged AUCs (slow)")
 flags.DEFINE_integer("min_epochs",     20,        "Minimum number of epochs before early stopping")
 flags.DEFINE_float  ("stop_increment", 1.25,      "Increase early stop target by this when new "
                                                   "best validation")

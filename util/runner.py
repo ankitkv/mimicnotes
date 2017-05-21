@@ -104,7 +104,7 @@ class Runner(object):
         self.initialize_losses()
         global_iter = self.run_epoch(epoch, global_iter, self.test_splits, train=False,
                                      verbose=verbose)
-        loss = self.losses(perclass=True)
+        loss = self.losses(perclass=bool(self.config.plot_file))
         if verbose:
             print('Test losses: ', self.loss_str(loss))
         self.plot(None, loss, False)
@@ -207,11 +207,14 @@ class Runner(object):
                 micro.extend([pk, rk])
             # macro-averaged stats
             p, r, f = util.f1_score(probs, labels, 0.5, average='macro')
-            ap = util.auc_pr(probs, labels, average='macro')
-            try:
-                auc = util.auc_roc(probs, labels, average='macro')
-            except ValueError:
-                auc = float('nan')
+            if self.config.macro_auc:
+                ap = util.auc_pr(probs, labels, average='macro')
+                try:
+                    auc = util.auc_roc(probs, labels, average='macro')
+                except ValueError:
+                    auc = float('nan')
+            else:
+                ap, auc = float('nan'), float('nan')
             macro = [p, r, f, ap, auc]
             # non-avereged stats for plotting
             if perclass:
