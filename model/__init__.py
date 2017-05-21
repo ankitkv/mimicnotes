@@ -1,6 +1,7 @@
 from model import *
 from tf_model import *
 from majority import *
+from rand import *
 from word2vec import *
 from bow import *
 from neuralbow import *

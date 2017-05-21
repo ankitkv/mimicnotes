@@ -11,6 +11,7 @@ model.pyc
 neuralbow.pyc
 normlstm.pyc
 partialrnn.pyc
+rand.pyc
 rnn.pyc
 rnn_torch.pyc
 tf_model.pyc
