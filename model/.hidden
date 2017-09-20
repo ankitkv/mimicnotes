@@ -3,6 +3,7 @@ baseline2grnn.pyc
 bow.pyc
 convbow.pyc
 entnet.pyc
+fconv.pyc
 groundedrnn.pyc
 __init__.pyc
 lowrank_grnn.pyc
