@@ -77,6 +77,10 @@ class ConvEncoderModel(nn.Module):
         x = x.transpose(1, 2)
         x = x.sum(1)
 
+        lengths = Variable(torch.from_numpy(lengths).float().cuda(), volatile=tokens.volatile)
+        lengths = lengths.unsqueeze(1)
+        x = x / lengths
+
         x = self.fc2(x)
         return x
 
