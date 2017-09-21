@@ -47,8 +47,8 @@ class ConvEncoderModel(nn.Module):
         self.fc2 = Linear(in_channels, label_space_size)
 
     def forward(self, tokens, lengths):
-        positions = np.arange(1, self.config.max_note_len + 1, dtype=np.int)
-        positions = np.tile(positions[None, ...], [tokens.shape[0], 1])
+        positions = np.arange(1, tokens.size(1) + 1, dtype=np.int)
+        positions = np.tile(positions[None, ...], [tokens.size(0), 1])
         positions = torch.from_numpy(positions)
         positions[tokens.data == 0] = 0
         positions = Variable(positions, volatile=tokens.volatile)
