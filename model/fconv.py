@@ -28,7 +28,7 @@ class ConvEncoderModel(nn.Module):
         self.config = config
         self.dropout = config.dropout
         # TODO set convolutions
-        convolutions = ((512, 3),) * 20
+        convolutions = ((config.hidden_size, 3),) * config.layers
         self.embed_tokens = Embedding(len(vocab.vocab), config.word_emb_size, 0)
         self.embed_positions = Embedding(config.max_note_len + 1, config.word_emb_size, 0)
 

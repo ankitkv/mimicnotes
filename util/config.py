@@ -35,6 +35,7 @@ flags.DEFINE_string ("pr_at_k",        "8,24,40", "Compute precision and recall 
 flags.DEFINE_bool   ("length_sort",    True,      "Ensure similar note lengths in a batch")
 flags.DEFINE_integer("word_emb_size",  192,       "Word embedding size")
 flags.DEFINE_integer("label_emb_size", 128,       "Label embedding size (if applicable)")
+flags.DEFINE_integer("layers",         20,        "Convolutional layers")
 flags.DEFINE_string ("rnn_type",       "gru",     "gru/lstm/entnet")
 flags.DEFINE_bool   ("rnn_grnn_size",  False,     "Train RNN with GRNN's number of parameters")
 flags.DEFINE_bool   ("train_base",     True,      "Train the base model for baseline2grnn")
