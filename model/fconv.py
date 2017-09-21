@@ -5,6 +5,9 @@
 # the root directory of this source tree. An additional grant of patent rights
 # can be found in the PATENTS file in the same directory.
 #
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import math
 import torch
@@ -16,31 +19,34 @@ import util
 
 class ConvEncoderModel(nn.Module):
     """Convolutional encoder"""
-    def __init__(self, num_embeddings, embed_dim=512, max_positions=1024,
-                 convolutions=((512, 3),) * 20, dropout=0.1, padding_idx=1):
+
+    def __init__(self, config, vocab, label_space_size, convolutions=((512, 3),) * 20):
+        # TODO set convolutions
         super(ConvEncoderModel, self).__init__()
-        self.dropout = dropout
+        self.config = config
+        self.dropout = config.dropout
         self.num_attention_layers = None
-        self.embed_tokens = Embedding(num_embeddings, embed_dim, padding_idx)
-        self.embed_positions = Embedding(max_positions, embed_dim, padding_idx)
+        self.embedding = Embedding(len(vocab.vocab), config.word_emb_size, 0)
+        self.embed_positions = Embedding(config.max_note_len, config.word_emb_size, 0)
 
         in_channels = convolutions[0][0]
-        self.fc1 = Linear(embed_dim, in_channels, dropout=dropout)
+        self.fc1 = Linear(config.word_emb_size, in_channels, dropout=self.dropout)
         self.projections = nn.ModuleList()
         self.convolutions = nn.ModuleList()
         for (out_channels, kernel_size) in convolutions:
-            pad = (kernel_size - 1) // 2
+            pad = (kernel_size - 1) // 2  # TODO make this zero to reduce timesteps?
             self.projections.append(Linear(in_channels, out_channels)
                                     if in_channels != out_channels else None)
             self.convolutions.append(
                 ConvTBC(in_channels, out_channels * 2, kernel_size, padding=pad,
-                        dropout=dropout))
+                        dropout=self.dropout))
             in_channels = out_channels
-        self.fc2 = Linear(in_channels, embed_dim)
+        self.fc2 = Linear(in_channels, config.word_emb_size)
 
     def forward(self, tokens, positions):
+        # TODO input: tokens as usual and positions as range() but with 0's for padding tokens
         # embed tokens and positions
-        x = self.embed_tokens(tokens) + self.embed_positions(positions)
+        x = self.embedding(tokens) + self.embed_positions(positions)
         x = F.dropout(x, p=self.dropout, training=self.training)
         input_embedding = x
 
@@ -64,13 +70,7 @@ class ConvEncoderModel(nn.Module):
         # project back to size of embedding
         x = self.fc2(x)
 
-        # scale gradients (this only affects backward, not forward)  XXX needed?
-        x = grad_multiply(x, 1.0 / (2.0 * self.num_attention_layers))
-
-        # add output to input embedding for attention
-        y = (x + input_embedding) * math.sqrt(0.5)
-
-        return x, y
+        return x
 
 
 def Embedding(num_embeddings, embedding_dim, padding_idx):
