@@ -45,7 +45,7 @@ class RecurrentNetworkTorchModel(nn.Module):
             last_state = torch.cat(last_state, 2)
         last_state = last_state.squeeze(0)
         logits = self.dist(last_state)
-        return F.sigmoid(logits)
+        return logits
 
 
 class RecurrentNetworkTorchRunner(util.TorchRunner):

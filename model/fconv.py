@@ -78,7 +78,7 @@ class ConvEncoderModel(nn.Module):
         x = x.sum(1)
 
         x = self.fc2(x)
-        return F.sigmoid(x)
+        return x
 
 
 def Embedding(num_embeddings, embedding_dim, padding_idx):

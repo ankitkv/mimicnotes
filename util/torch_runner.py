@@ -24,7 +24,7 @@ class TorchRunner(util.Runner):
         if args is None:
             args = [config, self.vocab, self.reader.label_space_size()]
         self.model = ModelClass(*args)
-        self.criterion = nn.BCELoss()
+        self.criterion = nn.BCEWithLogitsLoss()
         self.optimizer = util.torch_optimizer(config.optimizer, config.learning_rate,
                                               self.model.parameters())
         self.global_step = 0
