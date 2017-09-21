@@ -10,7 +10,10 @@ from __future__ import division
 from __future__ import print_function
 
 import math
+
+import numpy as np
 import torch
+from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -27,14 +30,14 @@ class ConvEncoderModel(nn.Module):
         # TODO set convolutions
         convolutions = ((512, 3),) * 20
         self.embed_tokens = Embedding(len(vocab.vocab), config.word_emb_size, 0)
-        self.embed_positions = Embedding(config.max_note_len, config.word_emb_size, 0)
+        self.embed_positions = Embedding(config.max_note_len + 1, config.word_emb_size, 0)
 
         in_channels = convolutions[0][0]
         self.fc1 = Linear(config.word_emb_size, in_channels, dropout=self.dropout)
         self.projections = nn.ModuleList()
         self.convolutions = nn.ModuleList()
         for (out_channels, kernel_size) in convolutions:
-            pad = (kernel_size - 1) // 2  # TODO make this zero to reduce timesteps?
+            pad = (kernel_size - 1) // 2
             self.projections.append(Linear(in_channels, out_channels)
                                     if in_channels != out_channels else None)
             self.convolutions.append(
@@ -43,11 +46,15 @@ class ConvEncoderModel(nn.Module):
             in_channels = out_channels
         self.fc2 = Linear(in_channels, label_space_size)
 
-    def forward(self, tokens, lengths):  #, positions):
-        # TODO input: tokens as usual and positions as range() but with 0's for padding tokens
-        # embed tokens and positions
-        x = self.embed_tokens(tokens)  # + self.embed_positions(positions)
+    def forward(self, tokens, lengths):
+        positions = np.arange(1, self.config.max_note_len + 1, dtype=np.int)
+        positions = np.tile(positions[None, ...], [tokens.shape[0], 1])
+        positions = torch.from_numpy(positions)
+        positions[tokens.data == 0] = 0
+        positions = Variable(positions, volatile=tokens.volatile)
 
+        # embed tokens and positions
+        x = self.embed_tokens(tokens) + self.embed_positions(positions)
         x = x.cuda()
 
         x = F.dropout(x, p=self.dropout, training=self.training)
@@ -66,7 +73,7 @@ class ConvEncoderModel(nn.Module):
             x = F.glu(x, dim=1)
             x = (x + residual) * math.sqrt(0.5)
 
-        # T x B x C -> B x T x C
+        # B x C x T -> B x T x C
         x = x.transpose(1, 2)
         x = x.sum(1)
 
