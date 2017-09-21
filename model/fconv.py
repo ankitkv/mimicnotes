@@ -20,13 +20,13 @@ import util
 class ConvEncoderModel(nn.Module):
     """Convolutional encoder"""
 
-    def __init__(self, config, vocab, label_space_size, convolutions=((512, 3),) * 20):
-        # TODO set convolutions
+    def __init__(self, config, vocab, label_space_size):
         super(ConvEncoderModel, self).__init__()
         self.config = config
         self.dropout = config.dropout
-        self.num_attention_layers = None
-        self.embedding = Embedding(len(vocab.vocab), config.word_emb_size, 0)
+        # TODO set convolutions
+        convolutions = ((512, 3),) * 20
+        self.embed_tokens = Embedding(len(vocab.vocab), config.word_emb_size, 0)
         self.embed_positions = Embedding(config.max_note_len, config.word_emb_size, 0)
 
         in_channels = convolutions[0][0]
@@ -41,36 +41,37 @@ class ConvEncoderModel(nn.Module):
                 ConvTBC(in_channels, out_channels * 2, kernel_size, padding=pad,
                         dropout=self.dropout))
             in_channels = out_channels
-        self.fc2 = Linear(in_channels, config.word_emb_size)
+        self.fc2 = Linear(in_channels, label_space_size)
 
-    def forward(self, tokens, positions):
+    def forward(self, tokens, lengths):  #, positions):
         # TODO input: tokens as usual and positions as range() but with 0's for padding tokens
         # embed tokens and positions
-        x = self.embedding(tokens) + self.embed_positions(positions)
+        x = self.embed_tokens(tokens)  # + self.embed_positions(positions)
+
+        x = x.cuda()
+
         x = F.dropout(x, p=self.dropout, training=self.training)
-        input_embedding = x
 
         # project to size of convolution
         x = self.fc1(x)
 
-        # B x T x C -> T x B x C
-        x = x.transpose(0, 1)
+        # B x T x C -> B x C x T
+        x = x.transpose(1, 2)
 
         # temporal convolutions
         for proj, conv in zip(self.projections, self.convolutions):
             residual = x if proj is None else proj(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
             x = conv(x)
-            x = F.glu(x, dim=-1)
+            x = F.glu(x, dim=1)
             x = (x + residual) * math.sqrt(0.5)
 
         # T x B x C -> B x T x C
-        x = x.transpose(1, 0)
+        x = x.transpose(1, 2)
+        x = x.sum(1)
 
-        # project back to size of embedding
         x = self.fc2(x)
-
-        return x
+        return F.sigmoid(x)
 
 
 def Embedding(num_embeddings, embedding_dim, padding_idx):
@@ -96,25 +97,18 @@ def ConvTBC(in_channels, out_channels, kernel_size, dropout=0, **kwargs):
     return nn.utils.weight_norm(m, dim=2)
 
 
-def grad_multiply(x, scale):  # XXX needed?
-    return GradMultiply.apply(x, scale)
-
-
-class GradMultiply(torch.autograd.Function):  # XXX needed?
-    @staticmethod
-    def forward(ctx, x, scale):
-        ctx.scale = scale
-        res = x.new(x)
-        ctx.mark_shared_storage((x, res))
-        return res
-
-    @staticmethod
-    def backward(ctx, grad):
-        return grad * ctx.scale, None
-
-
 class ConvEncoderRunner(util.TorchRunner):
     '''Runner for the convolutional encoder model.'''
 
     def __init__(self, config, verbose=True):
         super(ConvEncoderRunner, self).__init__(config, ConvEncoderModel)
+
+    def initialize_model(self, model, embeddings):
+        model.cuda()
+        # don't waste GPU memory on embeddings
+        model.embed_tokens.cpu()
+        model.embed_positions.cpu()
+        if embeddings is not None:
+            model.embed_tokens.weight.data.copy_(torch.from_numpy(embeddings))
+            if model.embed_tokens.padding_idx is not None:
+                model.embed_tokens.weight.data[model.embed_tokens.padding_idx].fill_(0)
