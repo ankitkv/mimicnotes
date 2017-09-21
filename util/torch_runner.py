@@ -67,6 +67,7 @@ class TorchRunner(util.Runner):
         n_words = lengths.sum()
         start = time.time()
         notes = torch.from_numpy(notes).long()
+        self.model.train(train)
         if train:
             self.model.zero_grad()
             notes = Variable(notes)
