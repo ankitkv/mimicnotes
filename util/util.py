@@ -269,6 +269,9 @@ def torch_optimizer(name, lr, params):
         return optim.Adagrad(params, lr)
     elif name == 'adadelta':
         return optim.Adadelta(params, lr)
+    elif name == 'nag':
+        from .nag import NAG
+        return NAG(params, lr, momentum=0.99)
 
 
 def prelu(features, initializer=None, scope=None):

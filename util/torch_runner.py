@@ -77,6 +77,7 @@ class TorchRunner(util.Runner):
         loss = self.criterion(probs, Variable(torch.from_numpy(labels).float().cuda()))
         if train:
             loss.backward()
+            nn.utils.clip_grad_norm(self.model.parameters(), self.config.max_grad_norm)
             self.optimizer.step()
             self.global_step += 1
         self.probs = probs.data.cpu().numpy()

@@ -103,9 +103,9 @@ def ConvTBC(in_channels, out_channels, kernel_size, dropout=0, **kwargs):
     """Weight-normalized Conv1d layer"""
     m = nn.Conv1d(in_channels, out_channels, kernel_size, **kwargs)
     std = math.sqrt((4 * (1.0 - dropout)) / (m.kernel_size[0] * in_channels))
-    m.weight.data.normal_(mean=0, std=std)
+    m.weight.data.normal_(mean=0, std=std)  # shape: [out_channels, in_channels, kernel_size]
     m.bias.data.zero_()
-    return nn.utils.weight_norm(m, dim=2)
+    return nn.utils.weight_norm(m, dim=0)
 
 
 class ConvEncoderRunner(util.TorchRunner):
@@ -120,6 +120,9 @@ class ConvEncoderRunner(util.TorchRunner):
         model.embed_tokens.cpu()
         model.embed_positions.cpu()
         if embeddings is not None:
+            embeddings[1:] -= embeddings[1:].mean()
+            embeddings[1:] /= embeddings[1:].std()
+            embeddings[1:] *= 0.1
             model.embed_tokens.weight.data.copy_(torch.from_numpy(embeddings))
             if model.embed_tokens.padding_idx is not None:
                 model.embed_tokens.weight.data[model.embed_tokens.padding_idx].fill_(0)
