@@ -9,6 +9,7 @@ import torch
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
+import torch.nn.functional as F
 
 import util
 
@@ -46,7 +47,7 @@ class TorchRunner(util.Runner):
             if verbose:
                 print('Loading model from', config.load_file, '...')
             model_state_dict, optim_state_dict, self.global_step, optim_name = \
-                                                                        torch.load(config.load_file)
+                torch.load(config.load_file)
             self.model.load_state_dict(model_state_dict)
             if config.optimizer == optim_name:
                 self.optimizer.load_state_dict(optim_state_dict)
@@ -73,8 +74,9 @@ class TorchRunner(util.Runner):
             notes = Variable(notes)
         else:
             notes = Variable(notes, volatile=True)
-        probs = self.model(notes, lengths)
-        loss = self.criterion(probs, Variable(torch.from_numpy(labels).float().cuda()))
+        logits = self.model(notes, lengths)
+        probs = F.sigmoid(logits)
+        loss = self.criterion(logits, Variable(torch.from_numpy(labels).float().cuda()))
         if train:
             loss.backward()
             nn.utils.clip_grad_norm(self.model.parameters(), self.config.max_grad_norm)
