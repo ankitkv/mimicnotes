@@ -127,3 +127,18 @@ class ConvEncoderRunner(util.TorchRunner):
             model.embed_tokens.weight.data.copy_(torch.from_numpy(embeddings))
             if model.embed_tokens.padding_idx is not None:
                 model.embed_tokens.weight.data[model.embed_tokens.padding_idx].fill_(0)
+
+    def best_val_loss(self, losses):
+        '''Compare loss with the best validation loss, and return True if a new best is found'''
+        if losses is None:
+            return False
+        loss, micro, macro, perclass = losses
+        p, r, f, ap, auc = micro[:5]
+        print('Old LR:', self.optimizer.param_groups[0]['lr'])
+        self.lr_scheduler.step(ap)
+        print('New LR:', self.optimizer.param_groups[0]['lr'])
+        if ap >= self.best_score:
+            self.best_score = ap
+            return True
+        else:
+            return False

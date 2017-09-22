@@ -10,6 +10,7 @@ from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 import util
 
@@ -28,6 +29,7 @@ class TorchRunner(util.Runner):
         self.criterion = nn.BCEWithLogitsLoss()
         self.optimizer = util.torch_optimizer(config.optimizer, config.learning_rate,
                                               self.model.parameters())
+        self.lr_scheduler = ReduceLROnPlateau(self.optimizer, patience=0, mode='max', min_lr=1e-4)
         self.global_step = 0
         embeddings = None
         if config.emb_file:
