@@ -9,6 +9,7 @@ from convbow import *
 from attentionbow import *
 from rnn import *
 from groundedrnn import *
+from encoderreadout import *
 from baseline2grnn import *
 from lowrank_grnn import *
 from normlstm import *

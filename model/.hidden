@@ -2,6 +2,7 @@ attentionbow.pyc
 baseline2grnn.pyc
 bow.pyc
 convbow.pyc
+encoderreadout.pyc
 entnet.pyc
 fconv.pyc
 groundedrnn.pyc
