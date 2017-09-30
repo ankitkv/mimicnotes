@@ -159,7 +159,7 @@ class MaxReadOut(ReadOut):
         self.label_space_size = label_space_size
         self.layers = layers
 
-    def pool(self, preds, lengths, valid):  # TODO verify
+    def pool(self, preds, lengths, valid):
         shape = tf.shape(preds)
         preds = tf.concat([tf.ones([shape[0], 1, shape[2]]) * -float('inf'), preds], 1)
         indices = tf.expand_dims(tf.tile(tf.expand_dims(tf.range(shape[0]), -1), [1, shape[1]]), -1)
@@ -185,7 +185,7 @@ class MeanReadOut(MaxReadOut):
     def __init__(self, label_space_size, layers):
         super(MeanReadOut, self).__init__(label_space_size, layers)
 
-    def pool(self, preds, lengths, valid):  # TODO verify
+    def pool(self, preds, lengths, valid):
         shape = tf.shape(preds)
         preds = tf.concat([tf.zeros([shape[0], 1, shape[2]]), preds], 1)
         indices = tf.expand_dims(tf.tile(tf.expand_dims(tf.range(shape[0]), -1), [1, shape[1]]), -1)
