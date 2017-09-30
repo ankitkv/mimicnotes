@@ -10,7 +10,10 @@ from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+try:
+    from torch.optim.lr_scheduler import ReduceLROnPlateau
+except ImportError:
+    pass
 
 import util
 

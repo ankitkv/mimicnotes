@@ -3,10 +3,13 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+import time
 
+import numpy as np
 import tensorflow as tf
 
 import model
+import util
 
 
 class GRNNCell(tf.contrib.rnn.RNNCell):
@@ -58,7 +61,7 @@ class Encoder(object):
 class ReadOut(object):
     '''Take encoder representations and produce classifications.'''
 
-    def classify(self, inputs, lengths):
+    def classify(self, inputs, lengths, valid):
         raise NotImplementedError
 
 
@@ -76,6 +79,19 @@ class RecurrentEncoder(Encoder):
         if self.reconcat_input:
             out = tf.concat([inputs, out], 2)
         return out, lengths
+
+
+class AttentionBOWEncoder(Encoder):
+
+    def __init__(self, attn_window):
+        self.attn_window = attn_window
+
+    def encode(self, inputs, lengths):
+        channels = inputs.get_shape()[-1].value
+        scores = util.conv1d(inputs, channels, self.attn_window)
+        attention = tf.sigmoid(scores)
+        dynamic_embs = inputs * attention
+        return dynamic_embs, lengths
 
 
 class ConvolutionalEncoder(Encoder):
@@ -98,7 +114,7 @@ class GroundedReadOut(ReadOut):
     def __init__(self, label_space_size):
         self.label_space_size = label_space_size
 
-    def classify(self, inputs, lengths):
+    def classify(self, inputs, lengths, valid):
         with tf.variable_scope('grnn', initializer=tf.contrib.layers.xavier_initializer()):
             variables = collections.defaultdict(dict)
             for sc_name, bias_start in [('r_gate', 1.0), ('u_gate', 1.0), ('candidate', 0.0)]:
@@ -139,29 +155,43 @@ class GroundedReadOut(ReadOut):
 
 class MaxReadOut(ReadOut):
 
-    def __init__(self, label_space_size):
+    def __init__(self, label_space_size, layers):
         self.label_space_size = label_space_size
+        self.layers = layers
 
-    def pool(self, preds):
+    def pool(self, preds, lengths, valid):  # TODO verify
+        shape = tf.shape(preds)
+        preds = tf.concat([tf.ones([shape[0], 1, shape[2]]) * -float('inf'), preds], 1)
+        indices = tf.expand_dims(tf.tile(tf.expand_dims(tf.range(shape[0]), -1), [1, shape[1]]), -1)
+        indices = tf.concat([indices, tf.expand_dims(valid, -1)], -1)
+        preds = tf.gather_nd(preds, indices)
         return tf.reduce_max(preds, 1)
 
-    def classify(self, inputs, lengths):
+    def classify(self, inputs, lengths, valid):
+        hidden_size = inputs.get_shape()[-1].value
         with tf.variable_scope('pool', initializer=tf.contrib.layers.xavier_initializer()):
             in_shape = tf.shape(inputs)
-            inputs = tf.reshape(inputs, [-1, inputs.get_shape()[2].value])
-            out = tf.layers.dense(inputs, self.label_space_size)
+            out = tf.reshape(inputs, [-1, inputs.get_shape()[2].value])
+            for i in range(self.layers - 1):
+                out = tf.layers.dense(out, hidden_size, name='l'+str(i))
+                out = util.selu(out)
+            out = tf.layers.dense(out, self.label_space_size, name='lfinal')
             out = tf.reshape(out, tf.concat([in_shape[:2], [self.label_space_size]], 0))
-            # TODO max/mean only within the lengths
-            return self.pool(out), None, True
+            return self.pool(out, lengths, valid), None, True
 
 
 class MeanReadOut(MaxReadOut):
 
-    def __init__(self, label_space_size):
-        super(MeanReadOut, self).__init__(label_space_size)
+    def __init__(self, label_space_size, layers):
+        super(MeanReadOut, self).__init__(label_space_size, layers)
 
-    def pool(self, preds):
-        return tf.reduce_mean(preds, 1)
+    def pool(self, preds, lengths, valid):  # TODO verify
+        shape = tf.shape(preds)
+        preds = tf.concat([tf.zeros([shape[0], 1, shape[2]]), preds], 1)
+        indices = tf.expand_dims(tf.tile(tf.expand_dims(tf.range(shape[0]), -1), [1, shape[1]]), -1)
+        indices = tf.concat([indices, tf.expand_dims(valid, -1)], -1)
+        preds = tf.gather_nd(preds, indices)
+        return tf.reduce_sum(preds, 1) / tf.to_float(tf.expand_dims(lengths, -1))
 
 
 class EncoderReadOutModel(model.TFModel):
@@ -172,6 +202,7 @@ class EncoderReadOutModel(model.TFModel):
         self.lengths = tf.placeholder(tf.int32, [config.batch_size], name='lengths')
         self.labels = tf.placeholder(tf.float32, [config.batch_size, label_space_size],
                                      name='labels')
+        self.valid = tf.placeholder(tf.int32, [config.batch_size, None], name='valid')
 
         with tf.device('/cpu:0'):
             self.notes = tf.placeholder(tf.int32, [config.batch_size, None], name='notes')
@@ -185,6 +216,8 @@ class EncoderReadOutModel(model.TFModel):
 
         if config.encoder == 'gru':
             encoder = RecurrentEncoder(config.hidden_size, config.reconcat_input)
+        elif config.encoder == 'attnbow':
+            encoder = AttentionBOWEncoder(config.attn_window)
         elif config.encoder == 'conv':
             encoder = ConvolutionalEncoder()
         elif config.encoder == 'embs':
@@ -195,11 +228,11 @@ class EncoderReadOutModel(model.TFModel):
         if config.readout == 'grnn':
             readout = GroundedReadOut(label_space_size)
         elif config.readout == 'max':
-            readout = MaxReadOut(label_space_size)
+            readout = MaxReadOut(label_space_size, config.layers)
         elif config.readout == 'mean':
-            readout = MeanReadOut(label_space_size)
+            readout = MeanReadOut(label_space_size, config.layers)
 
-        self.probs, self.step_probs, logprobs = readout.classify(encoded, lengths)
+        self.probs, self.step_probs, logprobs = readout.classify(encoded, lengths, self.valid)
 
         if logprobs:
             loss = tf.losses.sigmoid_cross_entropy(self.labels, self.probs,
@@ -223,3 +256,20 @@ class EncoderReadOutRunner(model.RecurrentNetworkRunner):
 
     def __init__(self, config, session, verbose=True):
         super(EncoderReadOutRunner, self).__init__(config, session, ModelClass=EncoderReadOutModel)
+
+    def run_session(self, notes, lengths, labels, train=True):
+        n_words = lengths.sum()
+        start = time.time()
+        ops = [self.model.loss, self.model.probs, self.model.global_step]
+        if train:
+            ops.append(self.model.train_op)
+        valid = np.zeros(notes.shape, dtype=np.int)
+        for i, l in enumerate(lengths):
+            valid[i, :l] = np.array(list(range(1, l + 1)), dtype=np.int)
+        ret = self.session.run(ops, feed_dict={self.model.notes: notes, self.model.lengths: lengths,
+                                               self.model.labels: labels, self.model.valid: valid})
+        self.loss, self.probs, self.global_step = ret[:3]
+        self.labels = labels
+        end = time.time()
+        self.wps = n_words / (end - start)
+        self.accumulate()
