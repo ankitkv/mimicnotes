@@ -191,7 +191,7 @@ class MeanReadOut(MaxReadOut):
         indices = tf.expand_dims(tf.tile(tf.expand_dims(tf.range(shape[0]), -1), [1, shape[1]]), -1)
         indices = tf.concat([indices, tf.expand_dims(valid, -1)], -1)
         preds = tf.gather_nd(preds, indices)
-        return tf.reduce_sum(preds, 1) / tf.to_float(tf.expand_dims(lengths, -1))
+        return tf.reduce_sum(preds, 1) / tf.maximum(tf.to_float(tf.expand_dims(lengths, -1)), 1.0)
 
 
 class HMaxReadOut(MaxReadOut):
