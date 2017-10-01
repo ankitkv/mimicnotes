@@ -194,6 +194,34 @@ class MeanReadOut(MaxReadOut):
         return tf.reduce_sum(preds, 1) / tf.to_float(tf.expand_dims(lengths, -1))
 
 
+class HMaxReadOut(MaxReadOut):
+
+    def __init__(self, label_space_size, layers):
+        super(HMaxReadOut, self).__init__(label_space_size, layers)
+
+    def classify(self, inputs, lengths, valid):
+        with tf.variable_scope('pool', initializer=tf.contrib.layers.xavier_initializer()):
+            out = self.pool(inputs, lengths, valid)
+            hidden_size = out.get_shape()[-1].value
+            for i in range(self.layers - 1):
+                out = tf.layers.dense(out, hidden_size, name='l'+str(i))
+                out = util.selu(out)
+            out = tf.layers.dense(out, self.label_space_size, name='lfinal')
+            return out, None, True
+
+
+class HMeanReadOut(MeanReadOut, HMaxReadOut):
+
+    def __init__(self, label_space_size, layers):
+        super(HMeanReadOut, self).__init__(label_space_size, layers)
+
+    def pool(self, preds, lengths, valid):
+        return MeanReadOut.pool(self, preds, lengths, valid)
+
+    def classify(self, inputs, lengths, valid):
+        return HMaxReadOut.classify(self, inputs, lengths, valid)
+
+
 class EncoderReadOutModel(model.TFModel):
     '''The encoder-readout model.'''
 
@@ -231,6 +259,10 @@ class EncoderReadOutModel(model.TFModel):
             readout = MaxReadOut(label_space_size, config.layers)
         elif config.readout == 'mean':
             readout = MeanReadOut(label_space_size, config.layers)
+        elif config.readout == 'hmax':
+            readout = HMaxReadOut(label_space_size, config.layers)
+        elif config.readout == 'hmean':
+            readout = HMeanReadOut(label_space_size, config.layers)
 
         self.probs, self.step_probs, logprobs = readout.classify(encoded, lengths, self.valid)
 
