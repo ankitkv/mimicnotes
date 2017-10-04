@@ -573,8 +573,9 @@ class NoteReader(object):
                 random.shuffle(notes)
             mod = len(notes) % self.config.batch_size
             if mod != 0:
-                notes.extend([([], self.label_info(None))
-                              for _ in xrange(self.config.batch_size - mod)])
+                notes = notes[:-mod]
+#                notes.extend([([], self.label_info(None))
+#                              for _ in xrange(self.config.batch_size - mod)])
             yield notes
 
     def buffered_read(self, splits, deterministic=False):
