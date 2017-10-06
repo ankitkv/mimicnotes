@@ -27,7 +27,6 @@ class ConvEncoderModel(nn.Module):
         super(ConvEncoderModel, self).__init__()
         self.config = config
         self.dropout = config.dropout
-        # TODO set convolutions
         convolutions = ((config.hidden_size, 3),) * config.layers
         self.embed_tokens = Embedding(len(vocab.vocab), config.word_emb_size, 0)
         self.embed_positions = Embedding(config.max_note_len + 1, config.word_emb_size, 0)
@@ -54,9 +53,11 @@ class ConvEncoderModel(nn.Module):
         positions = Variable(positions, volatile=tokens.volatile)
 
         # embed tokens and positions
+#        x = self.embed_tokens(tokens)  # + self.embed_positions(positions)
         x = self.embed_tokens(tokens) + self.embed_positions(positions)
         x = x.cuda()
 
+        # x = F.dropout(x, p=self.dropout, training=self.training)
         x = F.dropout(x, p=self.dropout, training=self.training)
 
         # project to size of convolution
@@ -134,9 +135,10 @@ class ConvEncoderRunner(util.TorchRunner):
             return False
         loss, micro, macro, perclass = losses
         p, r, f, ap, auc = micro[:5]
-        print('Old LR:', self.optimizer.param_groups[0]['lr'])
-        self.lr_scheduler.step(ap)
-        print('New LR:', self.optimizer.param_groups[0]['lr'])
+        if self.config.optimizer == 'nag':
+            print('Old LR:', self.optimizer.param_groups[0]['lr'])
+            self.lr_scheduler.step(ap)
+            print('New LR:', self.optimizer.param_groups[0]['lr'])
         if ap >= self.best_score:
             self.best_score = ap
             return True

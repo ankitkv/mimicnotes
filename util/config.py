@@ -43,7 +43,7 @@ flags.DEFINE_string ("readout",       "grnn",     "grnn/max/mean/hmax/hmean")
 flags.DEFINE_bool   ("train_base",     True,      "Train the base model for baseline2grnn")
 flags.DEFINE_bool   ("multilayer",     False,     "2-layer RNN. Needs to be true for bidirectional")
 flags.DEFINE_bool   ("bidirectional",  False,     "Bidirectional RNN")
-flags.DEFINE_bool   ("reconcat_input", False,     "Concatenate the input to the first layer output "
+flags.DEFINE_bool   ("reconcat_input", True,      "Concatenate the input to the first layer output "
                                                   "for multilayer")
 flags.DEFINE_bool   ("positive_diag",  False,     "Ensure positive diagonal in semidiagonal GRNN")
 flags.DEFINE_bool   ("biased_sigmoid", True,      "Biased re-sigmoid for GRNN output")

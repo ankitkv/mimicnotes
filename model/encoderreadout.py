@@ -145,12 +145,14 @@ class GroundedReadOut(ReadOut):
         label_bias = tf.get_variable('label_bias', [self.label_space_size],
                                      initializer=tf.constant_initializer(0.0))
         # y = sigmoid(inverse_sigmoid(y) + b)
-        exp_bias = tf.expand_dims(tf.exp(-label_bias), 0)
-        probs = probs / (probs + ((1 - probs) * exp_bias))
-        exp_bias = tf.expand_dims(exp_bias, 0)
-        step_probs = step_probs / (step_probs + ((1 - step_probs) * exp_bias))
+        probs *= 1.0 - 1e-6
+        step_probs *= 1.0 - 1e-6
+        bias = tf.expand_dims(label_bias, 0)
+        logits = tf.log(probs) - tf.log(1.0 - probs) + bias
+        bias = tf.expand_dims(label_bias, 0)
+        step_logits = tf.log(step_probs) - tf.log(1.0 - step_probs) + bias
 
-        return probs, step_probs, False
+        return logits, step_logits, True
 
 
 class MaxReadOut(ReadOut):

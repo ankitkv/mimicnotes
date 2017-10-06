@@ -22,14 +22,14 @@ class RecurrentNetworkTorchModel(nn.Module):
             self.rnn = nn.GRU(input_size=config.word_emb_size,
                               hidden_size=config.word_emb_size*config.num_blocks, batch_first=True)
             self.zero_state = torch.zeros([1, config.batch_size,
-                                           config.word_emb_size * config.num_blocks]).cuda()
+                                           config.word_emb_size * config.num_blocks])
         elif config.rnn_type == 'lstm':
             self.rnn = nn.LSTM(input_size=config.word_emb_size,
                                hidden_size=config.word_emb_size*config.num_blocks, batch_first=True)
             self.zero_h = torch.zeros([1, config.batch_size,
-                                       config.word_emb_size * config.num_blocks]).cuda()
+                                       config.word_emb_size * config.num_blocks])
             self.zero_c = torch.zeros([1, config.batch_size,
-                                       config.word_emb_size * config.num_blocks]).cuda()
+                                       config.word_emb_size * config.num_blocks])
             output_size *= 2
         else:
             raise NotImplementedError
@@ -39,9 +39,10 @@ class RecurrentNetworkTorchModel(nn.Module):
         inputs = self.embedding(notes)
         inputs = inputs.cuda()
         if self.config.rnn_type == 'gru':
-            _, last_state = self.rnn(inputs, Variable(self.zero_state))
+            _, last_state = self.rnn(inputs, Variable(self.zero_state.cuda()))
         elif self.config.rnn_type == 'lstm':
-            _, last_state = self.rnn(inputs, (Variable(self.zero_h), Variable(self.zero_c)))
+            _, last_state = self.rnn(inputs, (Variable(self.zero_h.cuda()),
+                                              Variable(self.zero_c.cuda())))
             last_state = torch.cat(last_state, 2)
         last_state = last_state.squeeze(0)
         logits = self.dist(last_state)
