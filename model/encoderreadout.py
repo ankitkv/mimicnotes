@@ -145,8 +145,8 @@ class GroundedReadOut(ReadOut):
         label_bias = tf.get_variable('label_bias', [self.label_space_size],
                                      initializer=tf.constant_initializer(0.0))
         # y = sigmoid(inverse_sigmoid(y) + b)
-        probs *= 1.0 - 1e-6
-        step_probs *= 1.0 - 1e-6
+        probs = probs * (1 - 2*1e-6) + 1e-6
+        step_probs = step_probs * (1 - 2*1e-6) + 1e-6
         bias = tf.expand_dims(label_bias, 0)
         logits = tf.log(probs) - tf.log(1.0 - probs) + bias
         bias = tf.expand_dims(label_bias, 0)
