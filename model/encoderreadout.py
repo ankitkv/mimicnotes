@@ -51,6 +51,49 @@ class GRNNCell(tf.contrib.rnn.RNNCell):
         return new_h, new_h
 
 
+class LowRankDiagonalCell(tf.contrib.rnn.RNNCell):
+    """Low rank GRNN + diagonal GRNN cell."""
+
+    def __init__(self, label_space_size, activation=tf.tanh, variables={}):
+        self._label_space_size = label_space_size
+        self._activation = activation
+        self._variables = variables
+
+    @property
+    def state_size(self):
+        return self._label_space_size
+
+    @property
+    def output_size(self):
+        return self._label_space_size
+
+    def lowrank_linear(self, inputs, var_scope):
+        """Similar to linear, but with the label to label block constrained to be low rank."""
+        diagonal = self._variables[var_scope]['Diagonal']
+        lr_factor1 = self._variables[var_scope]['LRFactor1']
+        lr_factor2 = self._variables[var_scope]['LRFactor2']
+        right_matrix = self._variables[var_scope]['RightMatrix']
+        bias = self._variables[var_scope]['Bias']
+        cur_labels = inputs[:, :self._label_space_size]
+        diag_res = cur_labels * tf.expand_dims(diagonal, 0)
+        lr_res = tf.matmul(tf.matmul(cur_labels, lr_factor2), lr_factor1)
+        res = tf.matmul(inputs[:, self._label_space_size:], right_matrix) + lr_res + diag_res
+        return tf.nn.bias_add(res, bias)
+
+    def __call__(self, inputs, state, scope=None):
+        """Gated recurrent unit (GRU) with nunits cells."""
+        with tf.variable_scope(scope or "lowrank_gru_cell"):
+            with tf.variable_scope("r_gate"):
+                r = tf.sigmoid(self.lowrank_linear(tf.concat([state, inputs], 1), 'r_gate'))
+            with tf.variable_scope("u_gate"):
+                u = tf.sigmoid(self.lowrank_linear(tf.concat([state, inputs], 1), 'u_gate'))
+            with tf.variable_scope("candidate"):
+                c = self._activation(self.lowrank_linear(tf.concat([r * state, inputs], 1),
+                                                         'candidate'))
+            new_h = u * state + (1 - u) * c
+        return new_h, new_h
+
+
 class Encoder(object):
     '''Takes word embeddings and encodes them to a representation to read out from.'''
 
