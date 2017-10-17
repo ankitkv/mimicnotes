@@ -157,27 +157,30 @@ class GroundedReadOut(ReadOut):
     def __init__(self, label_space_size):
         self.label_space_size = label_space_size
 
+    def get_cell(self, inputs):
+        variables = collections.defaultdict(dict)
+        for sc_name, bias_start in [('r_gate', 1.0), ('u_gate', 1.0), ('candidate', 0.0)]:
+            with tf.variable_scope('rnn/diagonal_gru_cell/' + sc_name):
+                diagonal = tf.get_variable("Diagonal", [self.label_space_size],
+                                           dtype=tf.float32,
+                                           initializer=tf.zeros_initializer())
+                nondiag_size = inputs.get_shape()[2].value
+                right_matrix = tf.get_variable("RightMatrix", [nondiag_size,
+                                                               self.label_space_size],
+                                               dtype=tf.float32)
+
+                bias_term = tf.get_variable("Bias", [self.label_space_size], dtype=tf.float32,
+                                            initializer=tf.constant_initializer(bias_start))
+
+            variables[sc_name]['Diagonal'] = diagonal
+            variables[sc_name]['RightMatrix'] = right_matrix
+            variables[sc_name]['Bias'] = bias_term
+
+        return GRNNCell(self.label_space_size, variables=variables)
+
     def classify(self, inputs, lengths, valid):
         with tf.variable_scope('grnn', initializer=tf.contrib.layers.xavier_initializer()):
-            variables = collections.defaultdict(dict)
-            for sc_name, bias_start in [('r_gate', 1.0), ('u_gate', 1.0), ('candidate', 0.0)]:
-                with tf.variable_scope('rnn/diagonal_gru_cell/' + sc_name):
-                    diagonal = tf.get_variable("Diagonal", [self.label_space_size],
-                                               dtype=tf.float32,
-                                               initializer=tf.zeros_initializer())
-                    nondiag_size = inputs.get_shape()[2].value
-                    right_matrix = tf.get_variable("RightMatrix", [nondiag_size,
-                                                                   self.label_space_size],
-                                                   dtype=tf.float32)
-
-                    bias_term = tf.get_variable("Bias", [self.label_space_size], dtype=tf.float32,
-                                                initializer=tf.constant_initializer(bias_start))
-
-                variables[sc_name]['Diagonal'] = diagonal
-                variables[sc_name]['RightMatrix'] = right_matrix
-                variables[sc_name]['Bias'] = bias_term
-
-            cell = GRNNCell(self.label_space_size, variables=variables)
+            cell = self.get_cell(inputs)
 
             # forward recurrence
             out, last_state = tf.nn.dynamic_rnn(cell, inputs, sequence_length=lengths,
@@ -196,6 +199,39 @@ class GroundedReadOut(ReadOut):
         step_logits = tf.log(step_probs) - tf.log(1.0 - step_probs) + bias
 
         return logits, step_logits, True
+
+
+class LRGroundedReadOut(GroundedReadOut):
+
+    def __init__(self, label_space_size, label_emb_size):
+        super(LRGroundedReadOut, self).__init__(label_space_size)
+        self.label_emb_size = label_emb_size
+
+    def get_cell(self, inputs):
+        variables = collections.defaultdict(dict)
+        for sc_name, bias_start in [('r_gate', 1.0), ('u_gate', 1.0), ('candidate', 0.0)]:
+            with tf.variable_scope('rnn/diagonal_gru_cell/' + sc_name):
+                diagonal = tf.get_variable("Diagonal", [self.label_space_size],
+                                           dtype=tf.float32, initializer=tf.zeros_initializer())
+                lr_factor1 = tf.get_variable("LRFactor1", [self.label_emb_size,
+                                                           self.label_space_size], dtype=tf.float32)
+                lr_factor2 = tf.get_variable("LRFactor2", [self.label_space_size,
+                                                           self.label_emb_size], dtype=tf.float32)
+                nondiag_size = inputs.get_shape()[2].value
+                right_matrix = tf.get_variable("RightMatrix", [nondiag_size,
+                                                               self.label_space_size],
+                                               dtype=tf.float32)
+
+                bias_term = tf.get_variable("Bias", [self.label_space_size], dtype=tf.float32,
+                                            initializer=tf.constant_initializer(bias_start))
+
+            variables[sc_name]['Diagonal'] = diagonal
+            variables[sc_name]['LRFactor1'] = lr_factor1
+            variables[sc_name]['LRFactor2'] = lr_factor2
+            variables[sc_name]['RightMatrix'] = right_matrix
+            variables[sc_name]['Bias'] = bias_term
+
+        return LowRankDiagonalCell(self.label_space_size, variables=variables)
 
 
 class MaxReadOut(ReadOut):
@@ -300,6 +336,8 @@ class EncoderReadOutModel(model.TFModel):
 
         if config.readout == 'grnn':
             readout = GroundedReadOut(label_space_size)
+        elif config.readout == 'lrgrnn':
+            readout = LRGroundedReadOut(label_space_size, config.label_emb_size)
         elif config.readout == 'max':
             readout = MaxReadOut(label_space_size, config.layers)
         elif config.readout == 'mean':
