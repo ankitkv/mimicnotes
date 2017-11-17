@@ -1,7 +1,9 @@
 #!/bin/bash
 # python2 run.py --runner RecurrentNetworkTorchRunner --data_path data/mimic2 --batch_size 2 --word_emb_size 32 --label_emb_size 32 --hidden_size 32 --max_note_len 10 --max_dgn_labels 50 --print_every 1
 #python2 run.py --runner ConvEncoderRunner --data_path data/mimic2 --batch_size 2 --word_emb_size 64 --label_emb_size 64 --hidden_size 64 --max_note_len 10 --max_dgn_labels 50 --print_every 1 --save_every -1 --max_steps 100 --optimizer nag --learning_rate 0.25 --max_grad_norm 0.1
-python2 run.py --runner EncoderReadOutRunner --data_path data/mimic2 --batch_size 2 --word_emb_size 32 --label_emb_size 32 --hidden_size 32 --max_note_len 10 --max_dgn_labels 50 --print_every 1 --save_every -1 --max_steps 100
+#python2 run.py --runner EncoderReadOutRunner --data_path data/mimic2 --batch_size 2 --word_emb_size 32 --label_emb_size 32 --hidden_size 32 --max_note_len 10 --max_dgn_labels 50 --print_every 1 --save_every -1 --max_steps 100
+
+python2 run.py --runner EncoderReadOutRunner --data_path data/mimic2 --batch_size 2 --word_emb_size 32 --label_emb_size 32 --hidden_size 32 --max_note_len 10 --max_dgn_labels 50 --print_every 1 --save_every -1 --max_steps 100 --readout reggrnn --l2_reg 1.0 --l1_reg 0.0
 
 # add dropout
 

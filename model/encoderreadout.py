@@ -94,6 +94,26 @@ class LowRankDiagonalCell(tf.contrib.rnn.RNNCell):
         return new_h, new_h
 
 
+class RegularizedOffDiagonalCell(LowRankDiagonalCell):
+    """Low rank GRNN + diagonal GRNN cell."""
+
+    def __init__(self, label_space_size, activation=tf.tanh, variables={}):
+        super(RegularizedOffDiagonalCell, self).__init__(label_space_size, activation=activation,
+                                                         variables=variables)
+
+    def lowrank_linear(self, inputs, var_scope):
+        """Similar to linear, but with the label to label block constrained to be low rank."""
+        diagonal = self._variables[var_scope]['Diagonal']
+        weight = self._variables[var_scope]['Weight']
+        right_matrix = self._variables[var_scope]['RightMatrix']
+        bias = self._variables[var_scope]['Bias']
+        cur_labels = inputs[:, :self._label_space_size]
+        diag_res = cur_labels * tf.expand_dims(diagonal, 0)
+        lr_res = tf.matmul(cur_labels, weight)
+        res = tf.matmul(inputs[:, self._label_space_size:], right_matrix) + lr_res + diag_res
+        return tf.nn.bias_add(res, bias)
+
+
 class Encoder(object):
     '''Takes word embeddings and encodes them to a representation to read out from.'''
 
@@ -103,6 +123,9 @@ class Encoder(object):
 
 class ReadOut(object):
     '''Take encoder representations and produce classifications.'''
+
+    def __init__(self):
+        self.reg_op = None
 
     def classify(self, inputs, lengths, valid):
         raise NotImplementedError
@@ -155,6 +178,7 @@ class EmbeddingEncoder(Encoder):
 class GroundedReadOut(ReadOut):
 
     def __init__(self, label_space_size):
+        super(GroundedReadOut, self).__init__()
         self.label_space_size = label_space_size
 
     def get_cell(self, inputs):
@@ -234,9 +258,50 @@ class LRGroundedReadOut(GroundedReadOut):
         return LowRankDiagonalCell(self.label_space_size, variables=variables)
 
 
+class RegularizedGroundedReadOut(GroundedReadOut):
+
+    def __init__(self, label_space_size, l1_reg, l2_reg):
+        super(RegularizedGroundedReadOut, self).__init__(label_space_size)
+        self.l1_reg = l1_reg
+        self.l2_reg = l2_reg
+
+    def get_cell(self, inputs):
+        regs = []
+        variables = collections.defaultdict(dict)
+        for sc_name, bias_start in [('r_gate', 1.0), ('u_gate', 1.0), ('candidate', 0.0)]:
+            with tf.variable_scope('rnn/diagonal_gru_cell/' + sc_name):
+                diagonal = tf.get_variable("Diagonal", [self.label_space_size],
+                                           dtype=tf.float32, initializer=tf.zeros_initializer())
+                weight = tf.get_variable("Weight", [self.label_space_size,
+                                                    self.label_space_size], dtype=tf.float32)
+                nondiag_size = inputs.get_shape()[2].value
+                right_matrix = tf.get_variable("RightMatrix", [nondiag_size,
+                                                               self.label_space_size],
+                                               dtype=tf.float32)
+
+                bias_term = tf.get_variable("Bias", [self.label_space_size], dtype=tf.float32,
+                                            initializer=tf.constant_initializer(bias_start))
+
+            variables[sc_name]['Diagonal'] = diagonal
+            variables[sc_name]['Weight'] = weight
+            variables[sc_name]['RightMatrix'] = right_matrix
+            variables[sc_name]['Bias'] = bias_term
+
+            regs.append(weight)
+
+        self.reg_op = tf.zeros([])
+        if self.l1_reg > 1e-6:
+            self.reg_op += self.l1_reg * sum(tf.reduce_sum(tf.abs(w)) for w in regs)
+        if self.l2_reg > 1e-6:
+            self.reg_op += self.l2_reg * sum(tf.nn.l2_loss(w) for w in regs)
+
+        return RegularizedOffDiagonalCell(self.label_space_size, variables=variables)
+
+
 class MaxReadOut(ReadOut):
 
     def __init__(self, label_space_size, layers):
+        super(MaxReadOut, self).__init__()
         self.label_space_size = label_space_size
         self.layers = layers
 
@@ -338,6 +403,8 @@ class EncoderReadOutModel(model.TFModel):
             readout = GroundedReadOut(label_space_size)
         elif config.readout == 'lrgrnn':
             readout = LRGroundedReadOut(label_space_size, config.label_emb_size)
+        elif config.readout == 'reggrnn':
+            readout = RegularizedGroundedReadOut(label_space_size, config.l1_reg, config.l2_reg)
         elif config.readout == 'max':
             readout = MaxReadOut(label_space_size, config.layers)
         elif config.readout == 'mean':
@@ -363,6 +430,9 @@ class EncoderReadOutModel(model.TFModel):
             loss = self.labels * -tf.log(self.probs) + (1. - self.labels) * -tf.log(1. - self.probs)
 
         self.loss = tf.reduce_mean(loss)
+        if readout.reg_op is not None:
+            print('Using readout regularization')
+            self.loss += readout.reg_op
         self.train_op = self.minimize_loss(self.loss)
 
 
